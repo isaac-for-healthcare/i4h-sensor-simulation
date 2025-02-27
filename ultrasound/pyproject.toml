@@ -1,0 +1,27 @@
+[project]
+name = "raysim"
+version = "0.1.0"
+description = "Ray-tracing based ultrasound simulator"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "configparser>=7.1.0",
+    "cupy-cuda12x>=13.3.0",
+    "flash>=1.0.3",
+    "flask-cors>=5.0.0",
+    "flask>=3.1.0",
+    "holoscan==2.8.0",
+    "imageio>=2.36.1",
+    "logger>=1.4",
+    "matplotlib==3.8.4",
+    "numpy==1.26.4",
+    "pillow>=11.0.0",
+    "pyqt5>=5.15.11",
+    "scipy>=1.14.1",
+    "tqdm>=4.67.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pre-commit>=3.5.0",
+]

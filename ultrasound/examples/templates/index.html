@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Probe Simulator</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        .container {
+            display: flex;
+            gap: 20px;
+        }
+        .controls {
+            padding: 20px;
+            background: #f5f5f5;
+            border-radius: 8px;
+            min-width: 200px;
+        }
+        .position {
+            margin-top: 20px;
+        }
+        #simImage {
+            border: 1px solid #ccc;
+            max-width: 500px;
+        }
+        .control-group {
+            margin-bottom: 15px;
+        }
+        #probe3d {
+            width: 300px;
+            height: 300px;
+            border: 1px solid #ccc;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Probe Simulator</h1>
+    <div class="container">
+        <div>
+            <img id="simImage" src="" alt="Simulation output">
+            <div id="probe3d"></div>
+        </div>
+        <div class="controls">
+            <h3>Controls</h3>
+            <div class="control-group">
+                <strong>Translation:</strong><br>
+                Arrow keys: Move X/Y<br>
+                W/S: Move Z
+            </div>
+            <div class="control-group">
+                <strong>Rotation:</strong><br>
+                Q/E: Yaw (Z rotation)<br>
+                R/F: Roll (X rotation)<br>
+                T/G: Pitch (Y rotation)
+            </div>
+
+            <div class="position">
+                <h3>Position</h3>
+                <div id="poseDisplay"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let pose = [0, 0, 0, 0, 0, 0];  // Default pose, will be overridden by server values
+        const stepSize = 0.5;
+        const rotationStep = 0.1;
+        let isUpdating = false;  // Lock for preventing simultaneous requests
+        let initialPoseFetched = false;  // Flag to track if we've successfully fetched the initial pose
+
+        // Three.js setup
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, 300/300, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer();
+        renderer.setSize(300, 300);
+        document.getElementById('probe3d').appendChild(renderer.domElement);
+
+        // Create probe geometry
+        const probeGroup = new THREE.Group();
+
+        // Probe body (cylinder)
+        const bodyGeometry = new THREE.CylinderGeometry(0.2, 0.2, 2, 32);
+        const bodyMaterial = new THREE.MeshPhongMaterial({ color: 0x888888 });
+        const probeBody = new THREE.Mesh(bodyGeometry, bodyMaterial);
+        probeBody.rotation.x = Math.PI / 2;  // Align with Z-axis
+        probeGroup.add(probeBody);
+
+        // Probe tip (cone)
+        const tipGeometry = new THREE.ConeGeometry(0.2, 0.5, 32);
+        const tipMaterial = new THREE.MeshPhongMaterial({ color: 0x444444 });
+        const probeTip = new THREE.Mesh(tipGeometry, tipMaterial);
+        probeTip.position.z = 1.25;
+        probeTip.rotation.x = Math.PI / 2;
+        probeGroup.add(probeTip);
+
+        // Add coordinate axes
+        const axesHelper = new THREE.AxesHelper(2);
+        scene.add(axesHelper);
+
+        // Add lights
+        const ambientLight = new THREE.AmbientLight(0x404040);
+        scene.add(ambientLight);
+        const light = new THREE.DirectionalLight(0xffffff, 1);
+        light.position.set(1, 1, 1);
+        scene.add(light);
+
+        scene.add(probeGroup);
+
+        // Position camera
+        camera.position.set(4, 4, 4);
+        camera.lookAt(0, 0, 0);
+
+        function animate() {
+            requestAnimationFrame(animate);
+            renderer.render(scene, camera);
+        }
+
+        function updateProbePosition() {
+            probeGroup.position.set(pose[0], pose[1], pose[2]);
+            probeGroup.rotation.set(pose[3], pose[4], pose[5]);
+        }
+
+        function updateDisplay() {
+            const poseDisplay = document.getElementById('poseDisplay');
+            poseDisplay.innerHTML = `
+                <strong>Absolute Position:</strong><br>
+                X: ${pose[0].toFixed(2)}<br>
+                Y: ${pose[1].toFixed(2)}<br>
+                Z: ${pose[2].toFixed(2)}<br>
+                Roll: ${(pose[3] * 180 / Math.PI).toFixed(1)}°<br>
+                Pitch: ${(pose[4] * 180 / Math.PI).toFixed(1)}°<br>
+                Yaw: ${(pose[5] * 180 / Math.PI).toFixed(1)}°
+            `;
+            updateProbePosition();
+        }
+
+        async function updateSimulation(newPoseDelta) {
+            if (isUpdating) return false;  // Return false if already updating
+
+            isUpdating = true;
+            try {
+                const response = await fetch('/simulate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ pose_delta: newPoseDelta }),
+                });
+
+                if (!response.ok) throw new Error('Simulation failed');
+
+                const blob = await response.blob();
+                const imgUrl = URL.createObjectURL(blob);
+                document.getElementById('simImage').src = imgUrl;
+
+                // Update local pose by applying the delta
+                for (let i = 0; i < 6; i++) {
+                    pose[i] += newPoseDelta[i];
+                }
+                updateDisplay();
+                return true;  // Return true for successful update
+            } catch (error) {
+                console.error('Error:', error);
+                return false;  // Return false if update failed
+            } finally {
+                isUpdating = false;
+            }
+        }
+
+        // Key state tracking
+        const keyState = {
+            arrowleft: false,
+            arrowright: false,
+            arrowup: false,
+            arrowdown: false,
+            w: false,
+            s: false,
+            q: false,
+            e: false,
+            r: false,
+            f: false,
+            t: false,
+            g: false
+        };
+
+        // Handle key state changes
+        document.addEventListener('keydown', (e) => {
+            const key = e.key.toLowerCase();
+            if (key in keyState) {
+                keyState[key] = true;
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            const key = e.key.toLowerCase();
+            if (key in keyState) {
+                keyState[key] = false;
+            }
+        });
+
+        // Function to calculate pose delta based on current key state
+        function calculatePoseDelta() {
+            const poseDelta = [0, 0, 0, 0, 0, 0];
+
+            // Translation
+            if (keyState.arrowleft) poseDelta[0] -= stepSize;
+            if (keyState.arrowright) poseDelta[0] += stepSize;
+            if (keyState.arrowup) poseDelta[1] -= stepSize;
+            if (keyState.arrowdown) poseDelta[1] += stepSize;
+            if (keyState.w) poseDelta[2] += stepSize;
+            if (keyState.s) poseDelta[2] -= stepSize;
+
+            // Rotation
+            if (keyState.q) poseDelta[5] -= rotationStep;
+            if (keyState.e) poseDelta[5] += rotationStep;
+            if (keyState.r) poseDelta[3] -= rotationStep;
+            if (keyState.f) poseDelta[3] += rotationStep;
+            if (keyState.t) poseDelta[4] -= rotationStep;
+            if (keyState.g) poseDelta[4] += rotationStep;
+
+            return poseDelta;
+        }
+
+        // Update loop
+        const updateInterval = 50;  // 50ms = 20 updates per second
+        let updateLoop = null;
+
+        function startUpdateLoop() {
+            if (updateLoop === null) {
+                updateLoop = setInterval(async () => {
+                    if (Object.values(keyState).some(state => state)) {  // If any key is pressed
+                        const poseDelta = calculatePoseDelta();
+                        // Only update if there's an actual change
+                        if (poseDelta.some(val => val !== 0)) {
+                            await updateSimulation(poseDelta);
+                        }
+                    }
+                }, updateInterval);
+            }
+        }
+
+        function stopUpdateLoop() {
+            if (updateLoop !== null) {
+                clearInterval(updateLoop);
+                updateLoop = null;
+            }
+        }
+
+        // Start update loop when window gains focus
+        window.addEventListener('focus', startUpdateLoop);
+
+        // Stop update loop when window loses focus
+        window.addEventListener('blur', stopUpdateLoop);
+
+        // Function to synchronize with server's pose
+        async function synchronizeWithServer() {
+            try {
+                const response = await fetch('/get_initial_pose');
+                if (response.ok) {
+                    const data = await response.json();
+                    pose = data.pose;
+                    initialPoseFetched = true;
+                    console.log("Synchronized pose with server:", pose);
+                    updateDisplay();
+                    return true;
+                } else {
+                    console.error("Failed to synchronize pose: Server returned", response.status);
+                    return false;
+                }
+            } catch (error) {
+                console.error("Failed to synchronize pose:", error);
+                return false;
+            }
+        }
+
+        // Initialize the simulation when the page loads
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Fetch initial pose from server
+            try {
+                const response = await fetch('/get_initial_pose');
+                if (response.ok) {
+                    const data = await response.json();
+                    pose = data.pose;
+                    initialPoseFetched = true;
+                    console.log("Received initial pose:", pose);
+
+                    // Update display with initial position
+                    updateDisplay();
+
+                    // Trigger initial simulation with zero delta (just to get the image)
+                    await updateSimulation([0, 0, 0, 0, 0, 0]);
+                } else {
+                    console.error("Failed to get initial pose: Server returned", response.status);
+                }
+            } catch (error) {
+                console.error("Failed to get initial pose:", error);
+                // Fall back to default pose and update display
+                updateDisplay();
+                await updateSimulation([0, 0, 0, 0, 0, 0]);
+            }
+
+            // Start the update loop
+            startUpdateLoop();
+        });
+
+        // Start animation loop for Three.js
+        animate();
+    </script>
+</body>
+</html>
