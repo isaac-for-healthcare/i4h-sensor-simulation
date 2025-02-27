@@ -5,13 +5,15 @@ A GPU-accelerated ultrasound simulation package that uses ray-tracing for realis
 """
 
 # Import directly from the root module
-from .ray_sim_python import (
-    World,
-    Materials,
-    UltrasoundProbe as Probe,
-    RaytracingUltrasoundSimulator as Simulation,
-    SimParams as SimulationConfig,
-    Pose
-)
+from .ray_sim_python import Materials, Pose, RaytracingUltrasoundSimulator, SimParams, UltrasoundProbe, World
 
 __version__ = "0.1.0"
+
+__all__ = [
+    "Materials",
+    "Pose",
+    "RaytracingUltrasoundSimulator",
+    "SimParams",
+    "UltrasoundProbe",
+    "World"
+]

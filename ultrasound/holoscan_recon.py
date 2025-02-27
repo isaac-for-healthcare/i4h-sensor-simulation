@@ -1,19 +1,11 @@
 import os
-import numpy as np
-import scipy
 from typing import Tuple
 
-from holoscan.core import (
-    Application,
-    Operator,
-    OperatorSpec,
-    MetadataPolicy,
-    Tracker
-)
-
-from scipy.interpolate import griddata
-
+import numpy as np
+import scipy
+from holoscan.core import Application, MetadataPolicy, Operator, OperatorSpec, Tracker
 from holoscan.operators import HolovizOp
+from scipy.interpolate import griddata
 
 
 def scan_convert_curvilinear(scan_lines, angles, depths, radius=5, x_size=500, z_size=500):
@@ -360,7 +352,7 @@ class SimulationPostProcessing(Application):
 
 def main(config_file=None):
     app = SimulationPostProcessing()
-    with Tracker(app, filename="tracker_logger.log", num_start_messages_to_skip=2, num_last_messages_to_discard=3) as tracker:
+    with Tracker(app, filename="tracker_logger.log", num_start_messages_to_skip=2, num_last_messages_to_discard=3) as _tracker:
         # Enable metadata before running
         app.is_metadata_enabled = True
         app.run()

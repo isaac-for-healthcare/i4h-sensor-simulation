@@ -1,6 +1,5 @@
-import numpy as np
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
+import numpy as np
 
 
 def visualize_ray_paths(all_path_segments, all_hits, xlim=(-30,30), ylim=(-40,5), zlim=(-30,30)):
@@ -60,8 +59,8 @@ def visualize_ray_paths(all_path_segments, all_hits, xlim=(-30,30), ylim=(-40,5)
                      linewidth=1.5 * (1 - depth_color + 0.5))
 
     # Plot intersection points with depth-based size
-    max_size = 100
-    min_size = 20
+    _max_size = 100
+    _min_size = 20
 
     hit_points = np.array([hit[1] for hit in all_hits if hit is not None])
 

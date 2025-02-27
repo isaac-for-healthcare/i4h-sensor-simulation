@@ -1,8 +1,9 @@
-import numpy as np
 import os
+import re
 import sys
 import time
-import re
+
+import numpy as np
 from tqdm import tqdm
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -118,7 +119,7 @@ def main():
         if previous_fps > 0:
             print(f"Results not saved. Previous best ({previous_fps:.2f} FPS) outperforms current result ({avg_fps:.2f} FPS)")
         else:
-            print(f"No previous results found. Creating new benchmark file.")
+            print("No previous results found. Creating new benchmark file.")
             with open(results_file, "w") as f:
                 f.write(results_report)
             print(f"Results saved to {results_file}")

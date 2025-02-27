@@ -1,14 +1,16 @@
-from flask import Flask, request, send_file, jsonify
+import io
 import os
 import sys
-import signal
+
+import numpy as np
+from flask import Flask, request, send_file
+from flask_cors import CORS
+from PIL import Image
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import raysim.cuda as rs
-import numpy as np
-from flask_cors import CORS
-from PIL import Image
-import io
+
 app = Flask(__name__)
 CORS(app)
 

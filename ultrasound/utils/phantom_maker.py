@@ -1,7 +1,7 @@
 import argparse
 import math
-import numpy as np
 import os
+
 
 def generate_checker_mesh(
     output_dir="mesh",
