@@ -98,7 +98,7 @@ class float33 {
       float xx, yx, zx;
       float xy, yy, zy;
       float xz, yz, zz;
-    };                   // component access
+    };  // component access
     float data_[3 * 3];  // array access
   };
 };

@@ -113,7 +113,7 @@ class RaytracingUltrasoundSimulator {
   std::shared_ptr<OptixDeviceContext_t> context_;
   std::shared_ptr<OptixPipeline_t> pipeline_;               ///< OptiX pipeline
   std::shared_ptr<OptixProgramGroup_t> raygen_prog_group_;  ///< OptiX ray gen program group
-  std::shared_ptr<OptixProgramGroup_t> miss_prog_group_;    ///< OptiX miss prgram group
+  std::shared_ptr<OptixProgramGroup_t> miss_prog_group_;    ///< OptiX miss program group
   std::shared_ptr<OptixProgramGroup_t>
       hitgroup_prog_group_sphere_;  ///< OptiX hit group program group for spheres
   std::shared_ptr<OptixProgramGroup_t>

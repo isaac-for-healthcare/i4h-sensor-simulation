@@ -106,12 +106,12 @@ class SimulationWrapper {
   }
 
   std::vector<uint8_t> run(std::vector<float>& pose) {
-    // print recieved pose
+    // print received pose
     auto aabb_min = world.get_aabb_min();
     auto aabb_max = world.get_aabb_max();
     float3 home_pos = make_float3(0.f, 120.f, 0.5);
     float3 home_rot = make_float3(0.f, 0.f, M_PI_2);
-    // copying the recieved pose into the probe
+    // copying the received pose into the probe
     float3 pos = make_float3(pose[0], pose[1], pose[2]);  // the real position of the probe
     float3 rot = make_float3(pose[3], pose[4], pose[5]);  // the values of three rotation beams
 

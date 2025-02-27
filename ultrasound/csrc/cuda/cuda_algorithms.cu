@@ -151,7 +151,7 @@ static __global__ void mul_rows_kernel(float* __restrict__ buffer, uint2 size,
   buffer[index.y * size.x + index.x] *= multiplicator[index.x];
 }
 
-// cuFFTDx needs to know the SM architecture, this is only known when compling device code. Use the
+// cuFFTDx needs to know the SM architecture, this is only known when compiling device code. Use the
 // lowest supported arch for host code.
 #ifdef __CUDA_ARCH__
 #define CUFFTDX_ARCH __CUDA_ARCH__
@@ -448,7 +448,7 @@ std::unique_ptr<CudaMemory> CUDAAlgorithms::scan_convert_curvilinear(
   // Upload scan lines
   scan_convert_curvilinear_array_->upload(scan_lines, stream);
 
-  // Crate the output memory
+  // Create the output memory
   auto grid_z = std::make_unique<CudaMemory>(output_size.x * output_size.y * sizeof(float), stream);
 
   // Calculate the image bounds

@@ -38,7 +38,7 @@ struct HitGroupData;
 class Hitable {
  public:
   explicit Hitable(uint32_t material_id);
-  virtual ~Hitable(){};
+  virtual ~Hitable() {};
 
   virtual void build(OptixBuildInput* optix_build_input, HitGroupData* hit_group_data,
                      cudaStream_t stream) = 0;

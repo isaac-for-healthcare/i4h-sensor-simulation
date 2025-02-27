@@ -394,7 +394,7 @@ RaytracingUltrasoundSimulator::SimResult RaytracingUltrasoundSimulator::simulate
                                                         sim_params.stream);
   }
 
-  // extraxt min and max x and z values from Probe dimensions and imaging depth
+  // extract min and max x and z values from Probe dimensions and imaging depth
   // the Image origin is the center of the face of the probe
   // The probe origin is the center of the circle of the probe curvature
   // min_x is the bottom left corner of the image (x is the width)

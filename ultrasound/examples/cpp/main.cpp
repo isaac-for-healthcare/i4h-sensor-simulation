@@ -104,7 +104,7 @@ int main(int argc, char* argv[]) {
       rot.y += (end_rot.y - start_rot.y) / N_frames * frame;
       rot.z += (end_rot.z - start_rot.z) / N_frames * frame;
       probe.set_pose(raysim::Pose(pos, rot));
-      spdlog::info("Curent position: ({}, {}, {})", pos.x, pos.y, pos.z);
+      spdlog::info("Current position: ({}, {}, {})", pos.x, pos.y, pos.z);
 
       // Generate frame
       raysim::RaytracingUltrasoundSimulator::SimParams sim_params;
