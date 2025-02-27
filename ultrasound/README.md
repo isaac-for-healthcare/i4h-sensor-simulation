@@ -24,7 +24,7 @@ A high-performance GPU-accelerated ultrasound simulator using NVIDIA OptiX raytr
    ```
 
 2. Download and set up OptiX SDK 8.1:
-   - Download OptiX SDK 8.1 from the [NVIDIA Developer website](https://developer.nvidia.com/optix/downloads)
+   - Download OptiX SDK 8.1 from the [NVIDIA Developer website](https://developer.nvidia.com/designworks/optix/downloads/legacy)
    - Extract the downloaded OptiX SDK archive
    - Place the extracted directory inside the `ultrasound/third_party/optix` directory, maintaining the following structure:
      ```
