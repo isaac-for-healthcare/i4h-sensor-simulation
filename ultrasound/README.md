@@ -13,7 +13,6 @@ A high-performance GPU-accelerated ultrasound simulator using NVIDIA OptiX raytr
 - CUDA 12.6+
 - NVIDIA Driver 555+
 - CMake 3.22.1+
-- [git-lfs](https://git-lfs.com/) (for mesh storage)
 
 ## Quick Start
 
@@ -22,7 +21,7 @@ A high-performance GPU-accelerated ultrasound simulator using NVIDIA OptiX raytr
 1. Clone this repository:
    ```bash
    git clone <repository-url>
-   git lfs pull  # Download mesh data
+   <step to download mesh data> # Download mesh data
    ```
 
 2. Build the project:
