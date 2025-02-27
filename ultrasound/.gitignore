@@ -1,30 +1,10 @@
-# Python-generated files
-__pycache__/
-*.py[oc]
-build/
-dist/
-wheels/
-*.egg-info
-
-# Virtual environments
-.venv
-
 # CPP artifacts
 build-*/
-# *.so - replacing this generic rule with more specific ones below
-csrc/**/*.so
-raysim/ray_sim_python*.so
-
-# Runtime caches (OptiX/CUDA)
-.cache/
 
 # Artifacts
-ultrasound_sweep/*
 *.gif
 *.png
-data/*
 *.obj
-vol_result_13.npy
 *.npy
 *.npz
 *.prof
