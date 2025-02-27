@@ -13,41 +13,60 @@ A high-performance GPU-accelerated ultrasound simulator using NVIDIA OptiX raytr
 - CUDA 12.6+
 - NVIDIA Driver 555+
 - CMake 3.22.1+
+- NVIDIA OptiX SDK 8.1
 
-## Quick Start
-
-### Setup
+## Installation
 
 1. Clone this repository:
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/isaac-for-healthcare/i4h-sensor-simulation.git
+   cd i4h-sensor-simulation/ultrasound
+   ```
+
+2. Download and set up OptiX SDK 8.1:
+   - Download OptiX SDK 8.1 from the [NVIDIA Developer website](https://developer.nvidia.com/optix/downloads)
+   - Extract the downloaded OptiX SDK archive
+   - Place the extracted directory inside the `ultrasound/third_party/optix` directory, maintaining the following structure:
+     ```
+     ultrasound/third_party/
+     └── optix
+         └── NVIDIA-OptiX-SDK-8.1.0-<platform>  # Name may vary based on the platform
+             ├── include
+             │   └── internal
+             └── SDK
+                 ├── cuda
+                 └── sutil
+     ```
+
+3. Download mesh data (if required):
+   ```bash
    <step to download mesh data> # Download mesh data
    ```
 
-2. Build the project:
+4. Build the project:
    ```bash
    cmake -B build
    cmake --build build -j
    ```
 
-3. Install Python dependencies:
+5. Install Python dependencies:
    ```bash
    uv sync
    ```
 
-### Running Examples
+## Running Examples
 
-#### C++ Example
+### C++ Example
 ```bash
 ./build/example/cpp/ray_sim_example
 ```
 
-#### Python Example
+### Python Example
 ```bash
 uv run examples/sphere_sweep.py
 ```
 
-#### Web Interface
+### Web Interface
 ```bash
 uv run examples/server.py
 # Open http://localhost:8000 in your browser
@@ -96,5 +115,3 @@ pre-commit install
 # Manually run hooks
 pre-commit run --all-files
 ```
-
-For detailed documentation, see the docs directory.
