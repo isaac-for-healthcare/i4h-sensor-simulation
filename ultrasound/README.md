@@ -43,15 +43,16 @@ A high-performance GPU-accelerated ultrasound simulator using NVIDIA OptiX raytr
    <step to download mesh data> # Download mesh data
    ```
 
-4. Build the project:
-   ```bash
-   cmake -B build
-   cmake --build build -j
-   ```
-
-5. Install Python dependencies:
+4. Install Python dependencies and create virtual environment:
    ```bash
    uv sync
+   ```
+
+5. Build the project:
+   ```bash
+   cmake -DPYTHON_EXECUTABLE=$(python3 -c "import sys; print(sys.executable)") -DCMAKE_EXPORT_COMPILE_COMMANDS:BOOL=TRUE --no-warn-unused-cli -S$(pwd)
+
+   cmake -DCMAKE_BUILD_TYPE:STRING=Release -B build-release && cmake --build build-release --config Release --target all -j 66
    ```
 
 ## Running Examples

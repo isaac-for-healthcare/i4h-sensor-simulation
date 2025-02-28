@@ -14,13 +14,6 @@ import raysim.cuda as rs
 app = Flask(__name__)
 CORS(app)
 
-# def signal_handler(sig, frame):
-#     print(f"Received signal {sig}")
-#     sys.exit(1)
-
-# # Register signal handlers
-# signal.signal(signal.SIGABRT, signal_handler)
-# signal.signal(signal.SIGSEGV, signal_handler)
 
 # Create materials and world
 materials = rs.Materials()

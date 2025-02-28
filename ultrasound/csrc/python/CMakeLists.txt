@@ -18,6 +18,7 @@
 #######################
 
 if(BUILD_PYTHON_BINDINGS)
+
     pybind11_add_module(ray_sim_python
         raysim_bindings.cpp
         )
