@@ -10,10 +10,10 @@ A high-performance GPU-accelerated ultrasound simulator using NVIDIA OptiX raytr
 
 ## Requirements
 
-- CUDA 12.6+
-- NVIDIA Driver 555+
-- CMake 3.22.1+
-- NVIDIA OptiX SDK 8.1
+- [CUDA 12.6+](https://docs.nvidia.com/cuda/cuda-quick-start-guide/index.html#)
+- [NVIDIA Driver 555+](https://www.nvidia.com/en-us/drivers/)
+- [CMake 3.24+](https://cmake.org/)
+- [NVIDIA OptiX SDK 8.1](https://developer.nvidia.com/designworks/optix/downloads/legacy)
 
 ## Installation
 
@@ -60,6 +60,7 @@ A high-performance GPU-accelerated ultrasound simulator using NVIDIA OptiX raytr
 ```bash
 ./build/example/cpp/ray_sim_example
 ```
+You can find the output frames are saved under ultrasound_sweep folder.
 
 ### Python Example
 ```bash
