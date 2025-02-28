@@ -19,7 +19,7 @@ find_package(CUDAToolkit REQUIRED)
 include(FetchContent)
 
 ###############################
-# Setup thirdparty dependencies
+# Setup third party dependencies
 ###############################
 
 # spdlog

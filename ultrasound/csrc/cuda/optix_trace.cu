@@ -168,7 +168,7 @@ static __device__ bool calc_refracted_dir(float3 incident_dir, float3 normal, fl
 
   float cos_i = -dot(normal, incident_dir);  // Incidence
   float sin_i = sqrtf(1.f - cos_i * cos_i);  // Incidence
-  float sin_t = (v1 / v2) * sin_i;           // Transmisson
+  float sin_t = (v1 / v2) * sin_i;           // Transmission
 
   // Check for total internal reflection
   if (sin_t >= 1) { return true; }
