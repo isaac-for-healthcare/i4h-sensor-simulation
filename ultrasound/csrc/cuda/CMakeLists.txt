@@ -76,6 +76,9 @@ target_compile_options(ray_sim_cuda
         $<$<COMPILE_LANGUAGE:CUDA>:${RAY_SIM_CUDA_FLAGS}>
     )
 
+# Add explicit dependency on ray_sim_optix
+add_dependencies(ray_sim_cuda ray_sim_optix)
+
 #
 set(ADD_STRING_LITERAL_SCRIPT ${CMAKE_SOURCE_DIR}/cmake/add_string_literal.sh)
 
