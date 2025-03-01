@@ -131,4 +131,4 @@ def simulate():
     return send_file(img_io, mimetype='image/png')
 
 if __name__ == '__main__':
-    app.run(port=8600, debug=True)
+    app.run(port=8000, debug=True)
