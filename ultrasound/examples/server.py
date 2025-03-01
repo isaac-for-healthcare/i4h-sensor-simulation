@@ -21,13 +21,48 @@ world = rs.World("water")
 
 # Add liver mesh to world
 material_idx = materials.get_index("liver")
-mesh = rs.Mesh("mesh/Liver.obj", material_idx)
-world.add(mesh)
+liver_mesh = rs.Mesh("mesh/Liver.obj", material_idx)
+world.add(liver_mesh)
+material_idx = materials.get_index("fat")
+skin_mesh = rs.Mesh("mesh/Skin.obj", material_idx)
+world.add(skin_mesh)
+material_idx = materials.get_index("bone")
+bone_mesh = rs.Mesh("mesh/Bone.obj", material_idx)
+world.add(bone_mesh)
+material_idx = materials.get_index("water")
+vessels_mesh = rs.Mesh("mesh/Vessels.obj", material_idx)
+world.add(vessels_mesh)
+material_idx = materials.get_index("water")
+galbladder_mesh = rs.Mesh("mesh/Gallbladder.obj", material_idx)
+world.add(galbladder_mesh)
+material_idx = materials.get_index("liver")
+spleen_mesh = rs.Mesh("mesh/Spleen.obj", material_idx)
+world.add(spleen_mesh)
+# material_idx = materials.get_index("liver")
+# heart_mesh = rs.Mesh("mesh/Heart.obj", material_idx)
+# world.add(heart_mesh)
+material_idx = materials.get_index("water")
+stomach_mesh = rs.Mesh("mesh/Stomach.obj", material_idx)
+world.add(stomach_mesh)
+material_idx = materials.get_index("liver")
+pancreas_mesh = rs.Mesh("mesh/Pancreas.obj", material_idx)
+world.add(pancreas_mesh)
+# material_idx = materials.get_index("liver")
+# spleen_mesh = rs.Mesh("mesh/Spleen.obj", material_idx)
+# world.add(spleen_mesh)
+# material_idx = materials.get_index("water")
+# small_intestine_mesh = rs.Mesh("mesh/Small_bowel.obj", material_idx)
+# world.add(small_intestine_mesh)
+# material_idx = materials.get_index("water")
+# large_intestine_mesh = rs.Mesh("mesh/Colon.obj", material_idx)
+# world.add(large_intestine_mesh)
+
+
 
 # Create probe with initial pose matching C++ implementation
 initial_pose = rs.Pose(
-    np.array([-310.0, -420.0, 200.0], dtype=np.float32),  # position (x, y, z)
-    np.array([np.pi, np.pi, np.pi/2], dtype=np.float32)   # rotation (y, ?, x) z-up by default
+    np.array([10, -145, -361.0], dtype=np.float32),  # position (x, y, z)
+    np.array([0, 0, -np.pi/2], dtype=np.float32)   # rotation (y, ?, x) z-up by default
 )
 probe = rs.UltrasoundProbe(initial_pose)
 # Create simulator
