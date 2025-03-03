@@ -59,7 +59,7 @@ A high-performance GPU-accelerated ultrasound simulator using NVIDIA OptiX raytr
 
 ### C++ Example
 ```bash
-./build/example/cpp/ray_sim_example
+./build-release/examples/cpp/ray_sim_example
 ```
 You can find the output frames are saved under ultrasound_sweep folder.
 
