@@ -45,7 +45,7 @@ A high-performance GPU-accelerated ultrasound simulator using NVIDIA OptiX raytr
 
 4. Install Python dependencies and create virtual environment:
    ```bash
-   uv sync
+   uv sync && source .venv/bin/activate
    ```
 
 5. Build the project:
