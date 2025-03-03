@@ -50,7 +50,7 @@ A high-performance GPU-accelerated ultrasound simulator using NVIDIA OptiX raytr
 
 5. Build the project:
    ```bash
-   cmake -DPYTHON_EXECUTABLE=$(python3 -c "import sys; print(sys.executable)") -DCMAKE_EXPORT_COMPILE_COMMANDS:BOOL=TRUE --no-warn-unused-cli -S$(pwd) -B$(pwd)/build-release
+   cmake -DPYTHON_EXECUTABLE=$(python3 -c "import sys; print(sys.executable)") -D CMAKE_EXPORT_COMPILE_COMMANDS:BOOL=TRUE --no-warn-unused-cli -S $(pwd) -B $(pwd)/build-release
 
    cmake -DCMAKE_BUILD_TYPE:STRING=Release -B build-release && cmake --build build-release --config Release --target all -j 66
    ```
