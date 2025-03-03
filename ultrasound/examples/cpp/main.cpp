@@ -33,7 +33,7 @@ int main(int argc, char* argv[]) {
   try {
     // Create example scene
     raysim::Materials materials;
-    raysim::World world;
+    raysim::World world = raysim::World("water");
 
     bool use_body = true;
     bool use_calibration = false;
@@ -63,14 +63,21 @@ int main(int argc, char* argv[]) {
     auto aabb_max = world.get_aabb_max();
 
     raysim::RaytracingUltrasoundSimulator simulator(&world, &materials);
+
     raysim::UltrasoundProbe probe(
-        raysim::Pose(make_float3(0.f, 0.f, 0.f), make_float3(0.f, 0.f, 0.f)));
+        raysim::Pose(make_float3(0.f, 0.f, 0.f), make_float3(0.f, 0.f, 0.f)),
+        4096,  // default num_elements
+        73.f,  // default opening_angle
+        45.f,  // default radius
+        2.5f,  // default frequency
+        7.f,   // default elevational_height
+        10     // custom num_el_samples (10 instead of default 1)
+    );
 
     // Place probe above the center of the scene pointing down
     if (use_body) {
-      probe.set_pose(
-          raysim::Pose(make_float3(-310.f, -420.f, 200.f),             // (x, y, z)
-                       make_float3(2 * M_PI_2, 2 * M_PI_2, M_PI_2)));  // (y, ?, x) z-up by default
+      probe.set_pose(raysim::Pose(make_float3(10.f, -145.f, -361.f),  // (x, y, z)
+                                  make_float3(0., 0., -M_PI_2)));     // (y, ?, x) z-up by default
     } else if (use_calibration) {
       probe.set_pose(
           raysim::Pose(make_float3(10.f, 10.f, 162.f),
@@ -82,15 +89,15 @@ int main(int argc, char* argv[]) {
     std::filesystem::create_directory(output_dir);
 
     // Sweep from left to right
-    uint32_t N_frames = 10;
+    uint32_t N_frames = 100;
     float3 start_rot = probe.get_pose().rotation_;
     float3 end_rot = start_rot;
     // start_rot.z -= 10.f / 360.f * 2 * M_PI;
     // end_rot.z += 10.f / 360.f * 2 * M_PI;
     float3 start_pos = probe.get_pose().position_;
     float3 end_pos = start_pos;
-    start_pos.x -= (aabb_max.x - aabb_min.x) / 4.f;
-    end_pos.x += (aabb_max.x - aabb_min.x) / 4.f;
+    start_pos.z -= (aabb_max.x - aabb_min.x) / 4.f;
+    end_pos.z += (aabb_max.x - aabb_min.x) / 4.f;
     auto start = std::chrono::steady_clock::now();
 
     for (uint32_t frame = 0; frame < N_frames; ++frame) {

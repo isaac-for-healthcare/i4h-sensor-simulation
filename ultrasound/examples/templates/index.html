@@ -66,8 +66,8 @@
 
     <script>
         let pose = [0, 0, 0, 0, 0, 0];  // Default pose, will be overridden by server values
-        const stepSize = 0.5;
-        const rotationStep = 0.1;
+        const stepSize = 0.2;  // Reduced from 0.5 to 0.2 for finer movement control
+        const rotationStep = 0.05;  // Reduced from 0.1 to 0.05 for finer rotation control
         let isUpdating = false;  // Lock for preventing simultaneous requests
         let initialPoseFetched = false;  // Flag to track if we've successfully fetched the initial pose
 
@@ -225,7 +225,7 @@
         }
 
         // Update loop
-        const updateInterval = 50;  // 50ms = 20 updates per second
+        const updateInterval = 30;  // Reduced from 50ms to 30ms for faster refresh rate (approx 33 updates per second)
         let updateLoop = null;
 
         function startUpdateLoop() {

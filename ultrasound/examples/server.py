@@ -68,7 +68,16 @@ initial_pose = rs.Pose(
     np.array([10, -145, -361.0], dtype=np.float32),  # position (x, y, z)
     np.array([0, 0, -np.pi/2], dtype=np.float32)   # rotation (y, ?, x) z-up by default
 )
-probe = rs.UltrasoundProbe(initial_pose)
+# Create ultrasound probe with elevational extent parameters
+probe = rs.UltrasoundProbe(
+    initial_pose,
+    num_elements=4096,           # Number rays which represent elements
+    opening_angle=73.0,          # default value in degrees
+    radius=45.0,                 # probe radius  in mm
+    frequency=2.5,               # probe frequency in MHz
+    elevational_height=7.0,      # probe elevational aperture height in mm
+    num_el_samples=10            # number of samples in elevational direction (default is 1)
+)
 # Create simulator
 simulator = rs.RaytracingUltrasoundSimulator(world, materials)
 
