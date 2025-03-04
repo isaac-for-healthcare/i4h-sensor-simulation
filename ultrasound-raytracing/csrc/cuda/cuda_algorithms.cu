@@ -21,6 +21,25 @@
 #include <cub/cub.cuh>
 #include <cufftdx/cufftdx.hpp>
 
+#include "raysim/core/write_image.hpp"
+
+#include <example/cufftdx/common.hpp>
+#include <example/cufftdx/conv_3d/io_strided_conv_smem.hpp>
+
+// we use the code form the cufftdx example directory which unfortunatly is not part of the cufftdx
+// namespace, so we need to define the namespace manually here
+namespace cufftdx {
+namespace example = ::example;
+}
+
+// cuFFTDx needs to know the SM architecture, this is only known when compiling device code. Use the
+// lowest supported arch for host code.
+// #ifdef __CUDA_ARCH__
+// #define CUFFTDX_ARCH __CUDA_ARCH__
+// #else
+#define CUFFTDX_ARCH 700
+// #endif
+
 namespace raysim {
 
 static __global__ void normalize_kernel(float* __restrict__ buffer, uint2 size,
@@ -35,6 +54,85 @@ static __global__ void normalize_kernel(float* __restrict__ buffer, uint2 size,
   *buffer = (*buffer - min_max[0]) / (min_max[1] - min_max[0]);
 }
 
+#ifdef FFT_CONF
+template <class FFT>
+__launch_bounds__(FFT::max_threads_per_block) __global__
+    void fft_kernel(typename FFT::input_type* source, typename FFT::output_type* dst) {
+  // Local array for thread
+  typename FFT::value_type thread_data[FFT::storage_size];
+
+  // Load data from global memory to registers
+  cufftdx::example::io<FFT>::load(source, thread_data, threadIdx.y);
+
+  // Execute FFT
+  extern __shared__ typename FFT::value_type shared_mem[];
+  FFT().execute(thread_data, shared_mem);
+
+  // Copy to dst
+  cufftdx::example::io<FFT>::store(thread_data, dst, threadIdx.y);
+}
+
+template <class FFT, class IO>
+__launch_bounds__(FFT::max_threads_per_block) __global__
+    void fft_kernel(int subbatches, typename FFT::input_type* source, typename FFT::output_type* dst) {
+  if (threadIdx.y + blockIdx.x * FFT::ffts_per_block >= subbatches) { return; }
+
+  // Local array for thread
+  typename FFT::value_type thread_data[FFT::storage_size];
+  extern __shared__ __align__(16) typename FFT::value_type shared_mem[];
+
+  // Load data from global memory to registers
+  IO io;
+  io.load_gmem_to_rmem(source, shared_mem, thread_data);
+
+  __syncthreads();
+
+  // Execute FFT
+  FFT().execute(thread_data, shared_mem);
+
+  __syncthreads();
+
+  // Copy to dst
+  io.store_rmem_to_gmem(thread_data, shared_mem, dst);
+}
+
+static __global__ void convolve_2d_kernel(cufftdx::complex<float>* __restrict__ buffer, uint2 size,
+                                          const cufftdx::complex<float>* __restrict__ x_kernel,
+                                          const cufftdx::complex<float>* __restrict__ y_kernel) {
+  const uint2 index =
+      make_uint2(blockIdx.x * blockDim.x + threadIdx.x, blockIdx.y * blockDim.y + threadIdx.y);
+
+  if ((index.x >= size.x) || (index.y >= size.y)) { return; }
+
+  buffer[index.y * size.x + index.x] *= x_kernel[index.x] * y_kernel[index.y];
+}
+
+static __global__ void convolve_3d_kernel(float2* __restrict__ buffer, uint3 size,
+                                          const float2* __restrict__ x_kernel,
+                                          const float2* __restrict__ y_kernel,
+                                          const float2* __restrict__ z_kernel) {
+  const uint3 index = make_uint3(blockIdx.x * blockDim.x + threadIdx.x,
+                                 blockIdx.y * blockDim.y + threadIdx.y,
+                                 blockIdx.z * blockDim.z + threadIdx.z);
+
+  if ((index.x >= size.x) || (index.y >= size.y) || (index.z >= size.z)) { return; }
+
+  buffer[((index.z * size.y) + index.y) * size.x + index.x] *=
+      x_kernel[index.x] * y_kernel[index.y] * z_kernel[index.z];
+}
+
+static __global__ void imag_to_real_kernel(const cufftdx::complex<float>* __restrict__ source,
+                                           uint2 size, float* __restrict__ dst) {
+  const uint2 index =
+      make_uint2(blockIdx.x * blockDim.x + threadIdx.x, blockIdx.y * blockDim.y + threadIdx.y);
+
+  if ((index.x >= size.x) || (index.y >= size.y)) { return; }
+
+  cufftdx::complex<float> value = source[index.y * size.x + index.x];
+  dst[index.y * size.x + index.x] = sqrtf(value.x * value.x + value.y * value.y);
+}
+
+#else
 /// @todo the convolution kernels are using a naiive implementation, improve see
 /// https://github.com/zchee/cuda-sample/tree/master/3_Imaging/convolutionSeparable
 
@@ -106,6 +204,7 @@ static __global__ void convolve_planes_kernel(const float* __restrict__ source, 
 
   dst[offset] = sum;
 }
+#endif
 
 static __global__ void mean_planes_kernel(const float* __restrict__ source, uint3 size,
                                           float* __restrict__ dst) {
@@ -151,14 +250,6 @@ static __global__ void mul_rows_kernel(float* __restrict__ buffer, uint2 size,
   buffer[index.y * size.x + index.x] *= multiplicator[index.x];
 }
 
-// cuFFTDx needs to know the SM architecture, this is only known when compiling device code. Use the
-// lowest supported arch for host code.
-#ifdef __CUDA_ARCH__
-#define CUFFTDX_ARCH __CUDA_ARCH__
-#else
-#define CUFFTDX_ARCH 700
-#endif
-
 // The FFT size needs to be known at compile time
 static constexpr uint32_t HILBERT_FFT_SIZE = 4096;
 
@@ -183,7 +274,7 @@ static_assert(HilbertForwardFFT::shared_memory_size == HilbertInverseFFT::shared
 
 static __launch_bounds__(HilbertForwardFFT::max_threads_per_block) __global__
     void hilbert_kernel(float* __restrict__ buffer) {
-  const uint row = blockIdx.y * blockDim.y + threadIdx.y;
+  const unsigned int row = blockIdx.y * blockDim.y + threadIdx.y;
 
   if (row >= gridDim.y) { return; }
 
@@ -199,6 +290,7 @@ static __launch_bounds__(HilbertForwardFFT::max_threads_per_block) __global__
 
   // Load data from global memory to registers
   unsigned int index = threadIdx.x;
+#pragma unroll
   for (unsigned int i = 0; i < HilbertForwardFFT::elements_per_thread; ++i) {
     if (!has_partial_load || (index < HilbertForwardFFT::input_length)) {
       reinterpret_cast<float*>(thread_data)[i] = buffer[index];
@@ -210,10 +302,10 @@ static __launch_bounds__(HilbertForwardFFT::max_threads_per_block) __global__
   extern __shared__ HilbertForwardFFT::value_type shared_mem[];
   HilbertForwardFFT().execute(thread_data, shared_mem);
 
-  // Zero out negative frequencies and double positive frequencies (keep zero frequency) and copy
-  // to output
+  // Zero out negative frequencies and double positive frequencies (keep zero frequency)
   constexpr unsigned int half_size = HilbertForwardFFT::input_length >> 1;
   index = threadIdx.x;
+#pragma unroll
   for (unsigned int i = 0; i < HilbertForwardFFT::elements_per_thread; ++i) {
     if (!has_partial_load || (index < HilbertForwardFFT::input_length)) {
       thread_data[i] *= (index < half_size) ? 2.0f : (index > half_size) ? 0.f : 1.f;
@@ -226,6 +318,7 @@ static __launch_bounds__(HilbertForwardFFT::max_threads_per_block) __global__
 
   // Convert to real, scale and copy to buffer
   index = threadIdx.x;
+#pragma unroll
   for (unsigned int i = 0; i < HilbertInverseFFT::elements_per_thread; ++i) {
     if (!has_partial_load || (index < HilbertInverseFFT::input_length)) {
       const auto value = thread_data[i];
@@ -274,9 +367,15 @@ static __global__ void scan_convert_curvilinear_kernel(cudaTextureObject_t input
 
 CUDAAlgorithms::CUDAAlgorithms()
     : normalize_launcher_((void*)&normalize_kernel),
+#ifdef FFT_CONF
+      convolve_2d_launcher_((void*)&convolve_2d_kernel),
+      convolve_3d_launcher_((void*)&convolve_3d_kernel),
+      imag_to_real_launcher_((void*)&imag_to_real_kernel),
+#else
       convolve_rows_launcher_((void*)&convolve_rows_kernel),
       convolve_columns_launcher_((void*)&convolve_columns_kernel),
       convolve_planes_launcher_((void*)&convolve_planes_kernel),
+#endif
       mean_planes_launcher_((void*)&mean_planes_kernel),
       log_compression_launcher_((void*)&log_compression_kernel),
       mul_rows_launcher_((void*)&mul_rows_kernel),
@@ -307,6 +406,378 @@ void CUDAAlgorithms::normalize(CudaMemory* buffer, uint2 size, CudaMemory* buffe
                              reinterpret_cast<const float*>(buffer_min_max->get_ptr(stream)));
 }
 
+#ifdef FFT_CONF
+void CUDAAlgorithms::fft_r2c(CudaMemory* source, CudaMemory* dst, cudaStream_t stream) {
+  const size_t source_size = source->get_size() / sizeof(float);
+  const size_t dst_size = dst->get_size() / sizeof(float2);
+
+  if (source_size > 4096) { throw std::runtime_error("Source size is too large"); }
+
+  using BaseFFT = decltype(cufftdx::Precision<float>() + cufftdx::Type<cufftdx::fft_type::r2c>() +
+                           cufftdx::RealFFTOptions<cufftdx::complex_layout::full,
+                                                   cufftdx::real_mode::normal>() +
+                           cufftdx::Block() + cufftdx::ElementsPerThread<8>() +
+                           cufftdx::FFTsPerBlock<1>() + cufftdx::SM<CUFFTDX_ARCH>());
+
+  if (dst_size == 4096) {
+    using FFT = decltype(BaseFFT() + cufftdx::Size<4096>());
+    auto kernel = fft_kernel<FFT>;
+
+    // Pad the input with zeros and place it at 0
+    CudaMemory temp_input(dst_size * sizeof(float), stream);
+    CUDA_CHECK(cudaMemsetAsync(temp_input.get_ptr(stream), 0, dst_size * sizeof(float), stream));
+    CUDA_CHECK(
+        cudaMemcpyAsync(reinterpret_cast<float*>(temp_input.get_ptr(stream)),
+                        reinterpret_cast<const float*>(source->get_ptr(stream)) + source_size / 2,
+                        source_size / 2 * sizeof(float),
+                        cudaMemcpyDeviceToDevice,
+                        stream));
+    CUDA_CHECK(cudaMemcpyAsync(
+        reinterpret_cast<float*>(temp_input.get_ptr(stream)) + dst_size - source_size / 2,
+        reinterpret_cast<const float*>(source->get_ptr(stream)),
+        source_size / 2 * sizeof(float),
+        cudaMemcpyDeviceToDevice,
+        stream));
+
+    CUDA_CHECK(cudaFuncSetAttribute(
+        kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, FFT::shared_memory_size));
+    kernel<<<1, FFT::block_dim, FFT::shared_memory_size, stream>>>(
+        reinterpret_cast<FFT::input_type*>(temp_input.get_ptr(stream)),
+        reinterpret_cast<FFT::output_type*>(dst->get_ptr(stream)));
+    CUDA_CHECK(cudaPeekAtLastError());
+
+#if 0
+    CudaMemory temp_imag_to_real(dst_size * sizeof(float), stream);
+    imag_to_real_launcher_.launch(dst_size,
+                                  stream,
+                                  reinterpret_cast<cufftdx::complex<float>*>(dst->get_ptr(stream)),
+                                  make_uint2(dst_size, 1),
+                                  reinterpret_cast<float*>(temp_imag_to_real.get_ptr(stream)));
+
+    write_image(&temp_input, make_uint2(dst_size, 1), "kernel_in.png");
+    write_image(&temp_imag_to_real, make_uint2(dst_size, 1), "kernel.png");
+#endif
+  } else if (dst_size == 16) {
+    using FFT = decltype(BaseFFT() + cufftdx::Size<16>());
+    auto kernel = fft_kernel<FFT>;
+
+    // Pad the input with zeros and place it at 0
+    CudaMemory temp_input(dst_size * sizeof(float), stream);
+    CUDA_CHECK(cudaMemsetAsync(temp_input.get_ptr(stream), 0, dst_size * sizeof(float), stream));
+    CUDA_CHECK(
+        cudaMemcpyAsync(reinterpret_cast<float*>(temp_input.get_ptr(stream)),
+                        reinterpret_cast<const float*>(source->get_ptr(stream)) + source_size / 2,
+                        source_size / 2 * sizeof(float),
+                        cudaMemcpyDeviceToDevice,
+                        stream));
+    CUDA_CHECK(cudaMemcpyAsync(
+        reinterpret_cast<float*>(temp_input.get_ptr(stream)) + dst_size - source_size / 2,
+        reinterpret_cast<const float*>(source->get_ptr(stream)),
+        source_size / 2 * sizeof(float),
+        cudaMemcpyDeviceToDevice,
+        stream));
+
+    CUDA_CHECK(cudaFuncSetAttribute(
+        kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, FFT::shared_memory_size));
+    kernel<<<1, FFT::block_dim, FFT::shared_memory_size, stream>>>(
+        reinterpret_cast<FFT::input_type*>(temp_input.get_ptr(stream)),
+        reinterpret_cast<FFT::output_type*>(dst->get_ptr(stream)));
+    CUDA_CHECK(cudaPeekAtLastError());
+  } else {
+    throw std::runtime_error("Unexpected FFT size");
+  }
+}
+
+void CUDAAlgorithms::convolve(CudaMemory* buffer, uint3 size, CudaMemory* x_kernel,
+                              CudaMemory* y_kernel, CudaMemory* z_kernel, cudaStream_t stream) {
+  constexpr unsigned int X_SIZE = 4096;
+  constexpr unsigned int Y_SIZE = 4096;
+  constexpr unsigned int Z_SIZE = 16;
+
+  if (size.x != X_SIZE) {
+    std::stringstream buf;
+    buf << "Convolve: x size of " << size.x << " does not match supported x size of " << X_SIZE
+        << ".";
+    throw std::runtime_error(buf.str().c_str());
+  }
+  if (size.y != Y_SIZE) {
+    std::stringstream buf;
+    buf << "Convolve: y size of " << size.y << " does not match supported y size of " << Y_SIZE
+        << ".";
+    throw std::runtime_error(buf.str().c_str());
+  }
+  if ((size.z != 1) && (size.z != Z_SIZE)) {
+    std::stringstream buf;
+    buf << "Convolve: z size of " << size.z << " does not match supported z size of " << Z_SIZE
+        << ".";
+    throw std::runtime_error(buf.str().c_str());
+  }
+
+  if ((x_kernel->get_size() / sizeof(float) / 2) != X_SIZE) {
+    throw std::runtime_error("Unexpected x kernel size");
+  }
+  if ((y_kernel->get_size() / sizeof(float) / 2) != Y_SIZE) {
+    throw std::runtime_error("Unexpected y kernel size");
+  }
+  if (z_kernel && ((z_kernel->get_size() / sizeof(float) / 2) != Z_SIZE)) {
+    throw std::runtime_error("Unexpected z kernel size");
+  }
+
+  using BaseFFT =
+      decltype(cufftdx::Precision<float>() + cufftdx::Block() + cufftdx::SM<CUFFTDX_ARCH>());
+
+  using BaseXFFT = decltype(BaseFFT() + cufftdx::Size<X_SIZE>() +
+                            cufftdx::RealFFTOptions<cufftdx::complex_layout::full,
+                                                    cufftdx::real_mode::normal>());
+  using BaseXForwardFFT = decltype(BaseXFFT() + cufftdx::Type<cufftdx::fft_type::r2c>() +
+
+                                   cufftdx::Direction<cufftdx::fft_direction::forward>());
+  using XForwardFFT = decltype(BaseXForwardFFT() +
+                               cufftdx::FFTsPerBlock<BaseXForwardFFT::suggested_ffts_per_block>());
+  using BaseXInverseFFT = decltype(BaseXFFT() + cufftdx::Type<cufftdx::fft_type::c2r>() +
+                                   cufftdx::Direction<cufftdx::fft_direction::inverse>());
+  using XInverseFFT = decltype(BaseXInverseFFT() +
+                               cufftdx::FFTsPerBlock<BaseXInverseFFT::suggested_ffts_per_block>());
+
+  using BaseYFFT =
+      decltype(BaseFFT() + cufftdx::Size<Y_SIZE>() + cufftdx::Type<cufftdx::fft_type::c2c>());
+  using BaseYForwardFFT =
+      decltype(BaseYFFT() + cufftdx::Direction<cufftdx::fft_direction::forward>());
+  using YForwardFFT = decltype(BaseYForwardFFT() +
+                               cufftdx::FFTsPerBlock<BaseYForwardFFT::suggested_ffts_per_block>());
+  using BaseYInverseFFT =
+      decltype(BaseYFFT() + cufftdx::Direction<cufftdx::fft_direction::inverse>());
+  using YInverseFFT = decltype(BaseYInverseFFT() +
+                               cufftdx::FFTsPerBlock<BaseYInverseFFT::suggested_ffts_per_block>());
+
+  using BaseZFFT =
+      decltype(BaseFFT() + cufftdx::Size<Z_SIZE>() + cufftdx::Type<cufftdx::fft_type::c2c>());
+  using BaseZForwardFFT =
+      decltype(BaseZFFT() + cufftdx::Direction<cufftdx::fft_direction::forward>());
+  using ZForwardFFT = decltype(BaseZForwardFFT() +
+                               cufftdx::FFTsPerBlock<BaseZForwardFFT::suggested_ffts_per_block>());
+  using BaseZInverseFFT =
+      decltype(BaseZFFT() + cufftdx::Direction<cufftdx::fft_direction::inverse>());
+  using ZInverseFFT = decltype(BaseZInverseFFT() +
+                               cufftdx::FFTsPerBlock<BaseZInverseFFT::suggested_ffts_per_block>());
+
+  temp_convolve_.resize(size.x * size.y * size.z * sizeof(XForwardFFT::value_type), stream);
+
+  {
+    using FFT = XForwardFFT;
+    using IO = cufftdx::example::io_strided_conv_smem<cufftdx::example::dimension::z,
+                                                      true /*Front*/,
+                                                      1 /*Batches*/,
+                                                      ZForwardFFT,
+                                                      ZInverseFFT,
+                                                      YForwardFFT,
+                                                      YInverseFFT,
+                                                      XForwardFFT,
+                                                      XInverseFFT>;
+    auto kernel = fft_kernel<FFT, IO>;
+
+    CUDA_CHECK(cudaFuncSetAttribute(
+        kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, IO::get_shared_bytes()));
+    const dim3 grid{cufftdx::example::div_up(size.y * size.z, FFT::ffts_per_block), 1, 1};
+    kernel<<<grid, FFT::block_dim, IO::get_shared_bytes(), stream>>>(size.y * size.z,
+        reinterpret_cast<FFT::input_type*>(buffer->get_ptr(stream)),
+        reinterpret_cast<FFT::output_type*>(temp_convolve_.get_ptr(stream)));
+    CUDA_CHECK(cudaPeekAtLastError());
+
+#if 0
+    CudaMemory temp_imag_to_real(size.x * size.y * sizeof(float), stream);
+    imag_to_real_launcher_.launch(
+        size,
+        stream,
+        reinterpret_cast<cufftdx::complex<float>*>(temp_convolve_.get_ptr(stream)),
+        size,
+        reinterpret_cast<float*>(temp_imag_to_real.get_ptr(stream)));
+
+    write_image(&temp_imag_to_real, make_uint2(size.x, size.y), "convolve_fwd_x.png");
+#endif
+  }
+
+  {
+    using FFT = YForwardFFT;
+    using IO = cufftdx::example::io_strided_conv_smem<cufftdx::example::dimension::y,
+                                                      true /*Front*/,
+                                                      1 /*Batches*/,
+                                                      ZForwardFFT,
+                                                      ZInverseFFT,
+                                                      YForwardFFT,
+                                                      YInverseFFT,
+                                                      XForwardFFT,
+                                                      XInverseFFT>;
+    auto kernel = fft_kernel<FFT, IO>;
+
+    CUDA_CHECK(cudaFuncSetAttribute(
+        kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, IO::get_shared_bytes()));
+    const dim3 grid{cufftdx::example::div_up(size.x * size.z, FFT::ffts_per_block), 1, 1};
+    kernel<<<grid, FFT::block_dim, IO::get_shared_bytes(), stream>>>(size.x * size.z,
+        reinterpret_cast<FFT::input_type*>(temp_convolve_.get_ptr(stream)),
+        reinterpret_cast<FFT::output_type*>(temp_convolve_.get_ptr(stream)));
+    CUDA_CHECK(cudaPeekAtLastError());
+
+#if 0
+    CudaMemory temp_imag_to_real(size.x * size.y * sizeof(float), stream);
+    imag_to_real_launcher_.launch(
+        size,
+        stream,
+        reinterpret_cast<cufftdx::complex<float>*>(temp_convolve_.get_ptr(stream)),
+        size,
+        reinterpret_cast<float*>(temp_imag_to_real.get_ptr(stream)));
+
+    write_image(&temp_imag_to_real, make_uint2(size.x, size.y), "convolve_fwd_y.png");
+#endif
+  }
+
+  if (size.z != 1) {
+    using FFT = ZForwardFFT;
+    using IO = cufftdx::example::io_strided_conv_smem<cufftdx::example::dimension::x,
+                                                      true /*Front*/,
+                                                      1 /*Batches*/,
+                                                      ZForwardFFT,
+                                                      ZInverseFFT,
+                                                      YForwardFFT,
+                                                      YInverseFFT,
+                                                      XForwardFFT,
+                                                      XInverseFFT>;
+    auto kernel = fft_kernel<FFT, IO>;
+
+    CUDA_CHECK(cudaFuncSetAttribute(
+        kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, IO::get_shared_bytes()));
+    const dim3 grid{cufftdx::example::div_up(size.x * size.y, FFT::ffts_per_block), 1, 1};
+    kernel<<<grid, FFT::block_dim, IO::get_shared_bytes(), stream>>>(size.x * size.y,
+        reinterpret_cast<FFT::input_type*>(temp_convolve_.get_ptr(stream)),
+        reinterpret_cast<FFT::output_type*>(temp_convolve_.get_ptr(stream)));
+    CUDA_CHECK(cudaPeekAtLastError());
+
+#if 0
+    CudaMemory temp_imag_to_real(size.x * size.y * sizeof(float), stream);
+    imag_to_real_launcher_.launch(
+        size,
+        stream,
+        reinterpret_cast<cufftdx::complex<float>*>(temp_convolve_.get_ptr(stream)),
+        size,
+        reinterpret_cast<float*>(temp_imag_to_real.get_ptr(stream)));
+
+    write_image(&temp_imag_to_real, make_uint2(size.x, size.y), "convolve_fwd_z.png");
+#endif
+  }
+
+  if (size.z != 1) {
+    convolve_3d_launcher_.launch(
+        size,
+        stream,
+        reinterpret_cast<cufftdx::complex<float>*>(temp_convolve_.get_ptr(stream)),
+        size,
+        reinterpret_cast<const cufftdx::complex<float>*>(x_kernel->get_ptr(stream)),
+        reinterpret_cast<const cufftdx::complex<float>*>(y_kernel->get_ptr(stream)),
+        reinterpret_cast<const cufftdx::complex<float>*>(z_kernel->get_ptr(stream)));
+  } else {
+    convolve_2d_launcher_.launch(
+        make_uint2(size.x, size.y),
+        stream,
+        reinterpret_cast<cufftdx::complex<float>*>(temp_convolve_.get_ptr(stream)),
+        make_uint2(size.x, size.y),
+        reinterpret_cast<const cufftdx::complex<float>*>(x_kernel->get_ptr(stream)),
+        reinterpret_cast<const cufftdx::complex<float>*>(y_kernel->get_ptr(stream)));
+  }
+  CUDA_CHECK(cudaPeekAtLastError());
+
+#if 0
+  CudaMemory temp_imag_to_real(size.x * size.y * sizeof(float), stream);
+  imag_to_real_launcher_.launch(
+      size,
+      stream,
+      reinterpret_cast<cufftdx::complex<float>*>(temp_convolve_.get_ptr(stream)),
+      size,
+      reinterpret_cast<float*>(temp_imag_to_real.get_ptr(stream)));
+
+  write_image(&temp_imag_to_real, make_uint2(size.x, size.y), "convolve.png");
+#endif
+
+  if (size.z != 1) {
+    using FFT = ZInverseFFT;
+    using IO = cufftdx::example::io_strided_conv_smem<cufftdx::example::dimension::x,
+                                                      false /*Front*/,
+                                                      1 /*Batches*/,
+                                                      ZForwardFFT,
+                                                      ZInverseFFT,
+                                                      YForwardFFT,
+                                                      YInverseFFT,
+                                                      XForwardFFT,
+                                                      XInverseFFT>;
+    auto kernel = fft_kernel<FFT, IO>;
+
+    CUDA_CHECK(cudaFuncSetAttribute(
+        kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, IO::get_shared_bytes()));
+    const dim3 grid{cufftdx::example::div_up(size.x * size.y, FFT::ffts_per_block), 1, 1};
+    kernel<<<grid, FFT::block_dim, IO::get_shared_bytes(), stream>>>(size.x * size.y,
+        reinterpret_cast<FFT::input_type*>(temp_convolve_.get_ptr(stream)),
+        reinterpret_cast<FFT::output_type*>(temp_convolve_.get_ptr(stream)));
+    CUDA_CHECK(cudaPeekAtLastError());
+  }
+
+  {
+    using FFT = YInverseFFT;
+    using IO = cufftdx::example::io_strided_conv_smem<cufftdx::example::dimension::y,
+                                                      false /*Front*/,
+                                                      1 /*Batches*/,
+                                                      ZForwardFFT,
+                                                      ZInverseFFT,
+                                                      YForwardFFT,
+                                                      YInverseFFT,
+                                                      XForwardFFT,
+                                                      XInverseFFT>;
+    auto kernel = fft_kernel<FFT, IO>;
+
+    CUDA_CHECK(cudaFuncSetAttribute(
+        kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, IO::get_shared_bytes()));
+    const dim3 grid{cufftdx::example::div_up(size.x * size.z, FFT::ffts_per_block), 1, 1};
+    kernel<<<grid, FFT::block_dim, IO::get_shared_bytes(), stream>>>(size.x * size.z,
+        reinterpret_cast<FFT::input_type*>(temp_convolve_.get_ptr(stream)),
+        reinterpret_cast<FFT::output_type*>(temp_convolve_.get_ptr(stream)));
+    CUDA_CHECK(cudaPeekAtLastError());
+#if 0
+    CudaMemory temp_imag_to_real(size.x * size.y * sizeof(float), stream);
+    imag_to_real_launcher_.launch(
+        size,
+        stream,
+        reinterpret_cast<cufftdx::complex<float>*>(temp_convolve_.get_ptr(stream)),
+        size,
+        reinterpret_cast<float*>(temp_imag_to_real.get_ptr(stream)));
+
+    write_image(&temp_imag_to_real, make_uint2(size.x, size.y), "convolve_inverse_y.png");
+#endif
+  }
+
+  {
+    using FFT = XInverseFFT;
+    using IO = cufftdx::example::io_strided_conv_smem<cufftdx::example::dimension::z,
+                                                      false /*Front*/,
+                                                      1 /*Batches*/,
+                                                      ZForwardFFT,
+                                                      ZInverseFFT,
+                                                      YForwardFFT,
+                                                      YInverseFFT,
+                                                      XForwardFFT,
+                                                      XInverseFFT>;
+    auto kernel = fft_kernel<FFT, IO>;
+
+    CUDA_CHECK(cudaFuncSetAttribute(
+        kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, IO::get_shared_bytes()));
+    const dim3 grid{cufftdx::example::div_up(size.y * size.z, FFT::ffts_per_block), 1, 1};
+    kernel<<<grid, FFT::block_dim, IO::get_shared_bytes(), stream>>>(size.y * size.z,
+        reinterpret_cast<FFT::input_type*>(temp_convolve_.get_ptr(stream)),
+        reinterpret_cast<FFT::output_type*>(buffer->get_ptr(stream)));
+    CUDA_CHECK(cudaPeekAtLastError());
+#if 0
+    write_image(buffer, make_uint2(size.x, size.y), "convolve_inverse_x.png");
+#endif
+  }
+}
+#else
 void CUDAAlgorithms::convolve_rows(CudaMemory* source, uint3 size, CudaMemory* dst,
                                    CudaMemory* kernel, cudaStream_t stream) {
   if (!((kernel->get_size() / sizeof(float)) & 1)) {
@@ -351,7 +822,7 @@ void CUDAAlgorithms::convolve_planes(CudaMemory* source, uint3 size, CudaMemory*
                                    reinterpret_cast<const float*>(kernel->get_ptr(stream)),
                                    kernel->get_size() / sizeof(float) / 2);
 }
-
+#endif
 void CUDAAlgorithms::mean_planes(CudaMemory* source, uint3 size, CudaMemory* dst,
                                  cudaStream_t stream) {
   mean_planes_launcher_.launch(make_uint2(size.x, size.y),
@@ -427,6 +898,7 @@ void CUDAAlgorithms::hilbert_row(CudaMemory* buffer, uint2 size, cudaStream_t st
                    HilbertForwardFFT::block_dim,
                    HilbertForwardFFT::shared_memory_size,
                    stream>>>(reinterpret_cast<float*>(buffer->get_ptr(stream)));
+  CUDA_CHECK(cudaPeekAtLastError());
 }
 
 std::unique_ptr<CudaMemory> CUDAAlgorithms::scan_convert_curvilinear(

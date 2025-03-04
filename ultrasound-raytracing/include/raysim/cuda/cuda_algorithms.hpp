@@ -22,6 +22,8 @@
 
 #include "cuda_helper.hpp"
 
+#define FFT_CONF
+
 namespace raysim {
 
 class CUDAAlgorithms {
@@ -41,6 +43,29 @@ class CUDAAlgorithms {
    */
   void normalize(CudaMemory* buffer, uint2 size, CudaMemory* buffer_min_max, cudaStream_t stream);
 
+#ifdef FFT_CONF
+  /**
+   * Forward FFT a buffer.
+   *
+   * @param source [in] source buffer data
+   * @param dst [in] destination buffer data
+   * @param stream [in] CUDA stream
+   */
+  void fft_r2c(CudaMemory* source, CudaMemory* dst, cudaStream_t stream);
+
+  /**
+   * 3D convolution filter.
+   *
+   * @param buffer [in] buffer data (time domain)
+   * @param size [in] buffer size
+   * @param x_kernel [in] x kernel buffer (frequency domain)
+   * @param y_kernel [in] y kernel buffer (frequency domain)
+   * @param z_kernel [in] z kernel buffer (frequency domain)
+   * @param stream [in] CUDA stream
+   */
+  void convolve(CudaMemory* buffer, uint3 size, CudaMemory* x_kernel, CudaMemory* y_kernel,
+                CudaMemory* z_kernel, cudaStream_t stream);
+#else
   /**
    * Row convolution filter.
    *
@@ -76,6 +101,7 @@ class CUDAAlgorithms {
    */
   void convolve_planes(CudaMemory* source, uint3 size, CudaMemory* dst, CudaMemory* kernel,
                        cudaStream_t stream);
+#endif
 
   /**
    * Compute the arithmetic mean along planes.
@@ -137,9 +163,15 @@ class CUDAAlgorithms {
 
  private:
   const CudaLauncher normalize_launcher_;
+#ifdef FFT_CONF
+  const CudaLauncher convolve_2d_launcher_;
+  const CudaLauncher convolve_3d_launcher_;
+  const CudaLauncher imag_to_real_launcher_;
+#else
   const CudaLauncher convolve_rows_launcher_;
   const CudaLauncher convolve_columns_launcher_;
   const CudaLauncher convolve_planes_launcher_;
+#endif
   const CudaLauncher mean_planes_launcher_;
   const CudaLauncher log_compression_launcher_;
   const CudaLauncher mul_rows_launcher_;
@@ -151,6 +183,9 @@ class CUDAAlgorithms {
   UniqueCudaEvent sub_event_;
   std::array<UniqueCudaStream, NUM_SUB_STREAMS> sub_streams_;
 
+#ifdef FFT_CONF
+  CudaMemory temp_convolve_;
+#endif
   CudaMemory log_compression_sorted_;
   CudaMemory temp_log_compression_;
   std::shared_ptr<CudaArray> scan_convert_curvilinear_array_;

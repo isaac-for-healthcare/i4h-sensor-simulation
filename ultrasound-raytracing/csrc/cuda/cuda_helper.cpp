@@ -250,17 +250,6 @@ void CudaLauncher::launch_internal(dim3 grid, cudaStream_t stream, void** args) 
       launch_block.x *= 2;
     }
   }
-  // Increase by one each step
-  while (static_cast<int>(launch_block.x * launch_block.y * launch_block.z) <=
-         optimal_block_size_) {
-    if ((grid.z > 1) && (launch_block.y > launch_block.z)) {
-      ++launch_block.z;
-    } else if ((grid.y > 1) && (launch_block.x > launch_block.y)) {
-      ++launch_block.y;
-    } else {
-      ++launch_block.x;
-    }
-  }
 
   // Limit block to grid
   launch_block.x = std::min(launch_block.x, grid.x);

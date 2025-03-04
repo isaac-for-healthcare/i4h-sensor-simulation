@@ -207,7 +207,8 @@ RaytracingUltrasoundSimulator::RaytracingUltrasoundSimulator(World* world,
   cuda_algorithms_ = std::make_shared<CUDAAlgorithms>();
 }
 
-void RaytracingUltrasoundSimulator::update_psfs(const UltrasoundProbe* probe, cudaStream_t stream) {
+void RaytracingUltrasoundSimulator::update_psfs(const SimParams& sim_params,
+                                                const UltrasoundProbe* probe, cudaStream_t stream) {
   if (probe_frequency_ != probe->get_frequency()) {
     probe_frequency_ = probe->get_frequency();
     psf_ax_.reset();
@@ -226,16 +227,37 @@ void RaytracingUltrasoundSimulator::update_psfs(const UltrasoundProbe* probe, cu
 
   if (!psf_ax_) {
     const float k = SAMPLING_FREQ * 1e-6;  // [1/us]
+#ifdef FFT_CONF
+    auto psf =
+        create_gaussian_psf(stream, probe->get_axial_resolution(), k, probe->get_frequency());
+    psf_ax_ = std::make_unique<CudaMemory>(sim_params.buffer_size * sizeof(float2), stream);
+    cuda_algorithms_->fft_r2c(psf.get(), psf_ax_.get(), stream);
+#else
     psf_ax_ = create_gaussian_psf(stream, probe->get_axial_resolution(), k, probe->get_frequency());
+#endif
   }
 
   if (!psf_lat_) {
+#ifdef FFT_CONF
+    auto psf = create_gaussian_psf(
+        stream, probe->get_lateral_resolution(), 1.f / probe->get_element_spacing());
+    psf_lat_ = std::make_unique<CudaMemory>(probe->get_num_elements() * sizeof(float2), stream);
+    cuda_algorithms_->fft_r2c(psf.get(), psf_lat_.get(), stream);
+#else
     psf_lat_ = create_gaussian_psf(
         stream, probe->get_lateral_resolution(), 1.f / probe->get_element_spacing());
+#endif
   }
 
   if ((probe->get_num_el_samples() > 1) && !psf_elev_) {
+#ifdef FFT_CONF
+    auto psf = create_gaussian_psf(stream, 2.f, probe->get_elevational_spatial_frequency());
+    psf_elev_ =
+        std::make_unique<CudaMemory>(probe->get_num_el_samples() * sizeof(float2), stream);
+    cuda_algorithms_->fft_r2c(psf.get(), psf_elev_.get(), stream);
+#else
     psf_elev_ = create_gaussian_psf(stream, 2.f, probe->get_elevational_spatial_frequency());
+#endif
   }
 }
 
@@ -317,8 +339,23 @@ RaytracingUltrasoundSimulator::SimResult RaytracingUltrasoundSimulator::simulate
     {
       CudaTiming cuda_timing(sim_params.enable_cuda_timing, "PSF Convolution", sim_params.stream);
 
-      update_psfs(probe, sim_params.stream);
+      update_psfs(sim_params, probe, sim_params.stream);
 
+#ifdef FFT_CONF
+      cuda_algorithms_->convolve(d_scanlines.get(),
+                                 size,
+                                 psf_ax_.get(),
+                                 psf_lat_.get(),
+                                 psf_elev_.get(),
+                                 sim_params.stream);
+      if (probe->get_num_el_samples() > 1) {
+        auto d_plane = std::make_unique<CudaMemory>(
+            sim_params.buffer_size * probe->get_num_elements() * sizeof(float), sim_params.stream);
+        cuda_algorithms_->mean_planes(d_scanlines.get(), size, d_plane.get(), sim_params.stream);
+
+        d_scanlines = std::move(d_plane);
+      }
+#else
       psf_tmp_.resize(d_scanlines->get_size(), sim_params.stream);
       cuda_algorithms_->convolve_rows(
           d_scanlines.get(), size, &psf_tmp_, psf_ax_.get(), sim_params.stream);
@@ -332,9 +369,9 @@ RaytracingUltrasoundSimulator::SimResult RaytracingUltrasoundSimulator::simulate
         auto d_plane = std::make_unique<CudaMemory>(
             sim_params.buffer_size * probe->get_num_elements() * sizeof(float), sim_params.stream);
         cuda_algorithms_->mean_planes(&psf_tmp_, size, d_plane.get(), sim_params.stream);
-
         d_scanlines = std::move(d_plane);
       }
+#endif
     }
 
     if (sim_params.write_debug_images) {

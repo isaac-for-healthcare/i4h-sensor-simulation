@@ -89,6 +89,7 @@ target_include_directories(ray_sim_cuda
     PRIVATE
         ${stb_SOURCE_DIR}
         ${optix-toolkit_SOURCE_DIR}/ShaderUtil/include
+        ${cufftdx_INCLUDE_DIR}/..
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/../../include
     )

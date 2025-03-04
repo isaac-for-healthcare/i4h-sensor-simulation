@@ -72,7 +72,7 @@ int main(int argc, char* argv[]) {
         45.f,  // radius (default: 45.0f mm)
         2.5f,  // frequency (default: 2.5f MHz)
         7.f,   // elevational_height (default: 7.0f mm)
-        10     // num_el_samples (changed from default 1 to 10 to create elevational thickness)
+        16     // num_el_samples (changed from default 1 to 10 to create elevational thickness)
     );
 
     // Place probe above the center of the scene pointing down
@@ -90,7 +90,7 @@ int main(int argc, char* argv[]) {
     std::filesystem::create_directory(output_dir);
 
     // Sweep from left to right
-    uint32_t N_frames = 100;
+    uint32_t N_frames = 2;
     float3 start_rot = probe.get_pose().rotation_;
     float3 end_rot = start_rot;
     // start_rot.z -= 10.f / 360.f * 2 * M_PI;
@@ -117,8 +117,8 @@ int main(int argc, char* argv[]) {
       // Generate frame
       raysim::RaytracingUltrasoundSimulator::SimParams sim_params;
       sim_params.conv_psf = true;
-      // sim_params.enable_cuda_timing = true;
-      // sim_params.write_debug_images = true;
+      sim_params.enable_cuda_timing = true;
+      //sim_params.write_debug_images = true;
       auto result = simulator.simulate(&probe, sim_params);
 
       if (result.b_mode) {
@@ -138,7 +138,6 @@ int main(int argc, char* argv[]) {
                  N_frames,
                  elapsed.count(),
                  static_cast<float>(N_frames) / (static_cast<float>(elapsed.count()) / 1000.F));
-
   } catch (std::exception& e) {
     spdlog::error("Failed with exception '{}'", e.what());
     return EXIT_FAILURE;

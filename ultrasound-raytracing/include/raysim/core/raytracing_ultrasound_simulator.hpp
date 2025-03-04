@@ -134,11 +134,13 @@ class RaytracingUltrasoundSimulator {
   std::unique_ptr<CudaMemory> psf_lat_;
   float probe_elevational_height_ = 0.f;
   std::unique_ptr<CudaMemory> psf_elev_;
+#ifndef FFT_CONF
   CudaMemory psf_tmp_;
+#endif
 
   std::unique_ptr<CudaMemory> tgc_curve_;
 
-  void update_psfs(const UltrasoundProbe* probe, cudaStream_t stream);
+  void update_psfs(const SimParams& sim_params, const UltrasoundProbe* probe, cudaStream_t stream);
 };
 
 }  // namespace raysim
