@@ -14,7 +14,7 @@
         "--runtime=nvidia",
         "--net=host",
         "--cap-add=SYS_PTRACE",
-        "--security-opt=seccomp=unconfined",
+        "--security-opt=seccomp=unconfined"
     ],
     "containerEnv": {
         "DISPLAY": "${localEnv:DISPLAY}",
