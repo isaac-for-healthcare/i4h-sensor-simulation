@@ -33,7 +33,8 @@ int main(int argc, char* argv[]) {
   try {
     // Create example scene
     raysim::Materials materials;
-    raysim::World world = raysim::World("water");
+    // Create world with default background material "water"
+    raysim::World world;
 
     bool use_body = true;
     bool use_calibration = false;
