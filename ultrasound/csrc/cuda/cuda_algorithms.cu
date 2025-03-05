@@ -417,7 +417,7 @@ void CUDAAlgorithms::hilbert_row(CudaMemory* buffer, uint2 size, cudaStream_t st
   if (size.x != HILBERT_FFT_SIZE) {
     std::stringstream buf;
     buf << "Hilbert: row length of " << size.x << " does not match supported row length of "
-        << HILBERT_FFT_SIZE << ". The row length is set at compile time,";
+        << HILBERT_FFT_SIZE << ". The row length is set at compile time.";
     throw std::runtime_error(buf.str().c_str());
   }
 
