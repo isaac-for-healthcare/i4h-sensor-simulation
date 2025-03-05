@@ -2,14 +2,14 @@ import io
 import os
 import sys
 
+# Add the root directory to Python path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import numpy as np
+import raysim.cuda as rs
 from flask import Flask, request, send_file
 from flask_cors import CORS
 from PIL import Image
-
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-import raysim.cuda as rs
 
 app = Flask(__name__)
 CORS(app)

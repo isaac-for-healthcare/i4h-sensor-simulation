@@ -44,34 +44,49 @@ A high-performance GPU-accelerated ultrasound simulator using NVIDIA OptiX raytr
    ```
 
 4. Install Python dependencies and create virtual environment:
+#### Option A: Using uv
    ```bash
    uv sync && source .venv/bin/activate
    ```
 
-5. Build the project:
-   ```bash
-   cmake -DPYTHON_EXECUTABLE=$(python3 -c "import sys; print(sys.executable)") -D CMAKE_EXPORT_COMPILE_COMMANDS:BOOL=TRUE --no-warn-unused-cli -S $(pwd) -B $(pwd)/build-release
-
-   cmake -DCMAKE_BUILD_TYPE:STRING=Release -B build-release && cmake --build build-release --config Release --target all -j 66
-   ```
-
-## Running Examples
-
-### C++ Example
+#### Option B: Using conda
 ```bash
-./build-release/examples/cpp/ray_sim_example
-```
-You can find the output frames are saved under ultrasound_sweep folder.
+# Create environment and install dependencies
+conda create -n ultrasound python=3.10
+conda activate ultrasound
+pip install -e .
+conda install -c conda-forge qt pyqt
 
-### Python Example
-```bash
+5. Build the project
+# Build the project
+cmake -DPYTHON_EXECUTABLE=$(which python) -DCMAKE_BUILD_TYPE=Release -B build-release && cmake --build build-release -j $(nproc)
+
+
+6. Run examples
+#### using uv
 uv run examples/sphere_sweep.py
+
+#### using conda
+# Using the system's libstdc++ with LD_PRELOAD if your conda environment's version is too old
+LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libstdc++.so.6 python examples/sphere_sweep.py
 ```
 
-### Web Interface
+
 ```bash
+# C++ example
+./build-release/examples/cpp/ray_sim_example
+
+# Sweep example (uv)
+uv run examples/sphere_sweep.py
+
+# Sweep example (conda)
+LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libstdc++.so.6 python examples/sphere_sweep.py
+
+# Web interface (open http://localhost:8000 afterward)
+# With uv:
 uv run examples/server.py
-# Open http://localhost:8000 in your browser
+# With conda:
+LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libstdc++.so.6 python examples/server.py
 ```
 
 ## Basic Usage
@@ -110,10 +125,9 @@ For development, VSCode with the dev container is recommended:
 ### Pre-commit Hooks
 
 ```bash
-# Install dev dependencies and hooks
-uv pip install -e ".[dev]"
-pre-commit install
+# For uv users
+uv pip install -e ".[dev]" && pre-commit install
 
-# Manually run hooks
-pre-commit run --all-files
+# For conda users
+pip install -e ".[dev]" && pre-commit install
 ```

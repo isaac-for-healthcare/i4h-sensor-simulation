@@ -1,12 +1,16 @@
 import os
 import sys
 
+# Add the root directory to Python path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+# isort: off
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
-from tqdm import tqdm
-
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import raysim.cuda as rs
+from tqdm import tqdm
 
 # Create materials and world
 materials = rs.Materials()

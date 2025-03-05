@@ -1,14 +1,18 @@
 import os
 import sys
 
-import matplotlib.pyplot as plt
-import numpy as np
-from tqdm import tqdm
-
 # Add the root directory to Python path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+# Use non-interactive matplotlib backend to avoid Qt/XCB issues
+# isort: off
+import matplotlib
+matplotlib.use('Agg')
+# isort: on
+import matplotlib.pyplot as plt
+import numpy as np
 import raysim.cuda as rs
+from tqdm import tqdm
 
 
 def main():
