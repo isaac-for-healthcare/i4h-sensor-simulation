@@ -59,92 +59,6 @@ py::array_t<float> float3_to_numpy(float3 vec) {
   return result;
 }
 
-class SimulationWrapper {
- private:
-  raysim::Materials materials;
-  raysim::World world;
-  std::unique_ptr<raysim::RaytracingUltrasoundSimulator> simulator;
-  std::unique_ptr<raysim::UltrasoundProbe> probe;
-  uint step = 0;
-
- public:
-  SimulationWrapper() {
-    bool use_body = true;
-    if (use_body) {
-      // world.add(new raysim::Mesh("mesh/Back_muscles.obj", materials.get_index("muscle")));
-      world.add(new raysim::Mesh("mesh/oval.obj", materials.get_index("fat")));
-      world.add(new raysim::Mesh("mesh/sphere.obj", materials.get_index("liver")));
-      // world.add(new raysim::Mesh("mesh/Gallbladder.obj", materials.get_index("liver")));
-      // world.add(new raysim::Mesh("mesh/Heart.obj", materials.get_index("liver")));
-      // world.add(new raysim::Mesh("mesh/Kidney.obj", materials.get_index("liver")));
-      // world.add(new raysim::Mesh("mesh/Liver.obj", materials.get_index("liver")));
-      // world.add(new raysim::Mesh("mesh/Lungs.obj", materials.get_index("water")));
-      // world.add(new raysim::Mesh("mesh/Pancreas.obj", materials.get_index("liver")));
-      // world.add(new raysim::Mesh("mesh/Ribs.obj", materials.get_index("bone")));
-      // world.add(new raysim::Mesh("mesh/Small_bowel.obj", materials.get_index("liver")));
-      // world.add(new raysim::Mesh("mesh/Spine.obj", materials.get_index("bone")));
-      // world.add(new raysim::Mesh("mesh/Spleen.obj", materials.get_index("liver")));
-      // world.add(new raysim::Mesh("mesh/Stomach.obj", materials.get_index("liver")));
-      // world.add(new raysim::Mesh("mesh/Veins.obj", materials.get_index("blood")));
-    } else {
-      world.add(new raysim::Sphere({0.f, -20.f, 0.f}, 5.f, materials.get_index("fat")));
-    }
-
-    auto aabb_min = world.get_aabb_min();
-    auto aabb_max = world.get_aabb_max();
-    float3 home_pos = make_float3(
-        (aabb_max.x + aabb_min.x) / 2.f, aabb_max.y + 15.f, (aabb_max.z + aabb_min.z) / 2.f);
-    float3 home_rot = make_float3(0.f, 0.f, M_PI_2);
-
-    simulator = std::make_unique<raysim::RaytracingUltrasoundSimulator>(&world, &materials);
-    // Place probe above the center of the scene pointing down
-    probe = std::make_unique<raysim::UltrasoundProbe>(raysim::Pose(home_pos, home_rot));
-
-    // Create output directory
-    const std::filesystem::path output_dir("ultrasound_sweep");
-    std::filesystem::create_directory(output_dir);
-  }
-
-  std::vector<uint8_t> run(std::vector<float>& pose) {
-    // print received pose
-    auto aabb_min = world.get_aabb_min();
-    auto aabb_max = world.get_aabb_max();
-    float3 home_pos = make_float3(0.f, 120.f, 0.5);
-    float3 home_rot = make_float3(0.f, 0.f, M_PI_2);
-    // copying the received pose into the probe
-    float3 pos = make_float3(pose[0], pose[1], pose[2]);  // the real position of the probe
-    float3 rot = make_float3(pose[3], pose[4], pose[5]);  // the values of three rotation beams
-
-    probe->set_pose(
-        raysim::Pose(make_float3(pos.x + home_pos.x, pos.y + home_pos.y, pos.z + home_pos.z),
-                     make_float3(rot.x + home_rot.x, rot.y + home_rot.y, rot.z + home_rot.z)));
-    raysim::RaytracingUltrasoundSimulator::SimParams sim_params;
-    sim_params.conv_psf = true;
-
-    auto result = simulator->simulate(probe.get(), sim_params);
-
-    // First copy the memory to host and return the image... (slow)
-    const uint32_t elements = result.b_mode->get_size() / sizeof(float);
-    auto host_data = std::unique_ptr<float[]>(new float[elements]);
-    result.b_mode->download(host_data.get(), cudaStreamDefault);
-    auto image = std::unique_ptr<uint8_t[]>(new uint8_t[elements]);
-
-    auto min_max = make_float2(-60.f, 0.f);
-
-    float min, max;
-    min = min_max.x;
-    max = min_max.y;
-
-    for (int i = 0; i < elements; ++i) {
-      image.get()[i] = static_cast<uint8_t>(
-          std::max(std::min((host_data.get()[i] - min) / (max - min), 1.f), 0.f) * 255.f + 0.5f);
-    }
-
-    // TODO: return the cuda pointer and buffer size to process in subsequent steps in Python
-    return std::vector<uint8_t>(image.get(), image.get() + elements);
-  }
-};
-
 PYBIND11_MODULE(ray_sim_python, m) {
   m.doc() = R"pbdoc(
         Raytracing-based ultrasound simulator
@@ -625,8 +539,4 @@ PYBIND11_MODULE(ray_sim_python, m) {
             radius (float): Sphere radius
             material_id (int): Material index from Materials.get_index()
       )pbdoc");
-
-  py::class_<SimulationWrapper>(m, "Simulation")
-      .def(py::init<>())
-      .def("simulate", &SimulationWrapper::run, "Simulate current ultrasound frame given a pose");
 }
