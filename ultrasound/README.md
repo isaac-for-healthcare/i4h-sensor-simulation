@@ -44,56 +44,59 @@ A high-performance GPU-accelerated ultrasound simulator using NVIDIA OptiX raytr
    ```
 
 4. Install Python dependencies and create virtual environment:
-#### Option A: Using uv
+
+   **Option A: Using uv**
    ```bash
    uv sync && source .venv/bin/activate
    ```
 
-#### Option B: Using conda
-```bash
-# Create environment and install dependencies
-conda create -n ultrasound python=3.10
-conda activate ultrasound
-pip install -e .
-conda install -c conda-forge qt pyqt
+   **Option B: Using conda**
+   ```bash
+   # Create environment and install dependencies
+   conda create -n ultrasound python=3.10
+   conda activate ultrasound
+   pip install -e .
+   conda install -c conda-forge qt pyqt
+   ```
 
 5. Build the project
-# Build the project
-cmake -DPYTHON_EXECUTABLE=$(which python) -DCMAKE_BUILD_TYPE=Release -B build-release && cmake --build build-release -j $(nproc)
-
+   ```bash
+   cmake -DPYTHON_EXECUTABLE=$(which python) -DCMAKE_BUILD_TYPE=Release -B build-release && cmake --build build-release -j $(nproc)
+   ```
 
 6. Run examples
-#### using uv
-uv run examples/sphere_sweep.py
 
-#### using conda
-# Using the system's libstdc++ with LD_PRELOAD if your conda environment's version is too old
-LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libstdc++.so.6 python examples/sphere_sweep.py
-```
+   **Using uv**
+   ```bash
+   # Basic example
+   uv run examples/sphere_sweep.py
 
+   # Web interface (open http://localhost:8000 afterward)
+   uv run examples/server.py
+   ```
 
-```bash
-# C++ example
-./build-release/examples/cpp/ray_sim_example
+   **Using conda**
+   ```bash
+   # Using the system's libstdc++ with LD_PRELOAD if your conda environment's version is too old
+   LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libstdc++.so.6 python examples/sphere_sweep.py
 
-# Sweep example (uv)
-uv run examples/sphere_sweep.py
+   # Web interface
+   LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libstdc++.so.6 python examples/server.py
+   ```
 
-# Sweep example (conda)
-LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libstdc++.so.6 python examples/sphere_sweep.py
-
-# Web interface (open http://localhost:8000 afterward)
-# With uv:
-uv run examples/server.py
-# With conda:
-LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libstdc++.so.6 python examples/server.py
-```
+   **C++ example**
+   ```bash
+   ./build-release/examples/cpp/ray_sim_example
+   ```
 
 ## Basic Usage
 
 ```python
 import raysim.cuda as rs
 import numpy as np
+
+# Create materials
+materials = rs.Materials()
 
 # Create world and add objects
 world = rs.World("water")
