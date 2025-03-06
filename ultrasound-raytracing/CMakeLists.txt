@@ -21,8 +21,8 @@ project(raysim
     VERSION 0.1.0
     DESCRIPTION "Ray-tracing based ultrasound simulator"
     LANGUAGES CXX)
-set(CMAKE_CUDA_ARCHITECTURES 89)
-include(SetupCUDA) # CUDA Language enabled there after additional setup
+
+include(SetupCUDA)
 
 # Build options
 option(BUILD_PYTHON_BINDINGS "Build Python bindings" ON)
