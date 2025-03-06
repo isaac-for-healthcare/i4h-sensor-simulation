@@ -1,5 +1,5 @@
 # Explicitly import CUDA implementations from ray_sim_python
-from raysim.ray_sim_python import (  # Core classes; Simulation classes; Geometry classes
+from raysim.ray_sim_python import (
     Hitable,
     Material,
     Materials,
@@ -7,7 +7,6 @@ from raysim.ray_sim_python import (  # Core classes; Simulation classes; Geometr
     Pose,
     RaytracingUltrasoundSimulator,
     SimParams,
-    Simulation,
     Sphere,
     UltrasoundProbe,
     World,
@@ -21,7 +20,6 @@ __all__ = [
     "Pose",
     "RaytracingUltrasoundSimulator",
     "SimParams",
-    "Simulation",
     "Sphere",
     "UltrasoundProbe",
     "World"
