@@ -1,0 +1,74 @@
+// For format details, see https://aka.ms/vscode-remote/devcontainer.json or
+// https://code.visualstudio.com/docs/remote/devcontainerjson-reference
+{
+    "name": "RaySim",
+    // Use 'initialize-command.sh' to execute initialization commands before the container is created.
+    //"initializeCommand": "export DOCKER_BUILDKIT=1 && ./docker/build.sh --dgpu",
+    "build": {
+        "dockerfile": "Dockerfile",
+        "args": {
+            "BUILDKIT_INLINE_CACHE": "1" // Enable Docker BuildKit cache
+        }
+    },
+    "runArgs": [
+        "--runtime=nvidia",
+        "--net=host",
+        "--cap-add=SYS_PTRACE",
+        "--security-opt=seccomp=unconfined"
+    ],
+    "containerEnv": {
+        "DISPLAY": "${localEnv:DISPLAY}",
+        "NVIDIA_DRIVER_CAPABILITIES": "all",
+        // Set JIT compilation cache paths
+        //  https://developer.nvidia.com/blog/cuda-pro-tip-understand-fat-binaries-jit-caching/
+        "CUDA_CACHE_DISABLE": "0",
+        "CUDA_CACHE_PATH": "/workspace/raysim/.cache/ComputeCache",
+        // https://raytracing-docs.nvidia.com/optix7/api/optix__host_8h.html#a59a60f5f600df0f9321b0a0b1090d76b
+        "OPTIX_CACHE_PATH": "/workspace/raysim/.cache/OptixCache",
+        // https://download.nvidia.com/XFree86/Linux-x86_64/460.67/README/openglenvvariables.html
+        "__GL_SHADER_DISK_CACHE_PATH": "/workspace/raysim/.cache/GLCache"
+    },
+    "mounts": [
+        "source=/tmp/.X11-unix,target=/tmp/.X11-unix,type=bind,consistency=cached"
+    ],
+    "workspaceMount": "source=${localWorkspaceFolder},target=/workspace/raysim,type=bind,consistency=cached",
+    "workspaceFolder": "/workspace/raysim",
+    // Configure tool-specific properties.
+    "customizations": {
+        // Configure properties specific to VS Code.
+        "vscode": {
+            // Set *default* container specific settings.json values on container create.
+            "settings": {
+                "terminal.integrated.defaultProfile.linux": "bash",
+                "terminal.integrated.profiles.linux": { "bash": { "path": "/bin/bash" } }
+            },
+            // Add the IDs of extensions you want installed when the container is created.
+            "extensions": [
+                "akiramiyakoda.cppincludeguard",
+                "ms-vscode.cpptools",
+                "ms-vscode.cpptools-extension-pack",
+                "ms-azuretools.vscode-docker",
+                "matepek.vscode-catch2-test-adapter",
+                "ms-python.python",
+                "ms-python.vscode-pylance",
+                "ms-python.isort", // note: automatic installation of this can cause a dependency issue with 'ms-python.python'
+                "ms-python.black-formatter",
+                "ms-python.debugpy",
+                "shardulm94.trailing-spaces",
+                "stkb.rewrap",
+                "shd101wyy.markdown-preview-enhanced",
+                "cschlosser.doxdocgen",
+                "mine.cpplint",
+                "ms-vscode.cmake-tools",
+                "twxs.cmake",
+                "benjamin-simmonds.pythoncpp-debug"
+            ]
+        }
+    },
+    // Use 'forwardPorts' to make a list of ports inside the container available locally.
+    // "forwardPorts": [],
+    // Use 'postCreateCommand' to run commands after the container is created.
+    // "postCreateCommand": "gcc -v",
+    // Comment out this line to run as root instead.
+    "remoteUser": "raysim"
+}
