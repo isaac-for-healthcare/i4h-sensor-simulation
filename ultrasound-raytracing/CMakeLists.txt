@@ -14,7 +14,7 @@
 # limitations under the License.
 
 # Need 3.24 for CMAKE_CUDA_ARCHITECTURES=native
-cmake_minimum_required(VERSION 3.24)
+cmake_minimum_required(VERSION 3.24.0)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 

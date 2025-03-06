@@ -13,13 +13,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM nvcr.io/nvidia/clara-holoscan/holoscan:v2.9.0-dgpu
+FROM nvidia/cuda:12.6.3-devel-ubuntu24.04
 
 # Disable pip cache to avoid creating a cache directory with root permissions in the user's home directory.
 ENV PIP_NO_CACHE_DIR=off
 
 ARG USERNAME=raysim
-ARG USER_UID=1000
+ARG USER_UID=2000
 ARG USER_GID=$USER_UID
 
 # Create the user
@@ -35,10 +35,10 @@ RUN groupadd --gid $USER_GID $USERNAME \
 
 RUN apt-get update \
     && apt-get install --no-install-recommends -y \
-        cmake="3.22.1-*" \
-        gdb="12.1-*" \
-        git="1:2.34.1-*" \
-        python3="3.10.6-*" \
+        cmake="3.28.3-*" \
+        gdb="15.0.50.20240403-*" \
+        git="1:2.43.0-*" \
+        python3.12-dev="3.12.3-*" \
     && rm -rf /var/lib/apt/lists/*
 
 # Set the default user
