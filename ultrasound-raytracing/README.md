@@ -28,7 +28,7 @@ A high-performance GPU-accelerated ultrasound simulator using NVIDIA OptiX raytr
    - Extract the downloaded OptiX SDK archive
    - Place the extracted directory inside the `ultrasound/third_party/optix` directory, maintaining the following structure:
      ```
-     ultrasound/third_party/
+     ultrasound-raytracing/third_party/
      └── optix
          └── NVIDIA-OptiX-SDK-8.1.0-<platform>  # Name may vary based on the platform
              ├── include
