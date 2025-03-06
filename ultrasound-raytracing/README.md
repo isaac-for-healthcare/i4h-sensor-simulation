@@ -64,6 +64,8 @@ A high-performance GPU-accelerated ultrasound simulator using NVIDIA OptiX raytr
    cmake -DPYTHON_EXECUTABLE=$(which python) -DCMAKE_BUILD_TYPE=Release -B build-release && cmake --build build-release -j $(nproc)
    ```
 
+   If you have multiple CUDA toolkit versions installed, you can optionally use the flag `--CMAKE_CUDA_ARCHITECTURES=<path to nvcc>` to point to the desired version.
+
 6. Run examples
 
    **Using uv**
