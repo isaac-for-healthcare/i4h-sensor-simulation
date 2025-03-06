@@ -13,7 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Need 3.24 for CMAKE_CUDA_ARCHITECTURES=native
 cmake_minimum_required(VERSION 3.24.0)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
@@ -22,7 +21,7 @@ project(raysim
     VERSION 0.1.0
     DESCRIPTION "Ray-tracing based ultrasound simulator"
     LANGUAGES CXX)
-set(CMAKE_CUDA_ARCHITECTURES 89) # alternative to native
+set(CMAKE_CUDA_ARCHITECTURES 89)
 include(SetupCUDA) # CUDA Language enabled there after additional setup
 
 # Build options
