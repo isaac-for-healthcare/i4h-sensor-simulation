@@ -20,7 +20,7 @@ A high-performance GPU-accelerated ultrasound simulator using NVIDIA OptiX raytr
 1. Clone this repository:
    ```bash
    git clone https://github.com/isaac-for-healthcare/i4h-sensor-simulation.git
-   cd i4h-sensor-simulation/ultrasound
+   cd i4h-sensor-simulation/ultrasound-raytracing
    ```
 
 2. Download and set up OptiX SDK 8.1:
