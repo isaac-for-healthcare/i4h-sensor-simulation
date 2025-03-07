@@ -29,7 +29,8 @@
         "__GL_SHADER_DISK_CACHE_PATH": "/workspace/raysim/.cache/GLCache"
     },
     "mounts": [
-        "source=/tmp/.X11-unix,target=/tmp/.X11-unix,type=bind,consistency=cached"
+        "source=/tmp/.X11-unix,target=/tmp/.X11-unix,type=bind,consistency=cached",
+        "source=${localWorkspaceFolder}/../.clang-format,target=/tmp/raysim/.clang-format,type=bind,consistency=cached"
     ],
     "workspaceMount": "source=${localWorkspaceFolder},target=/workspace/raysim,type=bind,consistency=cached",
     "workspaceFolder": "/workspace/raysim",

@@ -19,12 +19,14 @@ FROM nvidia/cuda:12.6.3-devel-ubuntu24.04
 ENV PIP_NO_CACHE_DIR=off
 
 ARG USERNAME=raysim
-ARG USER_UID=2000
+ARG USER_UID=1000
 ARG USER_GID=$USER_UID
 
 # Create the user
 # (See https://code.visualstudio.com/remote/advancedcontainers/add-nonroot-user)
-RUN groupadd --gid $USER_GID $USERNAME \
+# The 24.04 image added the non-root user 'ubuntu' which needs to be removed first
+RUN touch /var/mail/ubuntu && chown ubuntu /var/mail/ubuntu && userdel -r ubuntu \
+    && groupadd --gid $USER_GID $USERNAME \
     && useradd --uid $USER_UID --gid $USER_GID -m $USERNAME \
     # Add sudo support. Omit if you don't need to install software after connecting.
     && apt-get update \
