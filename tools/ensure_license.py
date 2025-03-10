@@ -65,5 +65,5 @@ if __name__ == "__main__":
     missing_license_files = check_license_in_directory(directory_to_check)
 
     if missing_license_files:
-        raise FileNotFoundError(f"Copyright is missing in the following files:\n" + "\n".join(missing_license_files))
+        raise FileNotFoundError("Copyright is missing in the following files:\n" + "\n".join(missing_license_files))
     print("All files have the correct license.")
