@@ -174,6 +174,14 @@ __host__ __device__ inline float33 make_rotationZ(float angle) {
   return matrix;
 }
 
+__host__ __device__ inline void print_3x3_matrix(const float33& matrix) {
+  printf("Matrix:\n");
+  printf("[%f %f %f]\n", matrix.element(0, 0), matrix.element(0, 1), matrix.element(0, 2));
+  printf("[%f %f %f]\n", matrix.element(1, 0), matrix.element(1, 1), matrix.element(1, 2));
+  printf("[%f %f %f]\n", matrix.element(2, 0), matrix.element(2, 1), matrix.element(2, 2));
+  printf("\n");
+}
+
 __host__ __device__ inline float33 make_rotation(float rx, float ry, float rz) {
   float33 matrix = make_identity();
 
