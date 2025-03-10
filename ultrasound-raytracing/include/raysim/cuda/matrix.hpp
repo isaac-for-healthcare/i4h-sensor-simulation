@@ -177,9 +177,9 @@ __host__ __device__ inline float33 make_rotationZ(float angle) {
 __host__ __device__ inline float33 make_rotation(float rx, float ry, float rz) {
   float33 matrix = make_identity();
 
-  if (rz) { matrix = make_rotationX(rz); }
+  if (rz) { matrix = make_rotationZ(rz); }
   if (ry) { matrix *= make_rotationY(ry); }
-  if (rx) { matrix *= make_rotationZ(rx); }
+  if (rx) { matrix *= make_rotationX(rx); }
 
   return matrix;
 }
