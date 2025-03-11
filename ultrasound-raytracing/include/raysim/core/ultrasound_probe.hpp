@@ -42,7 +42,9 @@ class UltrasoundProbe {
    * @param speed_of_sound Speed of sound in tissue in mm/μs
    * @param pulse_duration Duration of excitation pulse in cycles
    */
-  explicit UltrasoundProbe(const Pose& pose, uint32_t num_elements = 256,
+  explicit UltrasoundProbe(const Pose& pose = Pose(make_float3(0.f, 0.f, 0.f),
+                                                   make_float3(0.f, 0.f, 0.f)),
+                           uint32_t num_elements = 256,
                            float opening_angle = 73.f,      // degrees
                            float radius = 45.f,             // mm
                            float frequency = 2.5f,          // MHz
@@ -51,7 +53,6 @@ class UltrasoundProbe {
                            float f_num = 0.7f,           // unitless
                            float speed_of_sound = 1.54,  // mm/us
                            float pulse_duration = 2.f);
-  UltrasoundProbe() = delete;
 
   /// Update probe pose and transformed geometry
   void set_pose(const Pose& new_pose);

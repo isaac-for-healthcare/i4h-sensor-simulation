@@ -65,9 +65,8 @@ int main(int argc, char* argv[]) {
 
     raysim::RaytracingUltrasoundSimulator simulator(&world, &materials);
 
-    raysim::UltrasoundProbe probe(raysim::Pose(make_float3(0.f, 0.f, 0.f),    // (x, y, z)
-                                               make_float3(0.f, 0.f, 0.f)));  // (z, y, x)
-    probe.set_num_el_samples(10);
+    raysim::UltrasoundProbe probe;  // (z, y, x)
+    probe.set_num_el_samples(1);
 
     // Place probe above the center of the scene pointing down
     if (use_body) {
