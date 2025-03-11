@@ -389,7 +389,7 @@ RaytracingUltrasoundSimulator::SimResult RaytracingUltrasoundSimulator::simulate
                                                         plane_size,
                                                         probe->get_opening_angle(),
                                                         probe->get_radius(),
-                                                        sim_params.t_far,
+                                                        sim_params.t_far + probe->get_radius(),
                                                         sim_params.b_mode_size,
                                                         sim_params.stream);
   }
