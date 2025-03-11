@@ -65,24 +65,17 @@ int main(int argc, char* argv[]) {
 
     raysim::RaytracingUltrasoundSimulator simulator(&world, &materials);
 
-    raysim::UltrasoundProbe probe(
-        raysim::Pose(make_float3(0.f, 0.f, 0.f), make_float3(0.f, 0.f, 0.f)),  // Default pose
-        4096,  // num_elements (default: 4096)
-        73.f,  // opening_angle (default: 73.0f degrees)
-        45.f,  // radius (default: 45.0f mm)
-        2.5f,  // frequency (default: 2.5f MHz)
-        7.f,   // elevational_height (default: 7.0f mm)
-        10     // num_el_samples (changed from default 1 to 10 to create elevational thickness)
-    );
+    raysim::UltrasoundProbe probe(raysim::Pose(make_float3(0.f, 0.f, 0.f),    // (x, y, z)
+                                               make_float3(0.f, 0.f, 0.f)));  // (z, y, x)
+    probe.set_num_el_samples(10);
 
     // Place probe above the center of the scene pointing down
     if (use_body) {
       probe.set_pose(raysim::Pose(make_float3(10.f, -145.f, -361.f),  // (x, y, z)
-                                  make_float3(0., 0., -M_PI_2)));     // (y, ?, x) z-up by default
+                                  make_float3(0., 0., -M_PI_2)));     // (z, y, x)
     } else if (use_calibration) {
-      probe.set_pose(
-          raysim::Pose(make_float3(10.f, 10.f, 162.f),
-                       make_float3(M_PI_2, 2 * M_PI_2, 0)));  // (z, y, x) z-up by default
+      probe.set_pose(raysim::Pose(make_float3(10.f, 10.f, 162.f),
+                                  make_float3(M_PI_2, 2 * M_PI_2, 0)));  // (z, y, x)
     }
 
     // Create output directory
