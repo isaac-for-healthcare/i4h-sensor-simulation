@@ -206,10 +206,9 @@ PYBIND11_MODULE(ray_sim_python, m) {
           [](raysim::World& self, py::object obj) {
             spdlog::info("Adding object to world");
             try {
-              // Get the raw pointer and tell pybind11 we're taking ownership
-              auto* ptr = obj.cast<raysim::Hitable*>();
-              self.add(std::unique_ptr<raysim::Hitable>(ptr));
-              // Release ownership from Python since World now owns it
+              // Convert Python object to C++ pointer and transfer ownership
+              auto* hitable_ptr = obj.cast<raysim::Hitable*>();
+              self.add(std::unique_ptr<raysim::Hitable>(hitable_ptr));
               obj.release();
               spdlog::info("Object added successfully");
             } catch (const std::exception& e) {
