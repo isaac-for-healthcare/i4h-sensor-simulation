@@ -203,21 +203,24 @@ PYBIND11_MODULE(ray_sim_python, m) {
       )pbdoc")
       .def(
           "add",
-          [](raysim::World& self, raysim::Hitable* hitable) {
+          [](raysim::World& self, py::object obj) {
             spdlog::info("Adding object to world");
             try {
-              self.add(hitable);
+              // Get the raw pointer and tell pybind11 we're taking ownership
+              auto* ptr = obj.cast<raysim::Hitable*>();
+              self.add(std::unique_ptr<raysim::Hitable>(ptr));
+              // Release ownership from Python since World now owns it
+              obj.release();
               spdlog::info("Object added successfully");
             } catch (const std::exception& e) {
               spdlog::error("Failed to add object to world: {}", e.what());
               throw;
             }
           },
+          py::keep_alive<1, 2>(),
           R"pbdoc(
         Add an object (Mesh or Sphere) to the world.
-
-        Args:
-            hitable: Object to add (Mesh or Sphere instance)
+        Note: The world takes ownership of the object.
       )pbdoc")
       .def("get_background_material",
            &raysim::World::get_background_material,

@@ -36,7 +36,7 @@ class World {
 
   /// Add an object to the world
   /// @param hitable object to add
-  void add(Hitable* hitable);
+  void add(std::unique_ptr<Hitable> hitable);
 
   const std::string& get_background_material() const;
 
