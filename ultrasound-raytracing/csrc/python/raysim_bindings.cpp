@@ -216,7 +216,6 @@ PYBIND11_MODULE(ray_sim_python, m) {
               throw;
             }
           },
-          py::keep_alive<1, 2>(),
           R"pbdoc(
         Add an object (Mesh or Sphere) to the world.
         Note: The world takes ownership of the object.
