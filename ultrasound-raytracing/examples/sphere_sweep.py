@@ -87,7 +87,7 @@ def main():
         # Display and save image with proper axes
         plt.figure(figsize=(10, 8))
         plt.imshow(normalized_image, cmap='gray',
-                    extent=[min_x, max_x, min_z, max_z], aspect='auto')
+                    extent=[min_x, max_x, min_z, max_z], aspect='equal')
         plt.title(f"B-mode Ultrasound Image\nPosition: ({x:.2f}, 0.00, 0.00), Rotation: (0.00°, 180.00°, 0.00°)")
         plt.xlabel('Width (mm)')
         plt.ylabel('Depth (mm)')
