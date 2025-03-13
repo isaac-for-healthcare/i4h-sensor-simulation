@@ -37,10 +37,10 @@ world = rs.World("water")
 origin = rs.Mesh("mesh/origin.obj", materials.get_index("fat"))
 world.add(origin)
 material_idx = materials.get_index("fat")
-liver_tumor = rs.Mesh("mesh/tumor1.obj", material_idx)
+liver_tumor = rs.Mesh("mesh/Tumor1.obj", material_idx)
 world.add(liver_tumor)
 material_idx = materials.get_index("water")
-liver_cyst = rs.Mesh("mesh/tumor2.obj", material_idx)
+liver_cyst = rs.Mesh("mesh/Tumor2.obj", material_idx)
 world.add(liver_cyst)
 # Add liver mesh to world
 material_idx = materials.get_index("liver")
@@ -62,9 +62,9 @@ material_idx = materials.get_index("liver")
 spleen_mesh = rs.Mesh("mesh/Spleen.obj", material_idx)
 world.add(spleen_mesh)
 
-# material_idx = materials.get_index("liver")
-# heart_mesh = rs.Mesh("mesh/Heart.obj", material_idx)
-# world.add(heart_mesh)
+material_idx = materials.get_index("liver")
+heart_mesh = rs.Mesh("mesh/Heart.obj", material_idx)
+world.add(heart_mesh)
 material_idx = materials.get_index("water")
 stomach_mesh = rs.Mesh("mesh/Stomach.obj", material_idx)
 world.add(stomach_mesh)
@@ -82,12 +82,12 @@ world.add(large_intestine_mesh)
 
 # Create probe with initial pose matching C++ implementation
 initial_pose = rs.Pose(
-    np.array([0,0,0], dtype=np.float32),  # position (x, y, z)
-    np.array([0, 0, 0], dtype=np.float32))   # rotation (x, y, z)
+    np.array([-8,-110,-336], dtype=np.float32),  # position (x, y, z)
+    np.array([np.deg2rad(-84), np.deg2rad(22), np.deg2rad(0)], dtype=np.float32))   # rotation (x, y, z)
 # Create ultrasound probe with elevational extent parameters
 probe = rs.UltrasoundProbe(
     initial_pose,
-    num_elements=4096,           # Number rays which represent elements
+    num_elements=256,            # Number rays which represent elements
     opening_angle=73.0,          # default value in degrees
     radius=45.0,                 # probe radius  in mm
     frequency=2.5,               # probe frequency in MHz
