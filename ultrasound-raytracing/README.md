@@ -56,7 +56,7 @@ A high-performance GPU-accelerated ultrasound simulator using NVIDIA OptiX raytr
    conda create -n ultrasound python=3.10 libstdcxx-ng -c conda-forge
 
    conda activate ultrasound
-   pip install -e . -"[dev]
+   pip install -e .
    ```
 
 5. Build the project
@@ -79,6 +79,7 @@ A high-performance GPU-accelerated ultrasound simulator using NVIDIA OptiX raytr
 
    **Using conda**
    ```bash
+   # Using the system's libstdc++ with LD_PRELOAD if your conda environment's version is too old
    python examples/sphere_sweep.py
 
    # Web interface
