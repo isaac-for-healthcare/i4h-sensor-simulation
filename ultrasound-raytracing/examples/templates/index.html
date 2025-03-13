@@ -2,7 +2,6 @@
 <html>
 <head>
     <title>Probe Simulator</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -28,11 +27,31 @@
         .control-group {
             margin-bottom: 15px;
         }
-        #probe3d {
-            width: 300px;
-            height: 300px;
-            border: 1px solid #ccc;
-            margin-top: 20px;
+        .position-input {
+            display: grid;
+            grid-template-columns: 60px 120px;
+            gap: 5px;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+        .position-input label {
+            font-weight: bold;
+        }
+        .position-input input {
+            width: 100px;
+            padding: 4px;
+        }
+        #updatePosition {
+            background-color: #4CAF50;
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        #updatePosition:hover {
+            background-color: #45a049;
         }
     </style>
 </head>
@@ -41,7 +60,6 @@
     <div class="container">
         <div>
             <img id="simImage" src="" alt="Simulation output">
-            <div id="probe3d"></div>
         </div>
         <div class="controls">
             <h3>Controls</h3>
@@ -58,83 +76,51 @@
             </div>
 
             <div class="position">
-                <h3>Position</h3>
-                <div id="poseDisplay"></div>
+                <h3>Absolute Position</h3>
+                <div class="position-input">
+                    <label for="posX">X:</label>
+                    <input type="number" id="posX" step="0.1">
+                </div>
+                <div class="position-input">
+                    <label for="posY">Y:</label>
+                    <input type="number" id="posY" step="0.1">
+                </div>
+                <div class="position-input">
+                    <label for="posZ">Z:</label>
+                    <input type="number" id="posZ" step="0.1">
+                </div>
+                <div class="position-input">
+                    <label for="rotX">Roll:</label>
+                    <input type="number" id="rotX" step="0.1">
+                </div>
+                <div class="position-input">
+                    <label for="rotY">Pitch:</label>
+                    <input type="number" id="rotY" step="0.1">
+                </div>
+                <div class="position-input">
+                    <label for="rotZ">Yaw:</label>
+                    <input type="number" id="rotZ" step="0.1">
+                </div>
+                <button id="updatePosition" style="margin-top: 10px;">Update Position</button>
             </div>
         </div>
     </div>
 
     <script>
         let pose = [0, 0, 0, 0, 0, 0];  // Default pose, will be overridden by server values
-        const stepSize = 0.2;  // Reduced from 0.5 to 0.2 for finer movement control
+        const stepSize = 2;  // Reduced from 0.5 to 0.2 for finer movement control
         const rotationStep = 0.05;  // Reduced from 0.1 to 0.05 for finer rotation control
         let isUpdating = false;  // Lock for preventing simultaneous requests
         let initialPoseFetched = false;  // Flag to track if we've successfully fetched the initial pose
 
-        // Three.js setup
-        const scene = new THREE.Scene();
-        const camera = new THREE.PerspectiveCamera(75, 300/300, 0.1, 1000);
-        const renderer = new THREE.WebGLRenderer();
-        renderer.setSize(300, 300);
-        document.getElementById('probe3d').appendChild(renderer.domElement);
-
-        // Create probe geometry
-        const probeGroup = new THREE.Group();
-
-        // Probe body (cylinder)
-        const bodyGeometry = new THREE.CylinderGeometry(0.2, 0.2, 2, 32);
-        const bodyMaterial = new THREE.MeshPhongMaterial({ color: 0x888888 });
-        const probeBody = new THREE.Mesh(bodyGeometry, bodyMaterial);
-        probeBody.rotation.x = Math.PI / 2;  // Align with Z-axis
-        probeGroup.add(probeBody);
-
-        // Probe tip (cone)
-        const tipGeometry = new THREE.ConeGeometry(0.2, 0.5, 32);
-        const tipMaterial = new THREE.MeshPhongMaterial({ color: 0x444444 });
-        const probeTip = new THREE.Mesh(tipGeometry, tipMaterial);
-        probeTip.position.z = 1.25;
-        probeTip.rotation.x = Math.PI / 2;
-        probeGroup.add(probeTip);
-
-        // Add coordinate axes
-        const axesHelper = new THREE.AxesHelper(2);
-        scene.add(axesHelper);
-
-        // Add lights
-        const ambientLight = new THREE.AmbientLight(0x404040);
-        scene.add(ambientLight);
-        const light = new THREE.DirectionalLight(0xffffff, 1);
-        light.position.set(1, 1, 1);
-        scene.add(light);
-
-        scene.add(probeGroup);
-
-        // Position camera
-        camera.position.set(4, 4, 4);
-        camera.lookAt(0, 0, 0);
-
-        function animate() {
-            requestAnimationFrame(animate);
-            renderer.render(scene, camera);
-        }
-
-        function updateProbePosition() {
-            probeGroup.position.set(pose[0], pose[1], pose[2]);
-            probeGroup.rotation.set(pose[3], pose[4], pose[5]);
-        }
-
         function updateDisplay() {
-            const poseDisplay = document.getElementById('poseDisplay');
-            poseDisplay.innerHTML = `
-                <strong>Absolute Position:</strong><br>
-                X: ${pose[0].toFixed(2)}<br>
-                Y: ${pose[1].toFixed(2)}<br>
-                Z: ${pose[2].toFixed(2)}<br>
-                Roll: ${(pose[3] * 180 / Math.PI).toFixed(1)}°<br>
-                Pitch: ${(pose[4] * 180 / Math.PI).toFixed(1)}°<br>
-                Yaw: ${(pose[5] * 180 / Math.PI).toFixed(1)}°
-            `;
-            updateProbePosition();
+            // Update input fields
+            document.getElementById('posX').value = pose[0].toFixed(2);
+            document.getElementById('posY').value = pose[1].toFixed(2);
+            document.getElementById('posZ').value = pose[2].toFixed(2);
+            document.getElementById('rotX').value = (pose[3] * 180 / Math.PI).toFixed(1);
+            document.getElementById('rotY').value = (pose[4] * 180 / Math.PI).toFixed(1);
+            document.getElementById('rotZ').value = (pose[5] * 180 / Math.PI).toFixed(1);
         }
 
         async function updateSimulation(newPoseDelta) {
@@ -255,27 +241,6 @@
         // Stop update loop when window loses focus
         window.addEventListener('blur', stopUpdateLoop);
 
-        // Function to synchronize with server's pose
-        async function synchronizeWithServer() {
-            try {
-                const response = await fetch('/get_initial_pose');
-                if (response.ok) {
-                    const data = await response.json();
-                    pose = data.pose;
-                    initialPoseFetched = true;
-                    console.log("Synchronized pose with server:", pose);
-                    updateDisplay();
-                    return true;
-                } else {
-                    console.error("Failed to synchronize pose: Server returned", response.status);
-                    return false;
-                }
-            } catch (error) {
-                console.error("Failed to synchronize pose:", error);
-                return false;
-            }
-        }
-
         // Initialize the simulation when the page loads
         document.addEventListener('DOMContentLoaded', async () => {
             // Fetch initial pose from server
@@ -306,8 +271,23 @@
             startUpdateLoop();
         });
 
-        // Start animation loop for Three.js
-        animate();
+        // Add event listener for the update button
+        document.getElementById('updatePosition').addEventListener('click', async () => {
+            const newPose = [
+                parseFloat(document.getElementById('posX').value),
+                parseFloat(document.getElementById('posY').value),
+                parseFloat(document.getElementById('posZ').value),
+                parseFloat(document.getElementById('rotX').value) * Math.PI / 180,
+                parseFloat(document.getElementById('rotY').value) * Math.PI / 180,
+                parseFloat(document.getElementById('rotZ').value) * Math.PI / 180
+            ];
+
+            // Calculate the delta between current and new pose
+            const poseDelta = newPose.map((val, idx) => val - pose[idx]);
+
+            // Update simulation with the calculated delta
+            await updateSimulation(poseDelta);
+        });
     </script>
 </body>
 </html>
