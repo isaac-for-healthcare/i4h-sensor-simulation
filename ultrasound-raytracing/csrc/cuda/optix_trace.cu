@@ -249,17 +249,23 @@ extern "C" __global__ void __raygen__rg() {
   const float d_x = (static_cast<float>(idx.x) / static_cast<float>(dim.x)) - 0.5f;
   const float lateral_angle = (ray_gen_data->opening_angle * d_x) * (M_PI / 180.f);
 
-  float3 origin = make_float3(ray_gen_data->radius * __sinf(lateral_angle),
-                              0.f,
-                              ray_gen_data->radius * __cosf(lateral_angle));
+  // Calculate element position on probe surface in probe's local coordinate system
+  // where (0,0,0) is at the probe face center
+  float3 origin =
+      make_float3(ray_gen_data->radius * __sinf(lateral_angle),         // x = r * sin(θ)
+                  0.f,                                                  // y (elevation added later)
+                  ray_gen_data->radius * (__cosf(lateral_angle) - 1.f)  // z = r * (cos(θ) - 1)
+      );
 
-  float3 direction = normalize(origin);
+  // Calculate ray direction away from center of curvature
+  // Center of curvature is at (0,0,-radius) in probe's local coordinate system
+  float3 direction = normalize(origin - make_float3(0.f, 0.f, -ray_gen_data->radius));
 
+  // Add elevation in probe's local coordinate system
   const float d_y = (static_cast<float>(idx.y) / static_cast<float>(dim.y)) - 0.5f;
   const float elevation = ray_gen_data->elevational_height * d_y;
   origin.y = elevation;
-
-  // Transform origin to world
+  // Transform from probe's local coordinate system to global coordinate system
   origin = ray_gen_data->rotation_matrix * origin;
   origin += ray_gen_data->position;
 
