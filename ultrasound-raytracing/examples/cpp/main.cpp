@@ -45,7 +45,7 @@ int main(int argc, char* argv[]) {
       // world.add(new raysim::Mesh("mesh/Gallbladder.obj", materials.get_index("liver")));
       // world.add(new raysim::Mesh("mesh/Heart.obj", materials.get_index("liver")));
       // world.add(new raysim::Mesh("mesh/Kidney.obj", materials.get_index("liver")));
-      world.add(new raysim::Mesh("mesh/Liver.obj", materials.get_index("liver")));
+      world.add(std::make_unique<raysim::Mesh>("mesh/Liver.obj", materials.get_index("liver")));
       //   world.add(new raysim::Mesh("mesh/Lungs.obj", materials.get_index("water")));
       //   world.add(new raysim::Mesh("mesh/Pancreas.obj", materials.get_index("liver")));
       //   world.add(new raysim::Mesh("mesh/Ribs.obj", materials.get_index("bone")));
@@ -55,9 +55,11 @@ int main(int argc, char* argv[]) {
       //   world.add(new raysim::Mesh("mesh/Stomach.obj", materials.get_index("liver")));
       //   world.add(new raysim::Mesh("mesh/Veins.obj", materials.get_index("blood")));
     } else if (use_calibration) {
-      world.add(new raysim::Mesh("mesh/calibration_phantom.obj", materials.get_index("liver")));
+      world.add(std::make_unique<raysim::Mesh>("mesh/calibration_phantom.obj",
+                                               materials.get_index("liver")));
     } else {
-      world.add(new raysim::Sphere({0.f, -20.f, 0.f}, 5.f, materials.get_index("fat")));
+      world.add(std::make_unique<raysim::Sphere>(
+          float3{0.f, -20.f, 0.f}, 5.f, materials.get_index("fat")));
     }
 
     auto aabb_min = world.get_aabb_min();
