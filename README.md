@@ -1,4 +1,4 @@
-# NVIDIA Isaac for Healthcare Sensor Simulation
+# Isaac for Healthcare - Sensor Simulation
 
 This repository contains high-performance GPU-accelerated sensor simulation tools for healthcare applications, powered by NVIDIA technologies.
 
