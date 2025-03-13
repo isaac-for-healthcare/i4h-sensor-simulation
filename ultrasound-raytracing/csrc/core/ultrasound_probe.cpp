@@ -46,16 +46,32 @@ uint32_t UltrasoundProbe::get_num_elements() const {
   return num_elements_;
 }
 
+void UltrasoundProbe::set_num_elements(uint32_t num_elements) {
+  num_elements_ = num_elements;
+}
+
 float UltrasoundProbe::get_opening_angle() const {
   return opening_angle_;
+}
+
+void UltrasoundProbe::set_opening_angle(float opening_angle) {
+  opening_angle_ = opening_angle;
 }
 
 float UltrasoundProbe::get_radius() const {
   return radius_;
 }
 
+void UltrasoundProbe::set_radius(float radius) {
+  radius_ = radius;
+}
+
 float UltrasoundProbe::get_frequency() const {
   return frequency_;
+}
+
+void UltrasoundProbe::set_frequency(float frequency) {
+  frequency_ = frequency;
 }
 
 float UltrasoundProbe::get_element_spacing() const {
@@ -68,8 +84,16 @@ float UltrasoundProbe::get_elevational_height() const {
   return elevational_height_;
 }
 
+void UltrasoundProbe::set_elevational_height(float elevational_height) {
+  elevational_height_ = elevational_height;
+}
+
 uint32_t UltrasoundProbe::get_num_el_samples() const {
   return num_el_samples_;
+}
+
+void UltrasoundProbe::set_num_el_samples(uint32_t num_el_samples) {
+  num_el_samples_ = num_el_samples;
 }
 
 float UltrasoundProbe::get_axial_resolution() const {
@@ -86,6 +110,30 @@ float UltrasoundProbe::get_wave_length() const {
 
 float UltrasoundProbe::get_elevational_spatial_frequency() const {
   return elevational_height_ / num_el_samples_;  // 1 / [mm]
+}
+
+float UltrasoundProbe::get_f_num() const {
+  return f_num_;
+}
+
+void UltrasoundProbe::set_f_num(float f_num) {
+  f_num_ = f_num;
+}
+
+float UltrasoundProbe::get_speed_of_sound() const {
+  return speed_of_sound_;
+}
+
+void UltrasoundProbe::set_speed_of_sound(float speed_of_sound) {
+  speed_of_sound_ = speed_of_sound;
+}
+
+float UltrasoundProbe::get_pulse_duration() const {
+  return pulse_duration_;
+}
+
+void UltrasoundProbe::set_pulse_duration(float pulse_duration) {
+  pulse_duration_ = pulse_duration;
 }
 
 }  // namespace raysim
