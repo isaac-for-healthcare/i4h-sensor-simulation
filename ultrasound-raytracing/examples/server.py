@@ -34,6 +34,8 @@ CORS(app)
 materials = rs.Materials()
 world = rs.World("water")
 
+origin = rs.Mesh("mesh/origin.obj", materials.get_index("fat"))
+world.add(origin)
 material_idx = materials.get_index("fat")
 liver_tumor = rs.Mesh("mesh/tumor1.obj", material_idx)
 world.add(liver_tumor)
@@ -80,8 +82,8 @@ world.add(large_intestine_mesh)
 
 # Create probe with initial pose matching C++ implementation
 initial_pose = rs.Pose(
-    np.array([10, -145, -361.0], dtype=np.float32),  # position (x, y, z)
-    np.array([-np.pi/2, 0, 0], dtype=np.float32))   # rotation (x, y, z)
+    np.array([0,0,0], dtype=np.float32),  # position (x, y, z)
+    np.array([0, 0, 0], dtype=np.float32))   # rotation (x, y, z)
 # Create ultrasound probe with elevational extent parameters
 probe = rs.UltrasoundProbe(
     initial_pose,
