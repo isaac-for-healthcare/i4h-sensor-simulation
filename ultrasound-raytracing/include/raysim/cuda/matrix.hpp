@@ -185,9 +185,9 @@ __host__ __device__ inline void print_3x3_matrix(const float33& matrix) {
 __host__ __device__ inline float33 make_rotation(float rx, float ry, float rz) {
   float33 matrix = make_identity();
 
-  if (rx) { matrix = make_rotationX(rx); }
+  if (rz) { matrix = make_rotationZ(rz); }
   if (ry) { matrix *= make_rotationY(ry); }
-  if (rz) { matrix *= make_rotationZ(rz); }
+  if (rx) { matrix *= make_rotationX(rx); }
 
   return matrix;
 }
