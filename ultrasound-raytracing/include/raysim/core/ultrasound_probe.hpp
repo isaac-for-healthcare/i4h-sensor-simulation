@@ -42,7 +42,9 @@ class UltrasoundProbe {
    * @param speed_of_sound Speed of sound in tissue in mm/μs
    * @param pulse_duration Duration of excitation pulse in cycles
    */
-  explicit UltrasoundProbe(const Pose& pose, uint32_t num_elements = 4096,
+  explicit UltrasoundProbe(const Pose& pose = Pose(make_float3(0.f, 0.f, 0.f),
+                                                   make_float3(0.f, 0.f, 0.f)),
+                           uint32_t num_elements = 256,
                            float opening_angle = 73.f,      // degrees
                            float radius = 45.f,             // mm
                            float frequency = 2.5f,          // MHz
@@ -51,7 +53,6 @@ class UltrasoundProbe {
                            float f_num = 0.7f,           // unitless
                            float speed_of_sound = 1.54,  // mm/us
                            float pulse_duration = 2.f);
-  UltrasoundProbe() = delete;
 
   /// Update probe pose and transformed geometry
   void set_pose(const Pose& new_pose);
@@ -61,21 +62,33 @@ class UltrasoundProbe {
 
   /// Get number of transducer elements
   uint32_t get_num_elements() const;
+  /// Set number of transducer elements
+  void set_num_elements(uint32_t num_elements);
 
   /// Get field of view in degrees
   float get_opening_angle() const;
+  /// Set field of view in degrees
+  void set_opening_angle(float opening_angle);
 
   /// Get radius of curvature in mm
   float get_radius() const;
+  /// Set radius of curvature in mm
+  void set_radius(float radius);
 
   /// Get center frequency in MHz
   float get_frequency() const;
+  /// Set center frequency in MHz
+  void set_frequency(float frequency);
 
   float get_element_spacing() const;
 
   float get_elevational_height() const;
+  /// Set height of elements in elevational direction in mm
+  void set_elevational_height(float elevational_height);
 
   uint32_t get_num_el_samples() const;
+  /// Set number of samples in elevational direction
+  void set_num_el_samples(uint32_t num_el_samples);
 
   float get_axial_resolution() const;
 
@@ -84,6 +97,21 @@ class UltrasoundProbe {
   float get_wave_length() const;
 
   float get_elevational_spatial_frequency() const;
+
+  /// Get F-number (focal length / aperture) - unitless
+  float get_f_num() const;
+  /// Set F-number (focal length / aperture) - unitless
+  void set_f_num(float f_num);
+
+  /// Get speed of sound in tissue in mm/μs
+  float get_speed_of_sound() const;
+  /// Set speed of sound in tissue in mm/μs
+  void set_speed_of_sound(float speed_of_sound);
+
+  /// Get duration of excitation pulse in cycles
+  float get_pulse_duration() const;
+  /// Set duration of excitation pulse in cycles
+  void set_pulse_duration(float pulse_duration);
 
  private:
   Pose pose_;
