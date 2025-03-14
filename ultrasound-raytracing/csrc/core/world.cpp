@@ -54,9 +54,7 @@ World::World(const std::string& background_material) : background_material_(back
 
 World::~World() {}
 
-void World::add(Hitable* hitable) {
-  objects_.emplace_back(hitable);
-
+void World::add(std::unique_ptr<Hitable> hitable) {
   auto obj_aabb_min = hitable->get_aabb_min();
   aabb_min_.x = std::min(aabb_min_.x, obj_aabb_min.x);
   aabb_min_.y = std::min(aabb_min_.y, obj_aabb_min.y);
@@ -66,6 +64,7 @@ void World::add(Hitable* hitable) {
   aabb_max_.x = std::max(aabb_max_.x, obj_aabb_max.x);
   aabb_max_.y = std::max(aabb_max_.y, obj_aabb_max.y);
   aabb_max_.z = std::max(aabb_max_.z, obj_aabb_max.z);
+  objects_.emplace_back(std::move(hitable));
 }
 
 void World::build(OptixDeviceContext context, cudaStream_t stream) {
