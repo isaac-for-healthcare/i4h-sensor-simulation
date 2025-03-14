@@ -8,6 +8,22 @@ A high-performance GPU-accelerated ultrasound simulator using NVIDIA OptiX raytr
 - Python interface for ease of use
 - Real-time simulation capabilities
 
+## Benchmark Results
+To reproduce these results, run `python examples/benchmark.py`.
+```
+Benchmark Results:
+        Total frames: 200
+        Average frame time: 0.0044 seconds
+        Average FPS: 229.14
+        Minimum FPS: 117.98
+        Maximum FPS: 268.99
+        Date: 2025-03-14 10:23:43
+
+        System Information:
+        GPU: GPU information unavailable
+        CPU: AMD Ryzen Threadripper PRO 7975WX 32-Cores (64 cores)
+
+```
 ## Requirements
 
 - [CUDA 12.6+](https://docs.nvidia.com/cuda/cuda-quick-start-guide/index.html#)
