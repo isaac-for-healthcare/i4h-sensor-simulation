@@ -266,7 +266,7 @@ extern "C" __global__ void __raygen__rg() {
   const float elevation = ray_gen_data->elevational_height * d_y;
   origin.y = elevation;
 
-  // Transform both origin and direction using extrinsic rotations
+  // Transform both origin and direction
   origin = ray_gen_data->rotation_matrix * origin;        // Rotate around local origin
   direction = ray_gen_data->rotation_matrix * direction;  // Rotate direction vector
 
