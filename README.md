@@ -6,7 +6,7 @@ This repository contains high-performance GPU-accelerated sensor simulation tool
 
 ### Ultrasound Raytracing Simulator
 
-![image](https://github.com/user-attachments/assets/5d9ae84b-8718-43e5-806d-146629c17ab7)
+![image](./docs/ultrasound-raytracing-simulator.png)
 
 
 A high-performance GPU-accelerated ultrasound simulator using NVIDIA OptiX raytracing with Python bindings. This simulator enables real-time ultrasound simulation for training, research, and development purposes.
