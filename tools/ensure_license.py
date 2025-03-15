@@ -24,7 +24,7 @@ with open("tools/apache_2_0.txt", "r", encoding="utf-8") as license_file:
 # List of file extensions to check
 file_extensions = [".py", ".sh", ".ipynb", ".slurm", ".h", ".hpp", ".cu", ".cpp", ".txt"]
 
-
+file_to_ignore = ["NOTICE.txt"]
 
 def check_license_in_file(file_path):
     """Check if the file contains all lines of the license header"""
@@ -51,6 +51,8 @@ def check_license_in_directory(directory):
     for root, _, files in os.walk(directory):
         for file in files:
             if any(file.endswith(ext) for ext in file_extensions):
+                if os.path.relpath(os.path.join(root, file), directory) in file_to_ignore:
+                    continue
                 file_path = os.path.join(root, file)
                 if not check_license_in_file(file_path):
                     files_without_license.append(file_path)
