@@ -38,9 +38,22 @@ A high-performance GPU-accelerated ultrasound simulator using NVIDIA OptiX raytr
                  └── sutil
      ```
 
-3. Download mesh data (if required):
+3. Download mesh data:
+   - The mesh data is a part of the Isaac for Healthcare asset package. You can download it by installing the asset helper tool:
    ```bash
-   <step to download mesh data> # Download mesh data
+   pip install git+ssh://git@github.com/isaac-for-healthcare/i4h-asset-catalog.git
+   ```
+
+   - Then you can download and extract the data to `~/.cache/i4h-assets/`
+   ```bash
+   i4h-asset-retrieve
+   ```
+
+   - The mesh data will be extracted to `~/.cache/i4h-assets/<sha256_hash>/Props/ABDPhantom/Organs`
+   - You can copy the `Organs` folder to the `mesh` directory
+
+   ```bash
+   cp -r ~/.cache/i4h-assets/<sha256_hash>/Props/ABDPhantom/Organs mesh
    ```
 
 4. Install Python dependencies and create virtual environment:
