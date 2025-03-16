@@ -266,12 +266,11 @@ extern "C" __global__ void __raygen__rg() {
   const float elevation = ray_gen_data->elevational_height * d_y;
   origin.y = elevation;
 
-  // Transform both origin and direction
-  origin = ray_gen_data->rotation_matrix * origin;        // Rotate around local origin
-  direction = ray_gen_data->rotation_matrix * direction;  // Rotate direction vector
-
-  // Finally apply translation to world coordinates
+  // Transform from probe's local coordinate system to global coordinate system
+  origin = ray_gen_data->rotation_matrix * origin;
   origin += ray_gen_data->position;
+
+  direction = ray_gen_data->rotation_matrix * direction;
 
   Payload ray{};
   ray.intensity = 1.f;
