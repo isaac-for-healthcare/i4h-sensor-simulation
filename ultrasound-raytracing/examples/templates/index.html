@@ -2,139 +2,270 @@
 <html>
 <head>
     <title>Probe Simulator</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
             margin: 20px;
+            background-color: #f0f0f0;
         }
         .container {
             display: flex;
             gap: 20px;
+            align-items: stretch;
+        }
+        .sim-container {
+            flex: 0 0 auto;
+            display: flex;
+            align-items: flex-start;
         }
         .controls {
             padding: 20px;
-            background: #f5f5f5;
+            background: white;
             border-radius: 8px;
             min-width: 200px;
-        }
-        .position {
-            margin-top: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            height: 100%;
         }
         #simImage {
             border: 1px solid #ccc;
-            max-width: 500px;
+            width: 550px;
+            height: auto;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            display: block;
+        }
+        .controls-content {
+            flex: 1;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+        .controls-content::-webkit-scrollbar {
+            width: 8px;
+        }
+        .controls-content::-webkit-scrollbar-track {
+            background: #f0f0f0;
+            border-radius: 4px;
+        }
+        .controls-content::-webkit-scrollbar-thumb {
+            background: #ccc;
+            border-radius: 4px;
+        }
+        .controls-content::-webkit-scrollbar-thumb:hover {
+            background: #bbb;
         }
         .control-group {
             margin-bottom: 15px;
+            padding: 12px;
+            border-radius: 6px;
+            background: #f8f8f8;
         }
-        #probe3d {
-            width: 300px;
-            height: 300px;
+        .control-layout {
+            display: grid;
+            grid-template-columns: auto auto;
+            gap: 20px;
+            align-items: start;
+            margin-top: 15px;
+            padding: 12px;
+            border-radius: 6px;
+            background: #f8f8f8;
+        }
+        .position {
+            margin-top: 0;
+        }
+        .position h3 {
+            margin-top: 0;
+            margin-bottom: 15px;
+            color: #333;
+        }
+        .position-input {
+            display: grid;
+            grid-template-columns: 60px 120px;
+            gap: 8px;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .position-input label {
+            font-weight: 600;
+            color: #444;
+        }
+        .position-input input {
+            width: 100px;
+            padding: 6px 8px;
             border: 1px solid #ccc;
-            margin-top: 20px;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .position-input input:focus {
+            outline: none;
+            border-color: #4CAF50;
+            box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2);
+        }
+        #updatePosition {
+            background-color: #4CAF50;
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            width: 100%;
+            margin-top: 15px;
+            transition: background-color 0.2s;
+        }
+        #updatePosition:hover {
+            background-color: #45a049;
+        }
+        .key-table {
+            margin: 8px 0;
+            border-spacing: 4px;
+            width: 100%;
+        }
+        .key-table td:first-child {
+            padding-right: 12px;
+            font-weight: 600;
+            color: #666;
+            white-space: nowrap;
+        }
+        .key-table td:last-child {
+            color: #333;
+        }
+        .section-header {
+            color: #333;
+            margin: 12px 0 8px 0;
+            font-size: 0.95em;
         }
     </style>
 </head>
 <body>
     <h1>Probe Simulator</h1>
     <div class="container">
-        <div>
+        <div class="sim-container">
             <img id="simImage" src="" alt="Simulation output">
-            <div id="probe3d"></div>
         </div>
         <div class="controls">
             <h3>Controls</h3>
-            <div class="control-group">
-                <strong>Translation:</strong><br>
-                Arrow keys: Move X/Y<br>
-                W/S: Move Z
-            </div>
-            <div class="control-group">
-                <strong>Rotation:</strong><br>
-                Q/E: Yaw (Z rotation)<br>
-                R/F: Roll (X rotation)<br>
-                T/G: Pitch (Y rotation)
-            </div>
+            <div class="controls-content">
+                <div class="control-group">
+                    <strong>Navigation Mode:</strong><br>
+                    <label style="display: flex; align-items: center; gap: 8px; margin: 12px 0;">
+                        <input type="radio" name="coordMode" id="phantomMode" value="phantom" checked>
+                        <span>Phantom Coordinates (Global X/Y/Z)</span>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 8px;">
+                        <input type="radio" name="coordMode" id="probeMode" value="probe">
+                        <span>Probe-relative Navigation</span>
+                    </label>
+                </div>
 
-            <div class="position">
-                <h3>Position</h3>
-                <div id="poseDisplay"></div>
+                <div class="control-layout">
+                    <div class="position">
+                        <h3>Absolute Position</h3>
+                        <div class="position-input">
+                            <label for="posX">X:</label>
+                            <input type="number" id="posX" step="0.1" placeholder="0.00">
+                        </div>
+                        <div class="position-input">
+                            <label for="posY">Y:</label>
+                            <input type="number" id="posY" step="0.1" placeholder="0.00">
+                        </div>
+                        <div class="position-input">
+                            <label for="posZ">Z:</label>
+                            <input type="number" id="posZ" step="0.1" placeholder="0.00">
+                        </div>
+                        <div class="position-input">
+                            <label for="rotX">Roll:</label>
+                            <input type="number" id="rotX" step="0.1" placeholder="0.0">
+                        </div>
+                        <div class="position-input">
+                            <label for="rotY">Pitch:</label>
+                            <input type="number" id="rotY" step="0.1" placeholder="0.0">
+                        </div>
+                        <div class="position-input">
+                            <label for="rotZ">Yaw:</label>
+                            <input type="number" id="rotZ" step="0.1" placeholder="0.0">
+                        </div>
+                        <button id="updatePosition">Update Position</button>
+                    </div>
+
+                    <div class="control-group" style="font-size: 0.9em; margin: 0;">
+                        <div class="section-header">Movement Keys:</div>
+                        <table class="key-table">
+                            <tr>
+                                <td>←/→:</td>
+                                <td>X axis</td>
+                            </tr>
+                            <tr>
+                                <td>↑/↓:</td>
+                                <td>Y axis</td>
+                            </tr>
+                            <tr>
+                                <td>W/S:</td>
+                                <td>Z axis</td>
+                            </tr>
+                        </table>
+                        <div class="section-header">Rotation Keys:</div>
+                        <table class="key-table">
+                            <tr>
+                                <td>Q/E:</td>
+                                <td>Yaw (Z)</td>
+                            </tr>
+                            <tr>
+                                <td>R/F:</td>
+                                <td>Roll (X)</td>
+                            </tr>
+                            <tr>
+                                <td>T/G:</td>
+                                <td>Pitch (Y)</td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
     <script>
         let pose = [0, 0, 0, 0, 0, 0];  // Default pose, will be overridden by server values
-        const stepSize = 0.2;  // Reduced from 0.5 to 0.2 for finer movement control
+        const stepSize = 2;  // Reduced from 0.5 to 0.2 for finer movement control
         const rotationStep = 0.05;  // Reduced from 0.1 to 0.05 for finer rotation control
         let isUpdating = false;  // Lock for preventing simultaneous requests
         let initialPoseFetched = false;  // Flag to track if we've successfully fetched the initial pose
 
-        // Three.js setup
-        const scene = new THREE.Scene();
-        const camera = new THREE.PerspectiveCamera(75, 300/300, 0.1, 1000);
-        const renderer = new THREE.WebGLRenderer();
-        renderer.setSize(300, 300);
-        document.getElementById('probe3d').appendChild(renderer.domElement);
+        // Helper functions for coordinate transformations
+        function rotateVector(vector, rotX, rotY, rotZ) {
+            // Convert Euler angles to rotation matrix
+            const cx = Math.cos(rotX);
+            const sx = Math.sin(rotX);
+            const cy = Math.cos(rotY);
+            const sy = Math.sin(rotY);
+            const cz = Math.cos(rotZ);
+            const sz = Math.sin(rotZ);
 
-        // Create probe geometry
-        const probeGroup = new THREE.Group();
+            // Create rotation matrix (ZYX order)
+            const rotMatrix = [
+                [cy*cz, -cy*sz, sy],
+                [sx*sy*cz + cx*sz, -sx*sy*sz + cx*cz, -sx*cy],
+                [-cx*sy*cz + sx*sz, cx*sy*sz + sx*cz, cx*cy]
+            ];
 
-        // Probe body (cylinder)
-        const bodyGeometry = new THREE.CylinderGeometry(0.2, 0.2, 2, 32);
-        const bodyMaterial = new THREE.MeshPhongMaterial({ color: 0x888888 });
-        const probeBody = new THREE.Mesh(bodyGeometry, bodyMaterial);
-        probeBody.rotation.x = Math.PI / 2;  // Align with Z-axis
-        probeGroup.add(probeBody);
-
-        // Probe tip (cone)
-        const tipGeometry = new THREE.ConeGeometry(0.2, 0.5, 32);
-        const tipMaterial = new THREE.MeshPhongMaterial({ color: 0x444444 });
-        const probeTip = new THREE.Mesh(tipGeometry, tipMaterial);
-        probeTip.position.z = 1.25;
-        probeTip.rotation.x = Math.PI / 2;
-        probeGroup.add(probeTip);
-
-        // Add coordinate axes
-        const axesHelper = new THREE.AxesHelper(2);
-        scene.add(axesHelper);
-
-        // Add lights
-        const ambientLight = new THREE.AmbientLight(0x404040);
-        scene.add(ambientLight);
-        const light = new THREE.DirectionalLight(0xffffff, 1);
-        light.position.set(1, 1, 1);
-        scene.add(light);
-
-        scene.add(probeGroup);
-
-        // Position camera
-        camera.position.set(4, 4, 4);
-        camera.lookAt(0, 0, 0);
-
-        function animate() {
-            requestAnimationFrame(animate);
-            renderer.render(scene, camera);
-        }
-
-        function updateProbePosition() {
-            probeGroup.position.set(pose[0], pose[1], pose[2]);
-            probeGroup.rotation.set(pose[3], pose[4], pose[5]);
+            // Apply rotation
+            return [
+                rotMatrix[0][0]*vector[0] + rotMatrix[0][1]*vector[1] + rotMatrix[0][2]*vector[2],
+                rotMatrix[1][0]*vector[0] + rotMatrix[1][1]*vector[1] + rotMatrix[1][2]*vector[2],
+                rotMatrix[2][0]*vector[0] + rotMatrix[2][1]*vector[1] + rotMatrix[2][2]*vector[2]
+            ];
         }
 
         function updateDisplay() {
-            const poseDisplay = document.getElementById('poseDisplay');
-            poseDisplay.innerHTML = `
-                <strong>Absolute Position:</strong><br>
-                X: ${pose[0].toFixed(2)}<br>
-                Y: ${pose[1].toFixed(2)}<br>
-                Z: ${pose[2].toFixed(2)}<br>
-                Roll: ${(pose[3] * 180 / Math.PI).toFixed(1)}°<br>
-                Pitch: ${(pose[4] * 180 / Math.PI).toFixed(1)}°<br>
-                Yaw: ${(pose[5] * 180 / Math.PI).toFixed(1)}°
-            `;
-            updateProbePosition();
+            // Update input fields
+            document.getElementById('posX').value = pose[0].toFixed(2);
+            document.getElementById('posY').value = pose[1].toFixed(2);
+            document.getElementById('posZ').value = pose[2].toFixed(2);
+            document.getElementById('rotX').value = (pose[3] * 180 / Math.PI).toFixed(1);
+            document.getElementById('rotY').value = (pose[4] * 180 / Math.PI).toFixed(1);
+            document.getElementById('rotZ').value = (pose[5] * 180 / Math.PI).toFixed(1);
         }
 
         async function updateSimulation(newPoseDelta) {
@@ -204,22 +335,36 @@
         // Function to calculate pose delta based on current key state
         function calculatePoseDelta() {
             const poseDelta = [0, 0, 0, 0, 0, 0];
+            const isProbeMode = document.getElementById('probeMode').checked;
 
-            // Translation
-            if (keyState.arrowleft) poseDelta[0] -= stepSize;
-            if (keyState.arrowright) poseDelta[0] += stepSize;
-            if (keyState.arrowup) poseDelta[1] -= stepSize;
-            if (keyState.arrowdown) poseDelta[1] += stepSize;
-            if (keyState.w) poseDelta[2] += stepSize;
-            if (keyState.s) poseDelta[2] -= stepSize;
-
-            // Rotation
+            // Handle rotations first (these are the same in both modes)
             if (keyState.q) poseDelta[5] -= rotationStep;
             if (keyState.e) poseDelta[5] += rotationStep;
             if (keyState.r) poseDelta[3] -= rotationStep;
             if (keyState.f) poseDelta[3] += rotationStep;
             if (keyState.t) poseDelta[4] -= rotationStep;
             if (keyState.g) poseDelta[4] += rotationStep;
+
+            // Handle translations
+            let moveVector = [0, 0, 0];
+
+            // Determine movement vector based on key states
+            if (keyState.arrowleft) moveVector[0] -= stepSize;
+            if (keyState.arrowright) moveVector[0] += stepSize;
+            if (keyState.arrowup) moveVector[1] -= stepSize;
+            if (keyState.arrowdown) moveVector[1] += stepSize;
+            if (keyState.w) moveVector[2] += stepSize;
+            if (keyState.s) moveVector[2] -= stepSize;
+
+            if (isProbeMode) {
+                // Transform the movement vector from local to global coordinates
+                moveVector = rotateVector(moveVector, pose[3], pose[4], pose[5]);
+            }
+
+            // Apply the transformed movement
+            poseDelta[0] = moveVector[0];
+            poseDelta[1] = moveVector[1];
+            poseDelta[2] = moveVector[2];
 
             return poseDelta;
         }
@@ -255,27 +400,6 @@
         // Stop update loop when window loses focus
         window.addEventListener('blur', stopUpdateLoop);
 
-        // Function to synchronize with server's pose
-        async function synchronizeWithServer() {
-            try {
-                const response = await fetch('/get_initial_pose');
-                if (response.ok) {
-                    const data = await response.json();
-                    pose = data.pose;
-                    initialPoseFetched = true;
-                    console.log("Synchronized pose with server:", pose);
-                    updateDisplay();
-                    return true;
-                } else {
-                    console.error("Failed to synchronize pose: Server returned", response.status);
-                    return false;
-                }
-            } catch (error) {
-                console.error("Failed to synchronize pose:", error);
-                return false;
-            }
-        }
-
         // Initialize the simulation when the page loads
         document.addEventListener('DOMContentLoaded', async () => {
             // Fetch initial pose from server
@@ -306,8 +430,23 @@
             startUpdateLoop();
         });
 
-        // Start animation loop for Three.js
-        animate();
+        // Add event listener for the update button
+        document.getElementById('updatePosition').addEventListener('click', async () => {
+            const newPose = [
+                parseFloat(document.getElementById('posX').value),
+                parseFloat(document.getElementById('posY').value),
+                parseFloat(document.getElementById('posZ').value),
+                parseFloat(document.getElementById('rotX').value) * Math.PI / 180,
+                parseFloat(document.getElementById('rotY').value) * Math.PI / 180,
+                parseFloat(document.getElementById('rotZ').value) * Math.PI / 180
+            ];
+
+            // Calculate the delta between current and new pose
+            const poseDelta = newPose.map((val, idx) => val - pose[idx]);
+
+            // Update simulation with the calculated delta
+            await updateSimulation(poseDelta);
+        });
     </script>
 </body>
 </html>

@@ -15,6 +15,7 @@
 
 import os
 import re
+import subprocess
 import sys
 import time
 
@@ -23,6 +24,61 @@ from tqdm import tqdm
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import raysim.cuda as rs
+
+
+def get_gpu_info():
+    """Get GPU information using nvidia-smi."""
+    try:
+        # First check if nvidia-smi is available
+        subprocess.run(['which', 'nvidia-smi'], check=True, capture_output=True)
+
+        # Get detailed GPU info
+        nvidia_smi = subprocess.check_output([
+            'nvidia-smi',
+            '--query-gpu=gpu_name,memory.total,driver_version',
+            '--format=csv,nounits,noheader'
+        ]).decode().strip()
+
+        # Take only the first line if multiple GPUs
+        first_gpu = nvidia_smi.split('\n')[0]
+
+        # Split only on the last two commas since GPU name might contain commas
+        parts = first_gpu.split(',')
+        if len(parts) < 3:
+            return "GPU information incomplete (unexpected nvidia-smi output format)"
+
+        # Reconstruct GPU name from all parts except last two
+        gpu_name = ','.join(parts[:-2]).strip()
+        memory = parts[-2].strip()
+        driver = parts[-1].strip()
+
+        # Add units back to memory
+        try:
+            memory_val = float(memory)
+            if memory_val >= 1024:
+                memory = f"{memory_val/1024:.1f} GB"
+            else:
+                memory = f"{memory_val} MB"
+        except ValueError:
+            memory = f"{memory} MB"  # Fallback if parsing fails
+
+        return f"{gpu_name} ({memory}, Driver: {driver})"
+    except subprocess.CalledProcessError:
+        return "GPU information unavailable: nvidia-smi not found"
+    except Exception as e:
+        return f"GPU information unavailable: {str(e)}"
+
+
+def get_cpu_info():
+    """Get CPU information."""
+    try:
+        with open('/proc/cpuinfo') as f:
+            cpu_info = f.read()
+        model_name = re.search(r'model name\s+:\s+(.*)', cpu_info).group(1)
+        cpu_cores = len(re.findall(r'processor\s+:', cpu_info))
+        return f"{model_name} ({cpu_cores} cores)"
+    except Exception as e:
+        return f"CPU information unavailable: {e}"
 
 
 def read_previous_fps(results_file):
@@ -52,10 +108,10 @@ def main():
 
     # Create probe with initial pose
     initial_pose = rs.Pose(
-        np.array([-310.0, -420.0, 200.0], dtype=np.float32),  # position (x, y, z)
-        np.array([np.pi, np.pi, np.pi/2], dtype=np.float32)   # rotation (y, ?, x) z-up by default
+        np.array([40.0, -110.0, -300.0], dtype=np.float32),  # position (x, y, z)
+        np.array([np.deg2rad(-84.0), np.deg2rad(22.0), np.deg2rad(0.0)], dtype=np.float32)   # rotation (x, y, z
     )
-    probe = rs.UltrasoundProbe(initial_pose)
+    probe = rs.UltrasoundProbe(initial_pose, num_elements=256)
 
     # Create simulator
     simulator = rs.RaytracingUltrasoundSimulator(world, materials)
@@ -65,13 +121,13 @@ def main():
     sim_params.conv_psf = True
     sim_params.buffer_size = 4096
     sim_params.t_far = 180.0
-    sim_params.enable_cuda_timing = True
+    sim_params.enable_cuda_timing = False  # Set to True to enable CUDA profiling of processings steps
     sim_params.b_mode_size = (500, 500,)
 
     # Setup benchmark parameters
     N_frames = 200
-    z_range = 100.0  # Range of z movement
-    z_start = 150.0
+    z_range = -300.0  # Range of z movement
+    z_start = -400.0
 
     # Prepare to measure frame times
     frame_times = []
@@ -83,8 +139,8 @@ def main():
         z = z_start + (z_range/2) * np.sin(i * 0.1)
 
         # Create probe with updated pose
-        position = np.array([-310.0, -420.0, z], dtype=np.float32)
-        rotation = np.array([np.pi, np.pi, np.pi/2], dtype=np.float32)
+        position = np.array([40.0, -110.0, z], dtype=np.float32)
+        rotation = np.array([np.deg2rad(-84.0), np.deg2rad(22.0), np.deg2rad(0.0)], dtype=np.float32)
         probe = rs.UltrasoundProbe(rs.Pose(position=position, rotation=rotation))
 
         # Time the simulation
@@ -112,6 +168,10 @@ def main():
         Minimum FPS: {min_fps:.2f}
         Maximum FPS: {max_fps:.2f}
         Date: {timestamp}
+
+        System Information:
+        GPU: {get_gpu_info()}
+        CPU: {get_cpu_info()}
         """
 
     # Report results to console
