@@ -29,11 +29,44 @@ import raysim.cuda as rs
 def get_gpu_info():
     """Get GPU information using nvidia-smi."""
     try:
-        nvidia_smi = subprocess.check_output(['nvidia-smi', '--query-gpu=gpu_name,memory.total,driver_version', '--format=csv,noheader']).decode()
-        gpu_name, memory, driver = nvidia_smi.strip().split(', ')
+        # First check if nvidia-smi is available
+        subprocess.run(['which', 'nvidia-smi'], check=True, capture_output=True)
+
+        # Get detailed GPU info
+        nvidia_smi = subprocess.check_output([
+            'nvidia-smi',
+            '--query-gpu=gpu_name,memory.total,driver_version',
+            '--format=csv,nounits,noheader'
+        ]).decode().strip()
+
+        # Take only the first line if multiple GPUs
+        first_gpu = nvidia_smi.split('\n')[0]
+
+        # Split only on the last two commas since GPU name might contain commas
+        parts = first_gpu.split(',')
+        if len(parts) < 3:
+            return "GPU information incomplete (unexpected nvidia-smi output format)"
+
+        # Reconstruct GPU name from all parts except last two
+        gpu_name = ','.join(parts[:-2]).strip()
+        memory = parts[-2].strip()
+        driver = parts[-1].strip()
+
+        # Add units back to memory
+        try:
+            memory_val = float(memory)
+            if memory_val >= 1024:
+                memory = f"{memory_val/1024:.1f} GB"
+            else:
+                memory = f"{memory_val} MB"
+        except ValueError:
+            memory = f"{memory} MB"  # Fallback if parsing fails
+
         return f"{gpu_name} ({memory}, Driver: {driver})"
+    except subprocess.CalledProcessError:
+        return "GPU information unavailable: nvidia-smi not found"
     except Exception as e:
-        return f"GPU information unavailable: {e}"
+        return f"GPU information unavailable: {str(e)}"
 
 
 def get_cpu_info():

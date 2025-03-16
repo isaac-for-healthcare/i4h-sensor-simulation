@@ -13,14 +13,14 @@ To reproduce these results, run `python examples/benchmark.py`.
 ```
 Benchmark Results:
         Total frames: 200
-        Average frame time: 0.0044 seconds
-        Average FPS: 229.14
-        Minimum FPS: 117.98
-        Maximum FPS: 268.99
-        Date: 2025-03-14 10:23:43
+        Average frame time: 0.0073 seconds
+        Average FPS: 136.28
+        Minimum FPS: 59.66
+        Maximum FPS: 249.62
+        Date: 2025-03-16 07:38:46
 
         System Information:
-        GPU: GPU information unavailable
+        GPU: NVIDIA RTX 6000 Ada Generation (48.0 GB, Driver: 565.57.01)
         CPU: AMD Ryzen Threadripper PRO 7975WX 32-Cores (64 cores)
 
 ```
