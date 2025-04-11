@@ -82,8 +82,8 @@ world.add(large_intestine_mesh)
 
 # Create probe with initial pose matching C++ implementation
 initial_pose = rs.Pose(
-    np.array([-8,-110,-336], dtype=np.float32),  # position (x, y, z)
-    np.array([np.deg2rad(-84), np.deg2rad(22), np.deg2rad(0)], dtype=np.float32))   # rotation (x, y, z)
+    np.array([-14,-122,72], dtype=np.float32),  # position (x, y, z)
+    np.array([np.deg2rad(-90), np.deg2rad(180), np.deg2rad(0)], dtype=np.float32))   # rotation (x, y, z)
 # Create ultrasound probe with elevational extent parameters
 probe = rs.UltrasoundProbe(
     initial_pose,
