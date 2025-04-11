@@ -54,6 +54,14 @@ Benchmark Results:
                  └── sutil
      ```
 
+   Commands to download and install OptiX SDK 8.1 are like this:
+     ```bash
+     wget https://developer.nvidia.com/downloads/designworks/optix/secure/8.1.0/NVIDIA-OptiX-SDK-8.1.0-linux64-x86_64-35015278.sh
+     chmod +x NVIDIA-OptiX-SDK-8.1.0-linux64-x86_64-35015278.sh
+     ./NVIDIA-OptiX-SDK-8.1.0-linux64-x86_64-35015278.sh
+     mv NVIDIA-OptiX-SDK-8.1.0-linux64-x86_64 third_party/optix/
+     ```
+
 3. Download mesh data:
    - The mesh data is a part of the Isaac for Healthcare asset package. You can download it by installing the asset helper tool:
    ```bash
@@ -94,6 +102,12 @@ Benchmark Results:
    ```
 
    If you have multiple CUDA toolkit versions installed, you can optionally use the flag `--CMAKE_CUDA_ARCHITECTURES=<path to nvcc>` to point to the desired version.
+
+   Please note that CMake 3.24.0 or higher is required to build the project, you can upgrade it by:
+
+   ```bash
+   pip install --upgrade cmake
+   ```
 
 6. Run examples
 
