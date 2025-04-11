@@ -39,7 +39,23 @@ Benchmark Results:
    cd i4h-sensor-simulation/ultrasound-raytracing
    ```
 
-2. Download and set up OptiX SDK 8.1:
+2. Install Python dependencies and create virtual environment:
+
+   **Option A: Using uv**
+   ```bash
+   uv sync && source .venv/bin/activate
+   ```
+
+   **Option B: Using conda**
+   ```bash
+   # Create environment and install dependencies
+   conda create -n ultrasound python=3.10 libstdcxx-ng -c conda-forge -y
+
+   conda activate ultrasound
+   pip install -e .
+   ```
+
+3. Download and set up OptiX SDK 8.1:
    - Download OptiX SDK 8.1 from the [NVIDIA Developer website](https://developer.nvidia.com/designworks/optix/downloads/legacy)
    - Extract the downloaded OptiX SDK archive
    - Place the extracted directory inside the `ultrasound-raytracing/third_party/optix` directory, maintaining the following structure:
@@ -54,15 +70,14 @@ Benchmark Results:
                  └── sutil
      ```
 
-   Commands to download and install OptiX SDK 8.1 are like this:
+   Please note that the downloaded file is a shell script, you need to make it executable and run it before moving it to the `ultrasound-raytracing/third_party/optix` directory:
+   
      ```bash
-     wget https://developer.nvidia.com/downloads/designworks/optix/secure/8.1.0/NVIDIA-OptiX-SDK-8.1.0-linux64-x86_64-35015278.sh
-     chmod +x NVIDIA-OptiX-SDK-8.1.0-linux64-x86_64-35015278.sh
-     ./NVIDIA-OptiX-SDK-8.1.0-linux64-x86_64-35015278.sh
-     mv NVIDIA-OptiX-SDK-8.1.0-linux64-x86_64 third_party/optix/
+     chmod +x <path_to_downloaded_file>/NVIDIA-OptiX-SDK-8.1.0-linux64-x86_64-35015278.sh
+     ./<path_to_downloaded_file>/NVIDIA-OptiX-SDK-8.1.0-linux64-x86_64-35015278.sh
      ```
 
-3. Download mesh data:
+4. Download mesh data:
    - The mesh data is a part of the Isaac for Healthcare asset package. You can download it by installing the asset helper tool:
    ```bash
    pip install git+ssh://git@github.com/isaac-for-healthcare/i4h-asset-catalog.git
@@ -80,33 +95,20 @@ Benchmark Results:
    cp -r ~/.cache/i4h-assets/<sha256_hash>/Props/ABDPhantom/Organs mesh
    ```
 
-4. Install Python dependencies and create virtual environment:
-
-   **Option A: Using uv**
-   ```bash
-   uv sync && source .venv/bin/activate
-   ```
-
-   **Option B: Using conda**
-   ```bash
-   # Create environment and install dependencies
-   conda create -n ultrasound python=3.10 libstdcxx-ng -c conda-forge
-
-   conda activate ultrasound
-   pip install -e .
-   ```
-
 5. Build the project
+
+   CMake 3.24.0 or higher is required to build the project, you can use `cmake --version` to check your version. If an older version is installed, you need to upgrade it:
+
    ```bash
-   cmake -DPYTHON_EXECUTABLE=$(which python) -DCMAKE_BUILD_TYPE=Release -B build-release && cmake --build build-release -j $(nproc)
+   pip install cmake==3.24.0
+   hash -r
    ```
 
-   If you have multiple CUDA toolkit versions installed, you can optionally use the flag `--CMAKE_CUDA_ARCHITECTURES=<path to nvcc>` to point to the desired version.
-
-   Please note that CMake 3.24.0 or higher is required to build the project, you can upgrade it by:
+   Then you can build the project by:
 
    ```bash
-   pip install --upgrade cmake
+   cmake -DPYTHON_EXECUTABLE=$(which python) -DCMAKE_BUILD_TYPE=Release -DCMAKE_CUDA_ARCHITECTURES=native -B build-release
+   cmake --build build-release -j $(nproc)
    ```
 
 6. Run examples
