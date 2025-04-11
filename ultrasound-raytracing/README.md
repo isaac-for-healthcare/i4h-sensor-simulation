@@ -71,7 +71,7 @@ Benchmark Results:
      ```
 
    Please note that the downloaded file is a shell script, you need to make it executable and run it before moving it to the `ultrasound-raytracing/third_party/optix` directory:
-   
+
      ```bash
      chmod +x <path_to_downloaded_file>/NVIDIA-OptiX-SDK-8.1.0-linux64-x86_64-35015278.sh
      ./<path_to_downloaded_file>/NVIDIA-OptiX-SDK-8.1.0-linux64-x86_64-35015278.sh
