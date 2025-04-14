@@ -39,23 +39,7 @@ Benchmark Results:
    cd i4h-sensor-simulation/ultrasound-raytracing
    ```
 
-2. Install Python dependencies and create virtual environment:
-
-   **Option A: Using uv**
-   ```bash
-   uv sync && source .venv/bin/activate
-   ```
-
-   **Option B: Using conda**
-   ```bash
-   # Create environment and install dependencies
-   conda create -n ultrasound python=3.10 libstdcxx-ng -c conda-forge -y
-
-   conda activate ultrasound
-   pip install -e .
-   ```
-
-3. Download and set up OptiX SDK 8.1:
+2. Download and set up OptiX SDK 8.1:
    - Download OptiX SDK 8.1 from the [NVIDIA Developer website](https://developer.nvidia.com/designworks/optix/downloads/legacy)
    - Extract the downloaded OptiX SDK archive
    - Place the extracted directory inside the `ultrasound-raytracing/third_party/optix` directory, maintaining the following structure:
@@ -77,7 +61,7 @@ Benchmark Results:
      ./<path_to_downloaded_file>/NVIDIA-OptiX-SDK-8.1.0-linux64-x86_64-35015278.sh
      ```
 
-4. Download mesh data:
+3. Download mesh data:
    - The mesh data is a part of the Isaac for Healthcare asset package. You can download it by installing the asset helper tool:
    ```bash
    pip install git+ssh://git@github.com/isaac-for-healthcare/i4h-asset-catalog.git
@@ -93,6 +77,22 @@ Benchmark Results:
 
    ```bash
    cp -r ~/.cache/i4h-assets/<sha256_hash>/Props/ABDPhantom/Organs mesh
+   ```
+
+4. Install Python dependencies and create virtual environment:
+
+   **Option A: Using uv**
+   ```bash
+   uv sync && source .venv/bin/activate
+   ```
+
+   **Option B: Using conda**
+   ```bash
+   # Create environment and install dependencies
+   conda create -n ultrasound python=3.10 libstdcxx-ng -c conda-forge -y
+
+   conda activate ultrasound
+   pip install -e .
    ```
 
 5. Build the project
