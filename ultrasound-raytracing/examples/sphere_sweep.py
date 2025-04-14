@@ -60,8 +60,8 @@ def main():
 
     # Setup sweep parameters
     N_frames = 10
-    x_start = 5
-    x_end = -5
+    x_start = 20
+    x_end = -20
     x_positions = np.linspace(x_start, x_end, N_frames)
 
 
@@ -70,7 +70,7 @@ def main():
     max_val = 0.0
     for i, x in tqdm(enumerate(x_positions), total=len(x_positions)):
         # Create probe with updated pose
-        position = np.array([0, 0, 0], dtype=np.float32)
+        position = np.array([x, 0, 0], dtype=np.float32)
         rotation = np.array([0, np.pi, 0], dtype=np.float32)
         probe = rs.UltrasoundProbe(rs.Pose(position=position, rotation=rotation))
 
