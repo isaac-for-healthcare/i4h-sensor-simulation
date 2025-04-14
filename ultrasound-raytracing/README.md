@@ -101,7 +101,7 @@ Benchmark Results:
 
    ```bash
    pip install cmake==3.24.0
-   hash -r
+   hash -r   # Reset terminal path cache
    ```
 
    Then you can build the project by:
