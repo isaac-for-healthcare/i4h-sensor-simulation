@@ -34,8 +34,6 @@ CORS(app)
 materials = rs.Materials()
 world = rs.World("water")
 
-origin = rs.Mesh("mesh/origin.obj", materials.get_index("fat"))
-world.add(origin)
 material_idx = materials.get_index("fat")
 liver_tumor = rs.Mesh("mesh/Tumor1.obj", material_idx)
 world.add(liver_tumor)
