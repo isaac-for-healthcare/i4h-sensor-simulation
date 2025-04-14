@@ -39,23 +39,7 @@ Benchmark Results:
    cd i4h-sensor-simulation/ultrasound-raytracing
    ```
 
-2. Install Python dependencies and create virtual environment:
-
-   **Option A: Using uv**
-   ```bash
-   uv sync && source .venv/bin/activate
-   ```
-
-   **Option B: Using conda**
-   ```bash
-   # Create environment and install dependencies
-   conda create -n ultrasound python=3.10 libstdcxx-ng -c conda-forge -y
-
-   conda activate ultrasound
-   pip install -e .
-   ```
-
-3. Download and set up OptiX SDK 8.1:
+2. Download and set up OptiX SDK 8.1:
    - Download OptiX SDK 8.1 from the [NVIDIA Developer website](https://developer.nvidia.com/designworks/optix/downloads/legacy)
    - Extract the downloaded OptiX SDK archive
    - Place the extracted directory inside the `ultrasound-raytracing/third_party/optix` directory, maintaining the following structure:
@@ -77,7 +61,7 @@ Benchmark Results:
      ./<path_to_downloaded_file>/NVIDIA-OptiX-SDK-8.1.0-linux64-x86_64-35015278.sh
      ```
 
-4. Download mesh data:
+3. Download mesh data:
    - The mesh data is a part of the Isaac for Healthcare asset package. You can download it by installing the asset helper tool:
    ```bash
    pip install git+ssh://git@github.com/isaac-for-healthcare/i4h-asset-catalog.git
@@ -95,21 +79,50 @@ Benchmark Results:
    cp -r ~/.cache/i4h-assets/<sha256_hash>/Props/ABDPhantom/Organs mesh
    ```
 
+4. Install Python dependencies and create virtual environment:
+
+   **Option A: Using uv**
+   ```bash
+   uv sync && source .venv/bin/activate
+   ```
+
+   **Option B: Using conda**
+   ```bash
+   # Create environment and install dependencies
+   conda create -n ultrasound python=3.10 libstdcxx-ng -c conda-forge -y
+
+   conda activate ultrasound
+   pip install -e .
+   ```
+
 5. Build the project
 
    CMake 3.24.0 or higher is required to build the project, you can use `cmake --version` to check your version. If an older version is installed, you need to upgrade it:
 
    ```bash
    pip install cmake==3.24.0
-   hash -r
+   hash -r   # Reset terminal path cache
    ```
 
    Then you can build the project by:
 
    ```bash
-   cmake -DPYTHON_EXECUTABLE=$(which python) -DCMAKE_BUILD_TYPE=Release -DCMAKE_CUDA_ARCHITECTURES=native -B build-release
+   cmake -DPYTHON_EXECUTABLE=$(which python) -DCMAKE_BUILD_TYPE=Release -DCMAKE_CUDA_ARCHITECTURES=<your_cuda_architecture> -B build-release
    cmake --build build-release -j $(nproc)
    ```
+
+   Note on `CMAKE_CUDA_ARCHITECTURES`:
+
+   This flag tells the compiler which NVIDIA GPU architecture(s) to build the CUDA code for. You must specify the correct compute capability number for the GPU you intend to run this simulation on. Using the wrong value will likely result in a runtime error (e.g., `Invalid target architecture`).
+
+   Here are some examples for different GPU architectures:
+
+   *   **Ada Lovelace** (e.g., RTX 4090, RTX 6000 Ada): Use `89`
+   *   **Ampere** (e.g., RTX 3090, RTX A6000): Use `86` (or `80` for A100)
+
+   For other GPU architectures, please refer to the [official CUDA documentation](https://docs.nvidia.com/cuda/cuda-compiler-driver-nvcc/index.html#gpu-feature-list).
+
+   While you can try using `native` instead of a specific number (`-DCMAKE_CUDA_ARCHITECTURES=native`), this **may fail during compilation** on machines equipped with multiple NVIDIA GPUs that have different compute capabilities.
 
 6. Run examples
 
