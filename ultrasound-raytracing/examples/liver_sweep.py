@@ -57,9 +57,9 @@ sim_params.enable_cuda_timing = True
 sim_params.b_mode_size = (500, 500,)
 
 # Setup sweep parameters
-N_frames = 10
-z_start = -410.0
-z_end = -313.0
+N_frames = 100
+z_start = -30
+z_end = 110
 z_positions = np.linspace(z_start, z_end, N_frames)
 
 # Image dynamic range
@@ -68,8 +68,8 @@ max_val = 0.0
 
 for i, z in tqdm(enumerate(z_positions), total=len(z_positions)):
     # Create probe with updated pose
-    position = np.array([10, -145, z], dtype=np.float32)
-    rotation = np.array([-np.pi/2, 0, 0], dtype=np.float32)
+    position = np.array([-30, -104, z], dtype=np.float32)
+    rotation = np.array([-np.pi/2, np.pi, 0], dtype=np.float32)
     probe = rs.UltrasoundProbe(rs.Pose(position=position, rotation=rotation))
 
     # Run simulation
