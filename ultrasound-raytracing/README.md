@@ -107,22 +107,15 @@ Benchmark Results:
    Then you can build the project by:
 
    ```bash
-   cmake -DPYTHON_EXECUTABLE=$(which python) -DCMAKE_BUILD_TYPE=Release -DCMAKE_CUDA_ARCHITECTURES=<your_cuda_architecture> -B build-release
+   cmake -DPYTHON_EXECUTABLE=$(which python) -DCMAKE_BUILD_TYPE=Release -B build-release
    cmake --build build-release -j $(nproc)
    ```
 
-   Note on `CMAKE_CUDA_ARCHITECTURES`:
+   Note:
 
-   This flag tells the compiler which NVIDIA GPU architecture(s) to build the CUDA code for. You must specify the correct compute capability number for the GPU you intend to run this simulation on. Using the wrong value will likely result in a runtime error (e.g., `Invalid target architecture`).
+   - In the [CMake setup file](./cmake/SetupCUDA.cmake), the default value for `CMAKE_CUDA_ARCHITECTURES` is set to `native`. This setting **may cause compilation failures** on systems with multiple NVIDIA GPUs that have different compute capabilities.
 
-   Here are some examples for different GPU architectures:
-
-   *   **Ada Lovelace** (e.g., RTX 4090, RTX 6000 Ada): Use `89`
-   *   **Ampere** (e.g., RTX 3090, RTX A6000): Use `86` (or `80` for A100)
-
-   For other GPU architectures, please refer to the [official CUDA documentation](https://docs.nvidia.com/cuda/cuda-compiler-driver-nvcc/index.html#gpu-feature-list).
-
-   While you can try using `native` instead of a specific number (`-DCMAKE_CUDA_ARCHITECTURES=native`), this **may fail during compilation** on machines equipped with multiple NVIDIA GPUs that have different compute capabilities.
+   - If you experience this issue, try specifying the GPU you want to use by setting the environment variable `export CUDA_VISIBLE_DEVICES=<selected device number>` before building the project.
 
 6. Run examples
 
