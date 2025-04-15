@@ -85,7 +85,7 @@ endfunction()
 # Start with "70", this is the lowest architecture supported by cuFFTDx
 if(NOT DEFINED CMAKE_CUDA_ARCHITECTURES)
     message(STATUS "CMAKE_CUDA_ARCHITECTURES not defined, setting it to `native`")
-    set(CMAKE_CUDA_ARCHITECTURES native)  
+    set(CMAKE_CUDA_ARCHITECTURES native)
 endif()
 if(CMAKE_CUDA_ARCHITECTURES STREQUAL "all")
     set(CMAKE_CUDA_ARCHITECTURES "70;72;75;80;86;87;89;90;90a")
