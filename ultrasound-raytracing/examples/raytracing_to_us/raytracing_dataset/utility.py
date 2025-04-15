@@ -44,6 +44,9 @@ def convert_to_mesh(
     reader.Update()
 
     nifti_transform_matrix = reader.GetSFormMatrix()
+    if nifti_transform_matrix is None or nifti_transform_matrix.IsIdentity():
+        nifti_transform_matrix = vtk.vtkMatrix4x4()
+
     nifti_transform = vtk.vtkTransform()
     nifti_transform.SetMatrix(nifti_transform_matrix)
 
