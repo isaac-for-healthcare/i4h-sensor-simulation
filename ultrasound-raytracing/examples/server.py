@@ -88,9 +88,9 @@ probe = rs.UltrasoundProbe(
     num_elements=256,            # Number rays which represent elements
     opening_angle=73.0,          # default value in degrees
     radius=45.0,                 # probe radius  in mm
-    frequency=2.5,               # probe frequency in MHz
+    frequency=5.0,               # probe frequency in MHz
     elevational_height=7.0,      # probe elevational aperture height in mm
-    num_el_samples=10            # number of samples in elevational direction (default is 1)
+    num_el_samples=10,         # number of samples in elevational direction (default is 1)
 )
 # Create simulator
 simulator = rs.RaytracingUltrasoundSimulator(world, materials)

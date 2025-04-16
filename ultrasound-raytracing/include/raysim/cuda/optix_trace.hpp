@@ -35,6 +35,7 @@ struct Params {
   uint32_t background_material_id;
   cudaTextureObject_t scattering_texture;
   OptixTraversableHandle handle;
+  float source_frequency;
 };
 
 struct RayGenData {

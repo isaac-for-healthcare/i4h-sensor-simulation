@@ -68,8 +68,8 @@ static __device__ float get_intensity_at_distance(float distance, float medium_a
   // where α is attenuation coefficient in dB/(cm⋅MHz)
   // f is frequency in MHz
   // d is distance in cm
-  const float source_freq = 5.f;                                                // MHz
-  const float distance_cm = distance * 0.1f;                                    // Convert to cm
+  const float source_freq = params.source_frequency;  // Use frequency from params
+  const float distance_cm = distance * 0.1f;          // Convert to cm
   const float attenuation_db = medium_attenuation * source_freq * distance_cm;  // dB
   return __powf(10.f, -attenuation_db * 0.05f);
 }
