@@ -29,13 +29,11 @@ def nii_to_mesh(input_nii_path, output_nii_path, output_obj_path):
 
     labels = {
         "Liver": 1,
-        "Spleen": 3,
     }
 
     pre_trans = Compose(
         [
             LoadImaged(keys="label", ensure_channel_first=True),
-            # BorderPadd(keys="label", spatial_border=2),
             SqueezeDimd(keys="label", dim=0),
         ]
     )

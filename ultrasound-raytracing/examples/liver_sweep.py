@@ -34,14 +34,16 @@ os.makedirs(output_dir, exist_ok=True)
 materials = rs.Materials()
 world = rs.World("water")
 
-# Add liver and mass to world
+# Add liver mesh to world
 material_idx = materials.get_index("liver")
-mesh = rs.Mesh("/localhome/local-vennw/code/raytracying_dataset/Task09_Spleen/predsTr/spleen_3_trans/obj/Liver.obj", material_idx)
+mesh = rs.Mesh("mesh/Liver.obj", material_idx)
 world.add(mesh)
 
-# material_idx = materials.get_index("fat")
-# mesh = rs.Mesh("/localhome/local-vennw/zenodo_dataset/Benign/fake_3d_masks/112/obj/Mass.obj", material_idx)
-# world.add(mesh)
+# Create probe with initial pose matching C++ implementation
+initial_pose = rs.Pose(
+    np.array([10, -145, -361.0], dtype=np.float32),  # position (x, y, z)
+    np.array([-np.pi/2, 0, 0], dtype=np.float32))   # rotation (x, y, z)
+probe = rs.UltrasoundProbe(initial_pose)
 
 # Create simulator
 simulator = rs.RaytracingUltrasoundSimulator(world, materials)
@@ -56,44 +58,39 @@ sim_params.b_mode_size = (500, 500,)
 
 # Setup sweep parameters
 N_frames = 10
-z_start = 0
-z_end = 100
+z_start = -410.0
+z_end = -313.0
 z_positions = np.linspace(z_start, z_end, N_frames)
 
 # Image dynamic range
 min_val = -60.0
 max_val = 0.0
 
-# for i, z in tqdm(enumerate(z_positions), total=len(z_positions)):
-ct = 0
-for x in [120]:
-    for y in [-120]:
-        for z in [50, 60, 70, 80, 90, 100]:
+for i, z in tqdm(enumerate(z_positions), total=len(z_positions)):
     # Create probe with updated pose
-            position = np.array([x, y, z], dtype=np.float32)
-            rotation = np.array([0, 0, 0], dtype=np.float32)
-            probe = rs.UltrasoundProbe(rs.Pose(position=position, rotation=rotation))
+    position = np.array([10, -145, z], dtype=np.float32)
+    rotation = np.array([-np.pi/2, 0, 0], dtype=np.float32)
+    probe = rs.UltrasoundProbe(rs.Pose(position=position, rotation=rotation))
 
-            # Run simulation
-            b_mode_image = simulator.simulate(probe, sim_params)
+    # Run simulation
+    b_mode_image = simulator.simulate(probe, sim_params)
 
 
-            normalized_image = np.clip((b_mode_image - min_val) / (max_val - min_val), 0, 1)
+    normalized_image = np.clip((b_mode_image - min_val) / (max_val - min_val), 0, 1)
 
-            # Get boundary values from the result dictionary
-            min_x = simulator.get_min_x()
-            max_x = simulator.get_max_x()
-            min_z = simulator.get_min_z()
-            max_z = simulator.get_max_z()
+    # Get boundary values from the result dictionary
+    min_x = simulator.get_min_x()
+    max_x = simulator.get_max_x()
+    min_z = simulator.get_min_z()
+    max_z = simulator.get_max_z()
 
-            # Display and save image with proper axes
-            plt.figure(figsize=(10, 8))
-            plt.imshow(normalized_image, cmap='gray',
-                    extent=[min_x, max_x, min_z, max_z], aspect='equal')  # Note: depth axis is flipped
-            plt.xlabel('Width (mm)')
-            plt.ylabel('Depth (mm)')
-            plt.colorbar(label='Intensity (normalized)')
-            plt.title(f"B-mode Ultrasound Image of Liver: (x, y, z) = ({position[0]:.2f}, {position[1]:.2f}, {position[2]:.2f})")
-            plt.savefig(os.path.join(output_dir, f"frame_{ct:03d}.png"))
-            plt.show()
-            ct += 1
+    # Display and save image with proper axes
+    plt.figure(figsize=(10, 8))
+    plt.imshow(normalized_image, cmap='gray',
+            extent=[min_x, max_x, min_z, max_z], aspect='equal')  # Note: depth axis is flipped
+    plt.xlabel('Width (mm)')
+    plt.ylabel('Depth (mm)')
+    plt.colorbar(label='Intensity (normalized)')
+    plt.title(f"B-mode Ultrasound Image of Liver: (x, y, z) = ({position[0]:.2f}, {position[1]:.2f}, {position[2]:.2f})")
+    plt.savefig(os.path.join(output_dir, f"frame_{i:03d}.png"))
+    plt.show()
