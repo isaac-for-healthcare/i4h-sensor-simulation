@@ -28,7 +28,8 @@ def nii_to_mesh(input_nii_path, output_nii_path, output_obj_path):
         os.makedirs(output_nii_path)
 
     labels = {
-        "Liver": 1,
+        "Outline": 1,
+        "Liver": 2,
     }
 
     pre_trans = Compose(
@@ -80,7 +81,7 @@ def nii_to_mesh(input_nii_path, output_nii_path, output_obj_path):
 
 def generate_mesh(seg_dir):
     ct_list = os.listdir(os.path.join(seg_dir))
-    ct_list = [ct for ct in ct_list if ct.endswith("18_trans.nii.gz")]
+    ct_list = [ct for ct in ct_list if ct.endswith(".nii.gz")]
     for ct in ct_list:
         print(f"Processing {ct}")
         try:
@@ -88,12 +89,8 @@ def generate_mesh(seg_dir):
             input_nii_path = os.path.join(seg_dir, ct)
             output_nii_path = os.path.join(seg_dir, ct_name, "nii")
             output_obj_path = os.path.join(seg_dir, ct_name, "obj")
-            out = nii_to_mesh(input_nii_path, output_nii_path, output_obj_path)
+            _ = nii_to_mesh(input_nii_path, output_nii_path, output_obj_path)
 
-            obj_filename = f"{output_obj_path}/all_organs.gltf"
-            usd_filename = f"{output_obj_path}/all_organs.usd"
-
-            convert_mesh_to_usd(obj_filename, usd_filename)
         except Exception as e:
             print(f"Error processing {ct}: {e}")
 
