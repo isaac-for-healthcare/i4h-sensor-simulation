@@ -28,18 +28,18 @@ from monai.transforms import LoadImage
 
 
 def calculate_bounding_box(segmentation_path):
-    with open(segmentation_path, 'r') as file:
-        points = json.load(file)
+    mask = cv2.imread(segmentation_path, cv2.IMREAD_GRAYSCALE)
 
-    h_coords = [point[1] for point in points]
-    w_coords = [point[0] for point in points]
+    non_zero_indices = np.argwhere(mask > 0)
+    min_coords = non_zero_indices.min(axis=0)
+    max_coords = non_zero_indices.max(axis=0)
 
-    min_h = min(h_coords)
-    max_h = max(h_coords)
-    min_w = min(w_coords)
-    max_w = max(w_coords)
+    min_h = int(min_coords[0])
+    max_h = int(max_coords[0])
+    min_w = int(min_coords[1])
+    max_w = int(max_coords[1])
 
-    return min_h, max_h, min_w, max_w, points
+    return min_h, max_h, min_w, max_w, mask
 
 def get_pose_position(image, bounding_box):
     min_h, max_h, min_w, max_w = bounding_box
@@ -47,8 +47,8 @@ def get_pose_position(image, bounding_box):
     real_min_h, real_max_h = min_h * spacing_h, max_h * spacing_h
     real_min_w, real_max_w = min_w * spacing_w, max_w * spacing_w
     print(bounding_box)
-    # assume position h is 20mm smaller than real_min_h
-    position_h = real_min_h - 20
+    # assume position h is 30mm smaller than real_min_h
+    position_h = real_min_h - 30
     # position_h = 0
     # assume position w is the median of real_min_w and real_max_w
     position_w = (real_min_w + real_max_w) / 2
@@ -57,36 +57,35 @@ def get_pose_position(image, bounding_box):
     return position_h, position_w, position_d
 
 
-rc_output_dir = "/localhome/local-vennw/code/rc_to_us_dataset/rc/train"
-us_output_dir = "/localhome/local-vennw/code/rc_to_us_dataset/us/train"
+rc_output_dir = "/localhome/local-vennw/code/tcia_us_dataset/rc/train"
+us_output_dir = "/localhome/local-vennw/code/tcia_us_dataset/us/train"
+us_remove_bg_output_dir = "/localhome/local-vennw/code/tcia_us_dataset/us_remove_bg/train"
 
 os.makedirs(rc_output_dir, exist_ok=True)
 os.makedirs(us_output_dir, exist_ok=True)
+os.makedirs(us_remove_bg_output_dir, exist_ok=True)
 
 
 # Add liver mesh to world
-image_type = "Normal"
-data_dir = "/localhome/local-vennw/code/i4h-sensor-simulation/ultrasound-raytracing/examples/raytracing_to_us/zenodo_dataset/"
+data_dir = "/localhome/local-vennw/code/tcia_us_dataset"
 
-idx_list = os.listdir(os.path.join(data_dir, image_type, "fake_3d_masks"))
+idx_list = os.listdir(os.path.join(data_dir, "fake3d_masks"))
 idx_list = [i for i in idx_list if i.endswith(".nii.gz")]
 idx_list = [str(i.split(".")[0]) for i in idx_list]
 
 
 for image_idx in idx_list:
 
-    liver_seg_path = os.path.join(data_dir, image_type, "segmentation", "liver", f"{image_idx}.json")
-    outline_seg_path = os.path.join(data_dir, image_type, "segmentation", "outline", f"{image_idx}.json")
-    image_3d_path = os.path.join(data_dir, image_type, "fake_3d_masks", f"{image_idx}.nii.gz")
-    image_2d_path = os.path.join(data_dir, image_type, "image", f"{image_idx}.jpg")
-    mesh_dir = os.path.join(data_dir, image_type, "fake_3d_masks", image_idx, "obj")
+    liver_seg_path = os.path.join(data_dir, "masks", f"{image_idx}.png")
+    image_3d_path = os.path.join(data_dir, "fake3d_masks", f"{image_idx}.nii.gz")
+    image_2d_path = os.path.join(data_dir, "images", f"{image_idx}.png")
+    mesh_dir = os.path.join(data_dir, "fake3d_masks", image_idx, "obj")
 
     image = LoadImage()(image_3d_path)
     original_w, original_h = image.shape[1], image.shape[0]
     spacing_w, spacing_h = np.abs(image.affine[0, 0]), np.abs(image.affine[1, 1])
 
-    min_h, max_h, min_w, max_w, points = calculate_bounding_box(liver_seg_path)
-    min_h_outline, max_h_outline, min_w_outline, max_w_outline, points_outline = calculate_bounding_box(outline_seg_path)
+    min_h, max_h, min_w, max_w, mask = calculate_bounding_box(liver_seg_path)
     position_h, position_w, position_d = get_pose_position(image, (min_h, max_h, min_w, max_w))
 
     # Create materials and world
@@ -95,7 +94,6 @@ for image_idx in idx_list:
 
     mesh_configs = [
         ("Liver.obj", "liver"),
-        # ("Outline.obj", "fat"),
     ]
     for mesh_config in mesh_configs:
         material_idx = materials.get_index(mesh_config[1])
@@ -117,20 +115,13 @@ for image_idx in idx_list:
     min_val = -60.0
     max_val = 0.0
 
-    image_2d = cv2.imread(image_2d_path)
-    mask = np.zeros_like(image_2d)
-    cv2.fillPoly(mask, [np.array(points, dtype=np.int32)], (0, 255, 0))
-
-    outline_mask = np.zeros_like(image_2d)
-    cv2.fillPoly(outline_mask, [np.array(points_outline, dtype=np.int32)], (1, 1, 1))
-    image_2d = image_2d * outline_mask
+    image_2d = cv2.imread(image_2d_path, cv2.IMREAD_GRAYSCALE)
 
     for i, variable in enumerate([1]):
         # Create probe with updated pose
         position = np.array([position_h, position_w * -1, position_d], dtype=np.float32)
-        print(position)
         rotation = np.array([-np.pi/2, 0, -np.pi/2], dtype=np.float32)
-        probe = rs.UltrasoundProbe(rs.Pose(position=position, rotation=rotation), radius=45)
+        probe = rs.UltrasoundProbe(rs.Pose(position=position, rotation=rotation), radius=120)
 
         # Run simulation
         b_mode_image = simulator.simulate(probe, sim_params)
@@ -147,19 +138,10 @@ for image_idx in idx_list:
         
         b_mode_image = b_mode_image[rc_min_h:rc_max_h, rc_min_w:rc_max_w]
         b_mode_image = cv2.resize(b_mode_image, (int(max_w) - int(min_w), int(max_h) - int(min_h)))
-        b_mode_image = np.repeat(b_mode_image[:, :, np.newaxis], 3, axis=2)
-        # add outline background to b_mode_image
-        b_mode_background = np.zeros_like(image_2d)
-        b_mode_background[int(min_h):int(max_h), int(min_w):int(max_w)] = b_mode_image
-        # cv2.polylines(b_mode_background, [np.array(points_outline, dtype=np.int32)], isClosed=True, color=(255, 255, 255), thickness=1)
 
-        cv2.imwrite(os.path.join(rc_output_dir, f"{image_type}_{image_idx}.png"), b_mode_background)
-
-        cv2.imwrite(os.path.join(us_output_dir, f"{image_type}_{image_idx}.png"), image_2d)
-
-        # # expand b_mode_background to (h, w, 3)
-        # b_mode_background = np.repeat(b_mode_background[:, :, np.newaxis], 3, axis=2)
-        # image_concat = np.concatenate([image_2d, mask, b_mode_background], axis=1)
-        # print(image_2d.shape, mask.shape, b_mode_background.shape)
-        # cv2.imwrite(os.path.join(concat_output_dir, f"{image_type}_{image_idx}.png"), image_concat)
-
+        cv2.imwrite(os.path.join(rc_output_dir, f"{image_idx}.png"), b_mode_image)
+        cv2.imwrite(os.path.join(us_output_dir, f"{image_idx}.png"), image_2d)
+        # remove background
+        image_2d[mask == 0] = 0
+        image_2d = image_2d[min_h:max_h, min_w:max_w]
+        cv2.imwrite(os.path.join(us_remove_bg_output_dir, f"{image_idx}.png"), image_2d)

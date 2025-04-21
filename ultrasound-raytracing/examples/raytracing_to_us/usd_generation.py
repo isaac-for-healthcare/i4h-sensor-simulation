@@ -34,6 +34,7 @@ def nii_to_mesh(input_nii_path, output_nii_path, output_obj_path):
     pre_trans = Compose(
         [
             LoadImaged(keys="label", ensure_channel_first=True),
+            BorderPadd(keys="label", spatial_border=2),
             SqueezeDimd(keys="label", dim=0),
         ]
     )
@@ -63,19 +64,6 @@ def nii_to_mesh(input_nii_path, output_nii_path, output_obj_path):
             smoothing_factor=0.5,
             reduction_ratio=0.0,
         )
-        all_label_values[j] = organ_name
-
-    all_organ_filename = os.path.join(output_nii_path, "all_organs")
-    save_trans(all_organ[None], meta_data=orig_seg.meta, filename=all_organ_filename)
-    convert_to_mesh(
-        f"{all_organ_filename}.nii.gz",
-        output_obj_path,
-        "all_organs.gltf",
-        label_value=all_label_values,
-        smoothing_factor=0.6,
-        reduction_ratio=0.0,
-    )
-    print(f"Saved whole segmentation {all_organ_filename}")
 
 
 def generate_mesh(seg_dir):
