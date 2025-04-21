@@ -28,8 +28,7 @@ def nii_to_mesh(input_nii_path, output_nii_path, output_obj_path):
         os.makedirs(output_nii_path)
 
     labels = {
-        "Outline": 1,
-        "Liver": 2,
+        "Liver": 255,
     }
 
     pre_trans = Compose(
