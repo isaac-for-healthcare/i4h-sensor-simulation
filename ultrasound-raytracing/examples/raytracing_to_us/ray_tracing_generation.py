@@ -59,11 +59,14 @@ def get_pose_position(image, bounding_box):
 
 rc_output_dir = "/localhome/local-vennw/code/tcia_us_dataset/rc/train"
 us_output_dir = "/localhome/local-vennw/code/tcia_us_dataset/us/train"
-us_remove_bg_output_dir = "/localhome/local-vennw/code/tcia_us_dataset/us_remove_bg/train"
+
+rc_crop_dir = "/localhome/local-vennw/code/tcia_us_dataset/rc_crop/train"
+us_crop_dir = "/localhome/local-vennw/code/tcia_us_dataset/us_crop/train"
 
 os.makedirs(rc_output_dir, exist_ok=True)
 os.makedirs(us_output_dir, exist_ok=True)
-os.makedirs(us_remove_bg_output_dir, exist_ok=True)
+os.makedirs(rc_crop_dir, exist_ok=True)
+os.makedirs(us_crop_dir, exist_ok=True)
 
 
 # Add liver mesh to world
@@ -116,32 +119,36 @@ for image_idx in idx_list:
     max_val = 0.0
 
     image_2d = cv2.imread(image_2d_path, cv2.IMREAD_GRAYSCALE)
+    cv2.imwrite(os.path.join(us_output_dir, f"{image_idx}.png"), image_2d)
 
-    for i, variable in enumerate([1]):
-        # Create probe with updated pose
-        position = np.array([position_h, position_w * -1, position_d], dtype=np.float32)
-        rotation = np.array([-np.pi/2, 0, -np.pi/2], dtype=np.float32)
-        probe = rs.UltrasoundProbe(rs.Pose(position=position, rotation=rotation), radius=120)
+    # Create probe with updated pose
+    position = np.array([position_h, position_w * -1, position_d], dtype=np.float32)
+    rotation = np.array([-np.pi/2, 0, -np.pi/2], dtype=np.float32)
+    probe = rs.UltrasoundProbe(rs.Pose(position=position, rotation=rotation), radius=120)
 
-        # Run simulation
-        b_mode_image = simulator.simulate(probe, sim_params)
-        b_mode_image = np.clip((b_mode_image - min_val) / (max_val - min_val), 0, 1)
+    # Run simulation
+    b_mode_image = simulator.simulate(probe, sim_params)
+    b_mode_image = np.clip((b_mode_image - min_val) / (max_val - min_val), 0, 1)
 
-        b_mode_image = (b_mode_image * 255).astype(np.uint8)
+    b_mode_image = (b_mode_image * 255).astype(np.uint8)
 
-        # check imge mask range
-        rc_min_h = np.where(b_mode_image != 0)[0].min()
-        rc_max_h = np.where(b_mode_image != 0)[0].max()
-        rc_min_w = np.where(b_mode_image != 0)[1].min()
-        rc_max_w = np.where(b_mode_image != 0)[1].max()
+    # check imge mask range
+    rc_min_h = np.where(b_mode_image != 0)[0].min()
+    rc_max_h = np.where(b_mode_image != 0)[0].max()
+    rc_min_w = np.where(b_mode_image != 0)[1].min()
+    rc_max_w = np.where(b_mode_image != 0)[1].max()
 
-        
-        b_mode_image = b_mode_image[rc_min_h:rc_max_h, rc_min_w:rc_max_w]
-        b_mode_image = cv2.resize(b_mode_image, (int(max_w) - int(min_w), int(max_h) - int(min_h)))
+    
+    b_mode_image = b_mode_image[rc_min_h:rc_max_h, rc_min_w:rc_max_w]
+    b_mode_image = cv2.resize(b_mode_image, (int(max_w) - int(min_w), int(max_h) - int(min_h)))
 
-        cv2.imwrite(os.path.join(rc_output_dir, f"{image_idx}.png"), b_mode_image)
-        cv2.imwrite(os.path.join(us_output_dir, f"{image_idx}.png"), image_2d)
-        # remove background
-        image_2d[mask == 0] = 0
-        image_2d = image_2d[min_h:max_h, min_w:max_w]
-        cv2.imwrite(os.path.join(us_remove_bg_output_dir, f"{image_idx}.png"), image_2d)
+    cv2.imwrite(os.path.join(rc_crop_dir, f"{image_idx}.png"), b_mode_image)
+
+    # remove us background
+    image_2d[mask == 0] = 0
+    image_2d = image_2d[min_h:max_h, min_w:max_w]
+    cv2.imwrite(os.path.join(us_crop_dir, f"{image_idx}.png"), image_2d)
+
+    # put rc to mask's position
+    mask[min_h:max_h, min_w:max_w] = b_mode_image
+    cv2.imwrite(os.path.join(rc_output_dir, f"{image_idx}.png"), mask)
