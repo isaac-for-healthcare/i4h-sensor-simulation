@@ -18,9 +18,9 @@
 #include "raysim/cuda/cuda_algorithms.hpp"
 
 #include <sutil/vec_math.h>
+#include <cmath>
 #include <cub/cub.cuh>
 #include <cufftdx/cufftdx.hpp>
-#include <cmath>
 
 namespace raysim {
 
@@ -273,14 +273,10 @@ static __global__ void scan_convert_curvilinear_kernel(cudaTextureObject_t input
   output[index.y * output_size.x + index.x] = tex2D<float>(input, source_x, source_y);
 }
 
-static __global__ void generate_sector_mask_kernel(float* __restrict__ output,
-                                                   uint2 output_size,
-                                                   float opening_angle_rad, // Expect radians
-                                                   float near_norm,
-                                                   float far_norm,
-                                                   float scale_x,
-                                                   float offset_z,
-                                                   float inside_value,
+static __global__ void generate_sector_mask_kernel(float* __restrict__ output, uint2 output_size,
+                                                   float opening_angle_rad,  // Expect radians
+                                                   float near_norm, float far_norm, float scale_x,
+                                                   float offset_z, float inside_value,
                                                    float outside_value) {
   const uint2 index =
       make_uint2(blockIdx.x * blockDim.x + threadIdx.x, blockIdx.y * blockDim.y + threadIdx.y);
@@ -299,13 +295,14 @@ static __global__ void generate_sector_mask_kernel(float* __restrict__ output,
   bool is_inside;
   // Handle edge case where coord.y is very close to zero (near horizontal axis)
   if (fabsf(coord.y) < 1e-6f) {
-      // Angle is ~+/- PI/2. Check if the opening angle allows for this.
-      // Also check distance bounds.
-      is_inside = (fabsf(opening_angle_rad / 2.f) >= (M_PI / 2.f - 1e-6f)) &&
-                  (dist >= near_norm) && (dist <= far_norm);
+    // Angle is ~+/- PI/2. Check if the opening angle allows for this.
+    // Also check distance bounds.
+    is_inside = (fabsf(opening_angle_rad / 2.f) >= (M_PI / 2.f - 1e-6f)) && (dist >= near_norm) &&
+                (dist <= far_norm);
   } else {
-      const float angle = atanf(coord.x / coord.y);
-      is_inside = (dist >= near_norm) && (dist <= far_norm) && (fabsf(angle) <= opening_angle_rad / 2.f);
+    const float angle = atanf(coord.x / coord.y);
+    is_inside =
+        (dist >= near_norm) && (dist <= far_norm) && (fabsf(angle) <= opening_angle_rad / 2.f);
   }
 
   output[index.y * output_size.x + index.x] = is_inside ? inside_value : outside_value;
@@ -513,37 +510,37 @@ std::unique_ptr<CudaMemory> CUDAAlgorithms::scan_convert_curvilinear(
 }
 
 std::unique_ptr<CudaMemory> CUDAAlgorithms::generate_sector_mask(
-    uint2 output_size, float opening_angle, float near_dist, float far_dist,
-    float inside_value, float outside_value, cudaStream_t stream) {
-
+    uint2 output_size, float opening_angle, float near_dist, float far_dist, float inside_value,
+    float outside_value, cudaStream_t stream) {
   // Create the output memory
-  auto mask_buffer = std::make_unique<CudaMemory>(
-      output_size.x * output_size.y * sizeof(float), stream);
+  auto mask_buffer =
+      std::make_unique<CudaMemory>(output_size.x * output_size.y * sizeof(float), stream);
 
   // Ensure far_dist is positive to avoid division by zero or negative distances
-   if (far_dist <= 0.f) {
-       throw std::runtime_error("generate_sector_mask: Far distance must be positive.");
-   }
-   // Ensure far > near
-   if (far_dist <= near_dist) {
-        throw std::runtime_error("generate_sector_mask: Far distance must be greater than near distance.");
-   }
-
+  if (far_dist <= 0.f) {
+    throw std::runtime_error("generate_sector_mask: Far distance must be positive.");
+  }
+  // Ensure far > near
+  if (far_dist <= near_dist) {
+    throw std::runtime_error(
+        "generate_sector_mask: Far distance must be greater than near distance.");
+  }
 
   // Normalize distances relative to 'far' distance for the kernel
   const float near_norm = near_dist / far_dist;
-  const float far_norm = 1.0f; // far_dist / far_dist
+  const float far_norm = 1.0f;  // far_dist / far_dist
 
   // Calculate geometric parameters for the kernel
-  const float opening_angle_rad = (opening_angle / 180.f) * M_PI; // Convert degrees to radians
-  const float max_x = std::sin(opening_angle_rad * 0.5f);         // Corresponds to scale_x in scan_convert
-  const float min_z = std::cos(opening_angle_rad * 0.5f) * near_norm; // Corresponds to offset_z in scan_convert
+  const float opening_angle_rad = (opening_angle / 180.f) * M_PI;  // Convert degrees to radians
+  const float max_x = std::sin(opening_angle_rad * 0.5f);  // Corresponds to scale_x in scan_convert
+  const float min_z =
+      std::cos(opening_angle_rad * 0.5f) * near_norm;  // Corresponds to offset_z in scan_convert
 
   generate_sector_mask_launcher_.launch(output_size,
                                         stream,
                                         reinterpret_cast<float*>(mask_buffer->get_ptr(stream)),
                                         output_size,
-                                        opening_angle_rad, // Pass radians
+                                        opening_angle_rad,  // Pass radians
                                         near_norm,
                                         far_norm,
                                         max_x,

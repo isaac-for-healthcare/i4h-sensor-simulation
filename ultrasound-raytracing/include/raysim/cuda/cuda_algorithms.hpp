@@ -149,12 +149,9 @@ class CUDAAlgorithms {
    * @param stream CUDA stream
    * @return A CudaMemory buffer containing the mask
    */
-  std::unique_ptr<CudaMemory> generate_sector_mask(uint2 output_size,
-                                                   float opening_angle,
-                                                   float near_dist,
-                                                   float far_dist,
-                                                   float inside_value,
-                                                   float outside_value,
+  std::unique_ptr<CudaMemory> generate_sector_mask(uint2 output_size, float opening_angle,
+                                                   float near_dist, float far_dist,
+                                                   float inside_value, float outside_value,
                                                    cudaStream_t stream);
 
  private:

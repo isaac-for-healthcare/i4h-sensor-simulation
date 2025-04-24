@@ -85,10 +85,8 @@ class RaytracingUltrasoundSimulator {
    * @param stream CUDA stream
    * @return A CudaMemory buffer containing the mask
    */
-  std::unique_ptr<CudaMemory> generate_sector_mask(const UltrasoundProbe* probe,
-                                                   float t_far,
-                                                   uint2 output_size,
-                                                   float inside_value,
+  std::unique_ptr<CudaMemory> generate_sector_mask(const UltrasoundProbe* probe, float t_far,
+                                                   uint2 output_size, float inside_value,
                                                    float outside_value,
                                                    cudaStream_t stream = cudaStreamDefault);
 
