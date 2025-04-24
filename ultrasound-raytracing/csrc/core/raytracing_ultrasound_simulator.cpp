@@ -423,13 +423,13 @@ RaytracingUltrasoundSimulator::SimResult RaytracingUltrasoundSimulator::simulate
   return result;
 }
 
-// Added implementation for generate_sector_mask
-std::unique_ptr<CudaMemory> RaytracingUltrasoundSimulator::generate_sector_mask(
+// Added implementation for generate_scan_area
+std::unique_ptr<CudaMemory> RaytracingUltrasoundSimulator::generate_scan_area(
     const UltrasoundProbe* probe, float t_far, uint2 output_size, float inside_value,
     float outside_value, cudaStream_t stream) {
   if (!cuda_algorithms_) {
     throw std::runtime_error(
-        "RaytracingUltrasoundSimulator::generate_sector_mask: CUDAAlgorithms not initialized.");
+        "RaytracingUltrasoundSimulator::generate_scan_area: CUDAAlgorithms not initialized.");
   }
 
   // The 'near' distance is the probe's radius of curvature.
@@ -440,16 +440,16 @@ std::unique_ptr<CudaMemory> RaytracingUltrasoundSimulator::generate_sector_mask(
   // Add validation checks
   if (far_dist <= 0.f) {
     throw std::runtime_error(
-        "RaytracingUltrasoundSimulator::generate_sector_mask: Calculated far distance must be "
+        "RaytracingUltrasoundSimulator::generate_scan_area: Calculated far distance must be "
         "positive.");
   }
   if (far_dist <= near_dist) {
     throw std::runtime_error(
-        "RaytracingUltrasoundSimulator::generate_sector_mask: Calculated far distance must be "
+        "RaytracingUltrasoundSimulator::generate_scan_area: Calculated far distance must be "
         "greater than near distance (probe radius).");
   }
 
-  return cuda_algorithms_->generate_sector_mask(output_size,
+  return cuda_algorithms_->generate_scan_area(output_size,
                                                 probe->get_opening_angle(),
                                                 near_dist,
                                                 far_dist,

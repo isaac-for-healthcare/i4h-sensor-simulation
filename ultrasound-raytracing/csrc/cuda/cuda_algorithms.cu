@@ -273,7 +273,7 @@ static __global__ void scan_convert_curvilinear_kernel(cudaTextureObject_t input
   output[index.y * output_size.x + index.x] = tex2D<float>(input, source_x, source_y);
 }
 
-static __global__ void generate_sector_mask_kernel(float* __restrict__ output, uint2 output_size,
+static __global__ void generate_scan_area_kernel(float* __restrict__ output, uint2 output_size,
                                                    float opening_angle_rad,  // Expect radians
                                                    float near_norm, float far_norm, float scale_x,
                                                    float offset_z, float inside_value,
@@ -317,7 +317,7 @@ CUDAAlgorithms::CUDAAlgorithms()
       log_compression_launcher_((void*)&log_compression_kernel),
       mul_rows_launcher_((void*)&mul_rows_kernel),
       scan_convert_curvilinear_launcher_((void*)&scan_convert_curvilinear_kernel),
-      generate_sector_mask_launcher_((void*)&generate_sector_mask_kernel) {
+      generate_scan_area_launcher_((void*)&generate_scan_area_kernel) {
   CUDA_CHECK(cudaFuncSetAttribute(hilbert_kernel,
                                   cudaFuncAttributeMaxDynamicSharedMemorySize,
                                   HilbertForwardFFT::shared_memory_size));
@@ -509,7 +509,7 @@ std::unique_ptr<CudaMemory> CUDAAlgorithms::scan_convert_curvilinear(
   return std::move(grid_z);
 }
 
-std::unique_ptr<CudaMemory> CUDAAlgorithms::generate_sector_mask(
+std::unique_ptr<CudaMemory> CUDAAlgorithms::generate_scan_area(
     uint2 output_size, float opening_angle, float near_dist, float far_dist, float inside_value,
     float outside_value, cudaStream_t stream) {
   // Create the output memory
@@ -518,12 +518,12 @@ std::unique_ptr<CudaMemory> CUDAAlgorithms::generate_sector_mask(
 
   // Ensure far_dist is positive to avoid division by zero or negative distances
   if (far_dist <= 0.f) {
-    throw std::runtime_error("generate_sector_mask: Far distance must be positive.");
+    throw std::runtime_error("generate_scan_area: Far distance must be positive.");
   }
   // Ensure far > near
   if (far_dist <= near_dist) {
     throw std::runtime_error(
-        "generate_sector_mask: Far distance must be greater than near distance.");
+        "generate_scan_area: Far distance must be greater than near distance.");
   }
 
   // Normalize distances relative to 'far' distance for the kernel
@@ -536,7 +536,7 @@ std::unique_ptr<CudaMemory> CUDAAlgorithms::generate_sector_mask(
   const float min_z =
       std::cos(opening_angle_rad * 0.5f) * near_norm;  // Corresponds to offset_z in scan_convert
 
-  generate_sector_mask_launcher_.launch(output_size,
+  generate_scan_area_launcher_.launch(output_size,
                                         stream,
                                         reinterpret_cast<float*>(mask_buffer->get_ptr(stream)),
                                         output_size,

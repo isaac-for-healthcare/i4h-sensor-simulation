@@ -480,7 +480,7 @@ PYBIND11_MODULE(ray_sim_python, m) {
             np.ndarray: B-mode ultrasound image
       )pbdoc")
       .def(
-          "generate_sector_mask",
+          "generate_scan_area",
           [](raysim::RaytracingUltrasoundSimulator& self,
              const raysim::UltrasoundProbe* probe,
              float t_far,
@@ -527,7 +527,7 @@ PYBIND11_MODULE(ray_sim_python, m) {
             uint2 output_size = parse_output_size(output_size_obj);
 
             // Call the C++ method
-            auto result_mem = self.generate_sector_mask(probe,
+            auto result_mem = self.generate_scan_area(probe,
                                                         t_far,
                                                         output_size,
                                                         inside_value,
@@ -535,7 +535,7 @@ PYBIND11_MODULE(ray_sim_python, m) {
                                                         cudaStreamDefault);  // Use default stream
 
             if (!result_mem) {
-              throw std::runtime_error("generate_sector_mask returned null CudaMemory");
+              throw std::runtime_error("generate_scan_area returned null CudaMemory");
             }
 
             // Download to host and create NumPy array

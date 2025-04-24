@@ -149,7 +149,7 @@ class CUDAAlgorithms {
    * @param stream CUDA stream
    * @return A CudaMemory buffer containing the mask
    */
-  std::unique_ptr<CudaMemory> generate_sector_mask(uint2 output_size, float opening_angle,
+  std::unique_ptr<CudaMemory> generate_scan_area(uint2 output_size, float opening_angle,
                                                    float near_dist, float far_dist,
                                                    float inside_value, float outside_value,
                                                    cudaStream_t stream);
@@ -163,7 +163,7 @@ class CUDAAlgorithms {
   const CudaLauncher log_compression_launcher_;
   const CudaLauncher mul_rows_launcher_;
   const CudaLauncher scan_convert_curvilinear_launcher_;
-  const CudaLauncher generate_sector_mask_launcher_;
+  const CudaLauncher generate_scan_area_launcher_;
 
   static const size_t NUM_SUB_STREAMS =
       2;  //< Some algorithms run parallel operations in sub-streams
