@@ -137,6 +137,23 @@ class CUDAAlgorithms {
                                                        uint2 output_size, cudaStream_t stream,
                                                        float boundary_value);
 
+  /**
+   * Generate a binary mask representing the scan sector geometry.
+   *
+   * @param output_size Width and height of output image in pixels
+   * @param opening_angle Field of view in degrees
+   * @param near_dist Near distance boundary [mm] (typically probe radius)
+   * @param far_dist Far distance boundary [mm] (typically probe radius + imaging depth)
+   * @param inside_value Value for pixels inside the sector
+   * @param outside_value Value for pixels outside the sector
+   * @param stream CUDA stream
+   * @return A CudaMemory buffer containing the mask
+   */
+  std::unique_ptr<CudaMemory> generate_scan_area(uint2 output_size, float opening_angle,
+                                                   float near_dist, float far_dist,
+                                                   float inside_value, float outside_value,
+                                                   cudaStream_t stream);
+
  private:
   const CudaLauncher normalize_launcher_;
   const CudaLauncher convolve_rows_launcher_;
@@ -146,6 +163,7 @@ class CUDAAlgorithms {
   const CudaLauncher log_compression_launcher_;
   const CudaLauncher mul_rows_launcher_;
   const CudaLauncher scan_convert_curvilinear_launcher_;
+  const CudaLauncher generate_scan_area_launcher_;
 
   static const size_t NUM_SUB_STREAMS =
       2;  //< Some algorithms run parallel operations in sub-streams

@@ -76,6 +76,22 @@ class RaytracingUltrasoundSimulator {
   SimResult simulate(const UltrasoundProbe* probe, const SimParams& sim_params);
 
   /**
+   * Generate a binary mask representing the scan sector geometry, bypassing simulation.
+   *
+   * @param probe UltrasoundProbe object defining geometry
+   * @param t_far Maximum imaging depth [mm] (used to define the far boundary)
+   * @param output_size Width and height of the output mask image
+   * @param inside_value Value for pixels inside the sector
+   * @param outside_value Value for pixels outside the sector
+   * @param stream CUDA stream
+   * @return A CudaMemory buffer containing the mask
+   */
+  std::unique_ptr<CudaMemory> generate_scan_area(const UltrasoundProbe* probe, float t_far,
+                                                   uint2 output_size, float inside_value,
+                                                   float outside_value,
+                                                   cudaStream_t stream = cudaStreamDefault);
+
+  /**
    * Get the minimum x value of the simulated region
    *
    * @returns Minimum x value [mm]

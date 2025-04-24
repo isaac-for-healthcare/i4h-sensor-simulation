@@ -478,6 +478,99 @@ PYBIND11_MODULE(ray_sim_python, m) {
 
         Returns:
             np.ndarray: B-mode ultrasound image
+      )pbdoc")
+      .def(
+          "generate_scan_area",
+          [](raysim::RaytracingUltrasoundSimulator& self,
+             const raysim::UltrasoundProbe* probe,
+             float t_far,
+             py::object output_size_obj,  // Accept tuple/list/numpy
+             float inside_value,
+             float outside_value) {
+            // Helper lambda to parse output_size
+            auto parse_output_size = [](py::object size) -> uint2 {
+              if (py::isinstance<py::array>(size)) {
+                auto array = size.cast<py::array>();
+                if (array.ndim() != 1 || array.shape(0) != 2) {
+                  throw std::runtime_error("output_size numpy array must have shape (2,)");
+                }
+                // Handle different numeric types (simplified example)
+                if (array.dtype().kind() == 'i' || array.dtype().kind() == 'u' ||
+                    array.dtype().kind() == 'f') {
+                  try {
+                    return make_uint2(py::cast<uint32_t>(array[py::int_(0)]),
+                                      py::cast<uint32_t>(array[py::int_(1)]));
+                  } catch (const py::cast_error&) {
+                    throw std::runtime_error(
+                        "output_size numpy array elements cannot be converted to uint32_t");
+                  }
+                } else {
+                  throw std::runtime_error("Unsupported numpy array data type for output_size");
+                }
+              } else if (py::isinstance<py::tuple>(size) || py::isinstance<py::list>(size)) {
+                if (py::len(size) != 2) {
+                  throw std::runtime_error("output_size tuple/list must have 2 elements");
+                }
+                try {
+                  return make_uint2(py::cast<uint32_t>(size[py::int_(0)]),
+                                    py::cast<uint32_t>(size[py::int_(1)]));
+                } catch (const py::cast_error&) {
+                  throw std::runtime_error(
+                      "output_size tuple/list elements must be convertible to unsigned integers");
+                }
+              } else {
+                throw std::runtime_error(
+                    "output_size must be a tuple, list, or numpy array with 2 elements");
+              }
+            };
+
+            uint2 output_size = parse_output_size(output_size_obj);
+
+            // Call the C++ method
+            auto result_mem = self.generate_scan_area(probe,
+                                                        t_far,
+                                                        output_size,
+                                                        inside_value,
+                                                        outside_value,
+                                                        cudaStreamDefault);  // Use default stream
+
+            if (!result_mem) {
+              throw std::runtime_error("generate_scan_area returned null CudaMemory");
+            }
+
+            // Download to host and create NumPy array
+            const uint32_t elements = result_mem->get_size() / sizeof(float);
+            auto host_data_ptr = std::unique_ptr<float[]>(new float[elements]);
+            result_mem->download(host_data_ptr.get(), cudaStreamDefault);  // Sync download
+
+            std::vector<ssize_t> shape = {static_cast<ssize_t>(output_size.y),
+                                          static_cast<ssize_t>(output_size.x)};
+
+            // Create NumPy array managing the host_data lifetime
+            float* raw_ptr = host_data_ptr.release();  // Release ownership from unique_ptr
+            py::capsule free_when_done(raw_ptr, [](void* f) { delete[] static_cast<float*>(f); });
+
+            return py::array_t<float>(shape,            // shape
+                                      raw_ptr,          // data pointer
+                                      free_when_done);  // capsule for memory management
+          },
+          py::arg("probe"),
+          py::arg("t_far"),
+          py::arg("output_size"),
+          py::arg("inside_value"),
+          py::arg("outside_value"),
+          R"pbdoc(
+        Generate a binary mask of the scan sector geometry.
+
+        Args:
+            probe: UltrasoundProbe defining the geometry.
+            t_far: Maximum imaging depth [mm] defining the far boundary.
+            output_size: Tuple/list/array (width, height) of the output mask.
+            inside_value: Float value for pixels inside the sector (e.g., float('inf') or 1.0).
+            outside_value: Float value for pixels outside the sector (e.g., float('-inf') or 0.0).
+
+        Returns:
+            np.ndarray: A 2D NumPy array containing the mask.
       )pbdoc");
 
   // Bind Hitable base class
