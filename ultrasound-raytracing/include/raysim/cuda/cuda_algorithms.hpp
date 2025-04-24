@@ -130,10 +130,12 @@ class CUDAAlgorithms {
    * @param far Far depth for samples along scan lines
    * @param output_size Width and height of output image in pixels
    * @param stream [in] CUDA stream
+   * @param boundary_value [in] Value to assign to pixels outside the scan area
    */
-  std::unique_ptr<CudaMemory> scan_convert_curvilinear(CudaMemory* scan_lines, uint2 size,
-                                                       float opening_angle, float radius, float far,
-                                                       uint2 output_size, cudaStream_t stream);
+  std::unique_ptr<CudaMemory> scan_convert_curvilinear(CudaMemory* scan_lines, uint2 input_size,
+                                                       float opening_angle, float near, float far,
+                                                       uint2 output_size, cudaStream_t stream,
+                                                       float boundary_value);
 
  private:
   const CudaLauncher normalize_launcher_;

@@ -55,6 +55,7 @@ sim_params.buffer_size = 4096
 sim_params.t_far = 180.0
 sim_params.enable_cuda_timing = True
 sim_params.b_mode_size = (500, 500,)
+sim_params.boundary_value = float("-inf") # float("inf") to produce white background
 
 # Setup sweep parameters
 N_frames = 100

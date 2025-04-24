@@ -314,6 +314,7 @@ PYBIND11_MODULE(ray_sim_python, m) {
             - enable_cuda_timing: Enable CUDA timing measurements
             - write_debug_images: Enable debug image output
             - b_mode_size: B-mode image size as (width, height), accepts tuple, list, or numpy array
+            - boundary_value: Value for pixels outside the scan area (e.g., float('inf') for white, float('-inf') for black)
     )pbdoc")
       .def(py::init<>())
       .def_readwrite("t_far",
@@ -340,6 +341,9 @@ PYBIND11_MODULE(ray_sim_python, m) {
       .def_readwrite("write_debug_images",
                      &raysim::RaytracingUltrasoundSimulator::SimParams::write_debug_images,
                      "Enable debug image output")
+      .def_readwrite("boundary_value",
+                     &raysim::RaytracingUltrasoundSimulator::SimParams::boundary_value,
+                     "Value for pixels outside the scan area (e.g., float('inf') for white, float('-inf') for black)")
       .def_property(
           "b_mode_size",
           [](raysim::RaytracingUltrasoundSimulator::SimParams& self) {
