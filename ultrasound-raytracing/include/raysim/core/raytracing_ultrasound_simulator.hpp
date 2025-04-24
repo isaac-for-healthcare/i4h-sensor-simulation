@@ -18,8 +18,8 @@
 #ifndef CPP_RAYTRACING_ULTRASOUND_SIMULATOR
 #define CPP_RAYTRACING_ULTRASOUND_SIMULATOR
 
-#include <memory>
 #include <limits>
+#include <memory>
 
 #include "raysim/cuda/cuda_helper.hpp"
 #include "raysim/cuda/optix_helper.hpp"
@@ -54,7 +54,8 @@ class RaytracingUltrasoundSimulator {
     cudaStream_t stream = cudaStreamPerThread;  // CUDA stream
     bool enable_cuda_timing = false;            // Print timing of CUDA operations
     bool write_debug_images = false;            // Write debug images to `debug_images` directory
-    float boundary_value = std::numeric_limits<float>::lowest();  // Corrected default: Value for pixels outside scan area
+    float boundary_value = std::numeric_limits<float>::lowest();  // Corrected default: Value for
+                                                                  // pixels outside scan area
   };
 
   /// Simulation results
