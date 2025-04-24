@@ -343,7 +343,8 @@ PYBIND11_MODULE(ray_sim_python, m) {
                      "Enable debug image output")
       .def_readwrite("boundary_value",
                      &raysim::RaytracingUltrasoundSimulator::SimParams::boundary_value,
-                     "Value for pixels outside the scan area (e.g., float('inf') for white, float('-inf') for black)")
+                     "Value for pixels outside the scan area (e.g., float('inf') for white, "
+                     "float('-inf') for black)")
       .def_property(
           "b_mode_size",
           [](raysim::RaytracingUltrasoundSimulator::SimParams& self) {

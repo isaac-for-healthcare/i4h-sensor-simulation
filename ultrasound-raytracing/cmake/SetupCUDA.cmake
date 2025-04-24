@@ -25,7 +25,7 @@ message(STATUS "Configuring CUDA Architectures")
 # Needed before enable_language(CUDA) or project(... LANGUAGE CUDA)
 if(NOT DEFINED CMAKE_CUDA_ARCHITECTURES)
     message(STATUS "CMAKE_CUDA_ARCHITECTURES not defined, setting it to `native`")
-    set(CMAKE_CUDA_ARCHITECTURES native)  # Option "native" not supported when using --ptx flag "'--ptx (-ptx)' is not allowed when compiling for multiple GPU architectures"
+    set(CMAKE_CUDA_ARCHITECTURES native)
 endif()
 
 # Enable CUDA language
