@@ -391,7 +391,8 @@ RaytracingUltrasoundSimulator::SimResult RaytracingUltrasoundSimulator::simulate
                                                         probe->get_radius(),
                                                         sim_params.t_far + probe->get_radius(),
                                                         sim_params.b_mode_size,
-                                                        sim_params.stream);
+                                                        sim_params.stream,
+                                                        sim_params.boundary_value);
   }
 
   // extract min and max x and z values from Probe dimensions and imaging depth

@@ -240,7 +240,7 @@ static __global__ void scan_convert_curvilinear_kernel(cudaTextureObject_t input
                                                        float* __restrict__ output,
                                                        uint2 output_size, float opening_angle,
                                                        float near, float far, float scale_x,
-                                                       float offset_z) {
+                                                       float offset_z, float boundary_value) {
   const uint2 index =
       make_uint2(blockIdx.x * blockDim.x + threadIdx.x, blockIdx.y * blockDim.y + threadIdx.y);
 
@@ -255,14 +255,14 @@ static __global__ void scan_convert_curvilinear_kernel(cudaTextureObject_t input
   // Mask out near and far
   const float dist = sqrtf(coord.x * coord.x + coord.y * coord.y);
   if ((dist < near) || (dist > far)) {
-    output[index.y * output_size.x + index.x] = std::numeric_limits<float>::lowest();
+    output[index.y * output_size.x + index.x] = boundary_value;
     return;
   }
 
   // Mask out outside of opening angle
   const float angle = atanf(coord.x / coord.y);
   if (fabsf(angle) > opening_angle / 2.f) {
-    output[index.y * output_size.x + index.x] = std::numeric_limits<float>::lowest();
+    output[index.y * output_size.x + index.x] = boundary_value;
     return;
   }
 
@@ -431,7 +431,7 @@ void CUDAAlgorithms::hilbert_row(CudaMemory* buffer, uint2 size, cudaStream_t st
 
 std::unique_ptr<CudaMemory> CUDAAlgorithms::scan_convert_curvilinear(
     CudaMemory* scan_lines, uint2 input_size, float opening_angle, float near, float far,
-    uint2 output_size, cudaStream_t stream) {
+    uint2 output_size, cudaStream_t stream, float boundary_value) {
   // Create the array and the texture
   if (scan_convert_curvilinear_array_ &&
       ((scan_convert_curvilinear_array_->get_size().width != input_size.x) ||
@@ -466,7 +466,8 @@ std::unique_ptr<CudaMemory> CUDAAlgorithms::scan_convert_curvilinear(
                                             near / far,
                                             far / far,
                                             max_x,
-                                            min_z);
+                                            min_z,
+                                            boundary_value);
 
   return std::move(grid_z);
 }
