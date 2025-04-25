@@ -87,9 +87,9 @@ class RaytracingUltrasoundSimulator {
    * @return A CudaMemory buffer containing the mask
    */
   std::unique_ptr<CudaMemory> generate_scan_area(const UltrasoundProbe* probe, float t_far,
-                                                   uint2 output_size, float inside_value,
-                                                   float outside_value,
-                                                   cudaStream_t stream = cudaStreamDefault);
+                                                 uint2 output_size, float inside_value,
+                                                 float outside_value,
+                                                 cudaStream_t stream = cudaStreamDefault);
 
   /**
    * Get the minimum x value of the simulated region

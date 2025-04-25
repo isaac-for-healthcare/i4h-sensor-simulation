@@ -274,10 +274,10 @@ static __global__ void scan_convert_curvilinear_kernel(cudaTextureObject_t input
 }
 
 static __global__ void generate_scan_area_kernel(float* __restrict__ output, uint2 output_size,
-                                                   float opening_angle_rad,  // Expect radians
-                                                   float near_norm, float far_norm, float scale_x,
-                                                   float offset_z, float inside_value,
-                                                   float outside_value) {
+                                                 float opening_angle_rad,  // Expect radians
+                                                 float near_norm, float far_norm, float scale_x,
+                                                 float offset_z, float inside_value,
+                                                 float outside_value) {
   const uint2 index =
       make_uint2(blockIdx.x * blockDim.x + threadIdx.x, blockIdx.y * blockDim.y + threadIdx.y);
 
@@ -509,9 +509,11 @@ std::unique_ptr<CudaMemory> CUDAAlgorithms::scan_convert_curvilinear(
   return std::move(grid_z);
 }
 
-std::unique_ptr<CudaMemory> CUDAAlgorithms::generate_scan_area(
-    uint2 output_size, float opening_angle, float near_dist, float far_dist, float inside_value,
-    float outside_value, cudaStream_t stream) {
+std::unique_ptr<CudaMemory> CUDAAlgorithms::generate_scan_area(uint2 output_size,
+                                                               float opening_angle, float near_dist,
+                                                               float far_dist, float inside_value,
+                                                               float outside_value,
+                                                               cudaStream_t stream) {
   // Create the output memory
   auto mask_buffer =
       std::make_unique<CudaMemory>(output_size.x * output_size.y * sizeof(float), stream);
@@ -537,16 +539,16 @@ std::unique_ptr<CudaMemory> CUDAAlgorithms::generate_scan_area(
       std::cos(opening_angle_rad * 0.5f) * near_norm;  // Corresponds to offset_z in scan_convert
 
   generate_scan_area_launcher_.launch(output_size,
-                                        stream,
-                                        reinterpret_cast<float*>(mask_buffer->get_ptr(stream)),
-                                        output_size,
-                                        opening_angle_rad,  // Pass radians
-                                        near_norm,
-                                        far_norm,
-                                        max_x,
-                                        min_z,
-                                        inside_value,
-                                        outside_value);
+                                      stream,
+                                      reinterpret_cast<float*>(mask_buffer->get_ptr(stream)),
+                                      output_size,
+                                      opening_angle_rad,  // Pass radians
+                                      near_norm,
+                                      far_norm,
+                                      max_x,
+                                      min_z,
+                                      inside_value,
+                                      outside_value);
 
   return std::move(mask_buffer);
 }

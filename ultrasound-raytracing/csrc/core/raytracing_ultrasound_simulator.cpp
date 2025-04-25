@@ -450,12 +450,12 @@ std::unique_ptr<CudaMemory> RaytracingUltrasoundSimulator::generate_scan_area(
   }
 
   return cuda_algorithms_->generate_scan_area(output_size,
-                                                probe->get_opening_angle(),
-                                                near_dist,
-                                                far_dist,
-                                                inside_value,
-                                                outside_value,
-                                                stream);
+                                              probe->get_opening_angle(),
+                                              near_dist,
+                                              far_dist,
+                                              inside_value,
+                                              outside_value,
+                                              stream);
 }
 
 }  // namespace raysim

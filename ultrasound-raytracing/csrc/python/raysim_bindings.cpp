@@ -528,11 +528,11 @@ PYBIND11_MODULE(ray_sim_python, m) {
 
             // Call the C++ method
             auto result_mem = self.generate_scan_area(probe,
-                                                        t_far,
-                                                        output_size,
-                                                        inside_value,
-                                                        outside_value,
-                                                        cudaStreamDefault);  // Use default stream
+                                                      t_far,
+                                                      output_size,
+                                                      inside_value,
+                                                      outside_value,
+                                                      cudaStreamDefault);  // Use default stream
 
             if (!result_mem) {
               throw std::runtime_error("generate_scan_area returned null CudaMemory");
