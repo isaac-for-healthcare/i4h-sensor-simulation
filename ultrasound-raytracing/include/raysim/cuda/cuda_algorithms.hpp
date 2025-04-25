@@ -150,9 +150,9 @@ class CUDAAlgorithms {
    * @return A CudaMemory buffer containing the mask
    */
   std::unique_ptr<CudaMemory> generate_scan_area(uint2 output_size, float opening_angle,
-                                                   float near_dist, float far_dist,
-                                                   float inside_value, float outside_value,
-                                                   cudaStream_t stream);
+                                                 float near_dist, float far_dist,
+                                                 float inside_value, float outside_value,
+                                                 cudaStream_t stream);
 
  private:
   const CudaLauncher normalize_launcher_;
