@@ -81,7 +81,7 @@ sim_params.conv_psf = True
 sim_params.buffer_size = 4096
 sim_params.t_far = 180.0
 sim_params.enable_cuda_timing = True
-sim_params.b_mode_size = (512, 512,)
+sim_params.b_mode_size = (256, 256,)
 sim_params.boundary_value = float("-inf") # float("inf") to produce white background
 
 scan_area_liver = simulator_liver.generate_scan_area(
@@ -97,7 +97,7 @@ scan_area_liver_uint8[scan_area_liver == float("inf")] = 255
 # cv2.imwrite(os.path.join(output_dir, f"scan_area.png"), scan_area_uint8)
 
 # Setup sweep parameters
-N_frames = 10
+N_frames = 100
 z_start = -30
 z_end = 110
 z_positions = np.linspace(z_start, z_end, N_frames)
@@ -108,7 +108,7 @@ max_val = 0.0
 
 for i, z in tqdm(enumerate(z_positions), total=len(z_positions)):
     # Create probe with updated pose
-    position = np.array([-30, -104, z], dtype=np.float32)
+    position = np.array([30, -104, z], dtype=np.float32)
     rotation = np.array([-np.pi/2, np.pi, 0], dtype=np.float32)
     probe = rs.UltrasoundProbe(rs.Pose(position=position, rotation=rotation))
 
@@ -131,15 +131,19 @@ for i, z in tqdm(enumerate(z_positions), total=len(z_positions)):
     if contours:
         main_contour = max(contours, key=cv2.contourArea)
 
-        rc_mask = np.zeros_like(normalized_image)
-        cv2.drawContours(rc_mask, [main_contour], -1, (255), thickness=cv2.FILLED)
+        rt_mask = np.zeros_like(normalized_image)
+        cv2.drawContours(rt_mask, [main_contour], -1, (255), thickness=cv2.FILLED)
 
-        # rc with scan area
+        # rt with scan area
         output_image = np.zeros_like(normalized_image)
         # for each pixel in output_image, if it is in scan area, set it to 255
         output_image[scan_area_liver_uint8 == 255] = 255
-        # if it's also in rc_mask, set it to normalized_image value
-        output_image[(rc_mask == 255) & (scan_area_liver_uint8 == 255)] = normalized_image[(rc_mask == 255) & (scan_area_liver_uint8 == 255)]
+        # if it's also in rt_mask, set it to normalized_image value
+        output_image[(rt_mask == 255) & (scan_area_liver_uint8 == 255)] = normalized_image[(rt_mask == 255) & (scan_area_liver_uint8 == 255)]
 
         # save filled_mask
         cv2.imwrite(os.path.join(output_dir, f"frame_{i:03d}_output.png"), output_image)
+    
+    else:
+        print(f"No contour found for frame {i}")
+        cv2.imwrite(os.path.join(output_dir, f"frame_{i:03d}_output.png"), scan_area_liver_uint8)
