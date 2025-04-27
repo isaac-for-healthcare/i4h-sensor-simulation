@@ -108,7 +108,7 @@ max_val = 0.0
 
 for i, z in tqdm(enumerate(z_positions), total=len(z_positions)):
     # Create probe with updated pose
-    position = np.array([30, -104, z], dtype=np.float32)
+    position = np.array([-30, -104, z], dtype=np.float32)
     rotation = np.array([-np.pi/2, np.pi, 0], dtype=np.float32)
     probe = rs.UltrasoundProbe(rs.Pose(position=position, rotation=rotation))
 
@@ -147,3 +147,4 @@ for i, z in tqdm(enumerate(z_positions), total=len(z_positions)):
     else:
         print(f"No contour found for frame {i}")
         cv2.imwrite(os.path.join(output_dir, f"frame_{i:03d}_output.png"), scan_area_liver_uint8)
+
