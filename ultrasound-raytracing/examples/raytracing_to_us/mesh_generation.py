@@ -1,15 +1,9 @@
 import os
 import argparse
-import tempfile
 import numpy as np
 
-import vtk
-import vtkmodules
+from utility import convert_to_mesh
 
-from utility import convert_to_mesh, convert_mesh_to_usd
-
-from monai.config import print_config
-from monai.bundle.scripts import create_workflow, download
 from monai.transforms import LoadImaged, SaveImage, Compose, BorderPadd, SqueezeDimd
 
 

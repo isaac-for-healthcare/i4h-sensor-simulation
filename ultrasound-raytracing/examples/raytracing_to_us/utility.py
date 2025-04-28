@@ -19,7 +19,7 @@ from __future__ import annotations
 import os
 import vtk
 import json
-from pxr import Usd, UsdGeom, Gf, Sdf
+from pxr import Usd, UsdGeom, Gf
 import trimesh
 import numpy as np
 import matplotlib.pyplot as plt

@@ -1,13 +1,8 @@
 import argparse
-from monai.transforms import SaveImage, LoadImage
 import cv2
 import numpy as np
 import os
-import json
-from PIL import Image
 import nibabel as nib
-from scipy.ndimage import binary_dilation, binary_erosion
-import random
 
 def produce_image_and_mask(image_name, image_dir, segmentation_dir):
     # read image
