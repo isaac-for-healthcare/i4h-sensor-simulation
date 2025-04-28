@@ -9,9 +9,16 @@ def produce_image_and_mask(image_name, image_dir, segmentation_dir):
     image_path = os.path.join(image_dir, image_name)
     mask_path = os.path.join(segmentation_dir, image_name)
     image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
-    mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
+    mask = cv2.imread(mask_path)
+    # mask is a 3 channel image, (255, 255, 255) is the utline, (0, 255, 0) is the liver
+    liver_color_bgr = np.array([0, 255, 0], dtype=np.uint8)
+    # outline_color_bgr = np.array([255, 255, 255], dtype=np.uint8)
 
-    non_zero_indices = np.argwhere(mask > 0)
+    # Create a binary mask for the liver
+    mask_liver = np.all(mask == liver_color_bgr, axis=-1)
+    mask_liver = mask_liver.astype(np.uint8) * 255
+
+    non_zero_indices = np.argwhere(mask_liver > 0)
     min_coords = non_zero_indices.min(axis=0)
     max_coords = non_zero_indices.max(axis=0)
 
@@ -23,7 +30,7 @@ def produce_image_and_mask(image_name, image_dir, segmentation_dir):
         'max_y': int(max_coords[0])
     }
 
-    return image, mask, bounding_box_info
+    return image, mask_liver, bounding_box_info
 
 def main(args):
     image_dir = args.image_dir

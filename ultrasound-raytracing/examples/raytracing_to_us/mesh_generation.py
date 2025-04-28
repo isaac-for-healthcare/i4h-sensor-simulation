@@ -34,7 +34,6 @@ def nii_to_mesh(input_nii_path, output_nii_path, output_obj_path):
     )
     orig_seg = pre_trans({"label": input_nii_path})["label"]
     all_organ = np.zeros_like(orig_seg, dtype=np.uint8)
-    all_label_values = {}
 
     save_trans = SaveImage(output_ext="nii.gz", output_dtype=np.uint8)
     for j, (organ_name, label_val) in enumerate(labels.items(), start=1):
@@ -63,6 +62,7 @@ def nii_to_mesh(input_nii_path, output_nii_path, output_obj_path):
 def generate_mesh(seg_dir):
     ct_list = os.listdir(os.path.join(seg_dir))
     ct_list = [ct for ct in ct_list if ct.endswith(".nii.gz")]
+
     for ct in ct_list:
         print(f"Processing {ct}")
         try:
