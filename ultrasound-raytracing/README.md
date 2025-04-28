@@ -54,6 +54,13 @@ Benchmark Results:
                  └── sutil
      ```
 
+   Please note that the downloaded file is a shell script, you need to make it executable and run it before moving it to the `ultrasound-raytracing/third_party/optix` directory:
+
+     ```bash
+     chmod +x <path_to_downloaded_file>/NVIDIA-OptiX-SDK-8.1.0-linux64-x86_64-35015278.sh
+     ./<path_to_downloaded_file>/NVIDIA-OptiX-SDK-8.1.0-linux64-x86_64-35015278.sh
+     ```
+
 3. Download mesh data:
    - The mesh data is a part of the Isaac for Healthcare asset package. You can download it by installing the asset helper tool:
    ```bash
@@ -82,18 +89,33 @@ Benchmark Results:
    **Option B: Using conda**
    ```bash
    # Create environment and install dependencies
-   conda create -n ultrasound python=3.10 libstdcxx-ng -c conda-forge
+   conda create -n ultrasound python=3.10 libstdcxx-ng -c conda-forge -y
 
    conda activate ultrasound
    pip install -e .
    ```
 
 5. Build the project
+
+   CMake 3.24.0 or higher is required to build the project, you can use `cmake --version` to check your version. If an older version is installed, you need to upgrade it:
+
    ```bash
-   cmake -DPYTHON_EXECUTABLE=$(which python) -DCMAKE_BUILD_TYPE=Release -B build-release && cmake --build build-release -j $(nproc)
+   pip install cmake==3.24.0
+   hash -r   # Reset terminal path cache
    ```
 
-   If you have multiple CUDA toolkit versions installed, you can optionally use the flag `--CMAKE_CUDA_ARCHITECTURES=<path to nvcc>` to point to the desired version.
+   Then you can build the project by:
+
+   ```bash
+   cmake -DPYTHON_EXECUTABLE=$(which python) -DCMAKE_BUILD_TYPE=Release -B build-release
+   cmake --build build-release -j $(nproc)
+   ```
+
+   Note:
+
+   - In the [CMake setup file](./cmake/SetupCUDA.cmake), the default value for `CMAKE_CUDA_ARCHITECTURES` is set to `native`. This setting **may cause compilation failures** on systems with multiple NVIDIA GPUs that have different compute capabilities.
+
+   - If you experience this issue, try specifying the GPU you want to use by setting the environment variable `export CUDA_VISIBLE_DEVICES=<selected device number>` before building the project.
 
 6. Run examples
 
