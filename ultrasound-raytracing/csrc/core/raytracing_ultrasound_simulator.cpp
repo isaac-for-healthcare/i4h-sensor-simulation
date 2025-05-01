@@ -282,6 +282,7 @@ RaytracingUltrasoundSimulator::SimResult RaytracingUltrasoundSimulator::simulate
     params.background_material_id = materials_->get_index(world_->get_background_material());
     params.scattering_texture = world_->get_scattering_texture();
     params.handle = world_->get_gas_handle();
+    params.source_frequency = probe->get_frequency();
 
     pipeline_params_.upload(&params, sim_params.stream);
 
