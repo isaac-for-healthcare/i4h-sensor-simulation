@@ -26,6 +26,12 @@ namespace raysim {
 // 3D pose with position and orientation
 class Pose {
  public:
+  // Default constructor
+  Pose()
+      : position_(make_float3(0.f, 0.f, 0.f)),
+        rotation_(make_float3(0.f, 0.f, 0.f)),
+        rotation_matrix_(make_identity()) {}
+
   // Constructor declaration
   Pose(float3 position, float3 rotation);
 
