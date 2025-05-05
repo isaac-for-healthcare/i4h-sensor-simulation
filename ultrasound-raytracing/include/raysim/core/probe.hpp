@@ -104,6 +104,24 @@ class BaseProbe {
   /// Get wavelength in mm
   float get_wave_length() const { return speed_of_sound_ / frequency_; }
 
+  /// Get element spacing (distance between elements) in mm - virtual
+  virtual float get_element_spacing() const = 0;
+
+  /// Get elevational height (aperture size) in mm - virtual
+  virtual float get_elevational_height() const = 0;
+
+  /// Get number of elevational samples - virtual
+  virtual uint32_t get_num_el_samples() const = 0;
+
+  /// Get axial resolution in mm - virtual
+  virtual float get_axial_resolution() const = 0;
+
+  /// Get lateral resolution in mm - virtual
+  virtual float get_lateral_resolution() const = 0;
+
+  /// Get elevational spatial frequency in 1/mm - virtual
+  virtual float get_elevational_spatial_frequency() const = 0;
+
  protected:
   Pose pose_;              ///< Probe pose (position and orientation)
   uint32_t num_elements_;  ///< Number of transducer elements

@@ -27,7 +27,7 @@ namespace raysim {
 
 class World;
 class Materials;
-class UltrasoundProbe;
+class BaseProbe;
 class CUDAAlgorithms;
 
 class RaytracingUltrasoundSimulator {
@@ -64,12 +64,12 @@ class RaytracingUltrasoundSimulator {
   /**
    * Generate a single B-mode ultrasound frame
    *
-   * @param probe UltrasoundProbe object
+   * @param probe BaseProbe object
    * @param sim_params Simulation parameters
    *
    * @returns Dictionary containing simulation results
    */
-  SimResult simulate(const UltrasoundProbe* probe, const SimParams& sim_params);
+  SimResult simulate(const BaseProbe* probe, const SimParams& sim_params);
 
   /**
    * Get the minimum x value of the simulated region
@@ -138,7 +138,7 @@ class RaytracingUltrasoundSimulator {
 
   std::unique_ptr<CudaMemory> tgc_curve_;
 
-  void update_psfs(const UltrasoundProbe* probe, cudaStream_t stream);
+  void update_psfs(const BaseProbe* probe, cudaStream_t stream);
 };
 
 }  // namespace raysim

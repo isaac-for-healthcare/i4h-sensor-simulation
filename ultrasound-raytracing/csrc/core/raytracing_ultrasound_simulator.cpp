@@ -20,6 +20,9 @@
 #include <spdlog/fmt/fmt.h>
 #include <filesystem>
 
+#include "raysim/core/linear_array_probe.hpp"
+#include "raysim/core/phased_array_probe.hpp"
+#include "raysim/core/probe.hpp"
 #include "raysim/core/ultrasound_probe.hpp"
 #include "raysim/core/world.hpp"
 #include "raysim/core/write_image.hpp"
@@ -207,7 +210,7 @@ RaytracingUltrasoundSimulator::RaytracingUltrasoundSimulator(World* world,
   cuda_algorithms_ = std::make_shared<CUDAAlgorithms>();
 }
 
-void RaytracingUltrasoundSimulator::update_psfs(const UltrasoundProbe* probe, cudaStream_t stream) {
+void RaytracingUltrasoundSimulator::update_psfs(const BaseProbe* probe, cudaStream_t stream) {
   if (probe_frequency_ != probe->get_frequency()) {
     probe_frequency_ = probe->get_frequency();
     psf_ax_.reset();
@@ -240,16 +243,56 @@ void RaytracingUltrasoundSimulator::update_psfs(const UltrasoundProbe* probe, cu
 }
 
 RaytracingUltrasoundSimulator::SimResult RaytracingUltrasoundSimulator::simulate(
-    const UltrasoundProbe* probe, const SimParams& sim_params) {
+    const BaseProbe* probe, const SimParams& sim_params) {
   CudaTiming cuda_timing(sim_params.enable_cuda_timing, "Simulation", sim_params.stream);
+
+  // Check if this is a curvilinear probe (for compatibility)
+  const auto* curvilinear_probe = dynamic_cast<const CurvilinearProbe*>(probe);
+  float opening_angle = 0.0f;
+  float radius = 0.0f;
+
+  if (curvilinear_probe) {
+    opening_angle = curvilinear_probe->get_opening_angle();
+    radius = curvilinear_probe->get_radius();
+  } else {
+    // For linear array probes, approximate with a large radius and narrow opening angle
+    radius = 1000.0f;  // Large radius for nearly flat surface
+    opening_angle =
+        atan2f(probe->get_element_spacing() * probe->get_num_elements() / 2.0f, radius) * 360.0f /
+        M_PI;
+  }
 
   // Update the ray gen record
   {
     RayGenSbtRecord rg_sbt{};
-    rg_sbt.data.opening_angle = probe->get_opening_angle();
+
+    // Determine probe type
+    if (dynamic_cast<const CurvilinearProbe*>(probe)) {
+      rg_sbt.data.probe_type = PROBE_TYPE_CURVILINEAR;
+    } else if (dynamic_cast<const LinearArrayProbe*>(probe)) {
+      rg_sbt.data.probe_type = PROBE_TYPE_LINEAR_ARRAY;
+    } else if (dynamic_cast<const PhasedArrayProbe*>(probe)) {
+      rg_sbt.data.probe_type = PROBE_TYPE_PHASED_ARRAY;
+    } else {
+      // Default to curvilinear for backward compatibility
+      rg_sbt.data.probe_type = PROBE_TYPE_CURVILINEAR;
+    }
+
+    rg_sbt.data.opening_angle = opening_angle;
     rg_sbt.data.elevational_height =
         probe->get_num_el_samples() ? probe->get_elevational_height() : 0.f;
-    rg_sbt.data.radius = probe->get_radius();
+    rg_sbt.data.radius = radius;
+
+    // Set width parameter for linear and phased array probes
+    if (const auto* linear_probe = dynamic_cast<const LinearArrayProbe*>(probe)) {
+      rg_sbt.data.width = linear_probe->get_width();
+    } else if (const auto* phased_probe = dynamic_cast<const PhasedArrayProbe*>(probe)) {
+      rg_sbt.data.width = phased_probe->get_width();
+    } else {
+      // For curvilinear, width is not used, but set to avoid undefined behavior
+      rg_sbt.data.width = probe->get_element_spacing() * probe->get_num_elements();
+    }
+
     rg_sbt.data.position = probe->get_pose().position_;
     rg_sbt.data.rotation_matrix = probe->get_pose().rotation_matrix_;
 
@@ -381,34 +424,89 @@ RaytracingUltrasoundSimulator::SimResult RaytracingUltrasoundSimulator::simulate
     write_image(d_scanlines.get(), plane_size, "debug_images/4_log_compression.png");
   }
 
-  // 4. Scan conversion
+  // 4. Scan conversion - based on probe type
   std::unique_ptr<CudaMemory> b_mode;
   {
     CudaTiming cuda_timing(sim_params.enable_cuda_timing, "Scan conversion", sim_params.stream);
 
-    b_mode = cuda_algorithms_->scan_convert_curvilinear(d_scanlines.get(),
-                                                        plane_size,
-                                                        probe->get_opening_angle(),
-                                                        probe->get_radius(),
-                                                        sim_params.t_far + probe->get_radius(),
-                                                        sim_params.b_mode_size,
-                                                        sim_params.stream);
+    // Check probe type and use appropriate scan conversion
+    const auto* linear_probe = dynamic_cast<const LinearArrayProbe*>(probe);
+    const auto* phased_probe = dynamic_cast<const PhasedArrayProbe*>(probe);
+
+    if (phased_probe) {
+      // For phased array probes
+      b_mode = cuda_algorithms_->scan_convert_phased(d_scanlines.get(),
+                                                     plane_size,
+                                                     phased_probe->get_sector_angle(),
+                                                     sim_params.t_far,
+                                                     sim_params.b_mode_size,
+                                                     sim_params.stream);
+    } else if (linear_probe) {
+      // For linear array probes
+      b_mode = cuda_algorithms_->scan_convert_linear(d_scanlines.get(),
+                                                     plane_size,
+                                                     linear_probe->get_width(),
+                                                     sim_params.t_far,
+                                                     sim_params.b_mode_size,
+                                                     sim_params.stream);
+    } else if (curvilinear_probe) {
+      // For curvilinear probes (original implementation)
+      b_mode = cuda_algorithms_->scan_convert_curvilinear(d_scanlines.get(),
+                                                          plane_size,
+                                                          opening_angle,
+                                                          radius,
+                                                          sim_params.t_far + radius,
+                                                          sim_params.b_mode_size,
+                                                          sim_params.stream);
+    } else {
+      // Fallback to curvilinear implementation with approximated parameters
+      b_mode = cuda_algorithms_->scan_convert_curvilinear(d_scanlines.get(),
+                                                          plane_size,
+                                                          opening_angle,
+                                                          radius,
+                                                          sim_params.t_far + radius,
+                                                          sim_params.b_mode_size,
+                                                          sim_params.stream);
+    }
   }
 
-  // extract min and max x and z values from Probe dimensions and imaging depth
-  // the Image origin is the center of the face of the probe
-  // The probe origin is the center of the circle of the probe curvature
-  // min_x is the bottom left corner of the image (x is the width)
-  // min_z is the bottom center of the image (z is the depth)
-  // max_x is the bottom right corner of the image (x is the width)
-  // max_z is the top left and right corners of the image that are behind the image origing
+  // extract min and max x and z values based on probe type
+  float min_x = 0.f;
+  float max_x = 0.f;
+  float min_z = 0.f;
+  float max_z = 0.f;
 
-  float opening_angle_in_rad = probe->get_opening_angle() * M_PI / 180.0f;
-  float min_x = (probe->get_radius() + sim_params.t_far) * std::sin(-opening_angle_in_rad / 2.0f);
-  float max_x = (probe->get_radius() + sim_params.t_far) * std::sin(opening_angle_in_rad / 2.0f);
-  float z_behind_image_origin = probe->get_radius() * (1 - std::cos(opening_angle_in_rad / 2.0f));
-  float min_z = -sim_params.t_far;
-  float max_z = z_behind_image_origin;
+  const auto* linear_probe = dynamic_cast<const LinearArrayProbe*>(probe);
+  const auto* phased_probe = dynamic_cast<const PhasedArrayProbe*>(probe);
+
+  if (phased_probe) {
+    // For phased array probes
+    float sector_angle_rad = phased_probe->get_sector_angle() * M_PI / 180.0f;
+    min_x = sim_params.t_far * std::sin(-sector_angle_rad / 2.0f);
+    max_x = sim_params.t_far * std::sin(sector_angle_rad / 2.0f);
+    min_z = 0.f;
+    max_z = sim_params.t_far * std::cos(sector_angle_rad / 2.0f);
+  } else if (linear_probe) {
+    // For linear array probes - rectangular field of view
+    min_x = -linear_probe->get_width() / 2.0f;
+    max_x = linear_probe->get_width() / 2.0f;
+    min_z = 0.f;
+    max_z = sim_params.t_far;
+  } else if (curvilinear_probe) {
+    // For curvilinear probes - original implementation
+    float opening_angle_in_rad = opening_angle * M_PI / 180.0f;
+    min_x = (radius + sim_params.t_far) * std::sin(-opening_angle_in_rad / 2.0f);
+    max_x = (radius + sim_params.t_far) * std::sin(opening_angle_in_rad / 2.0f);
+    float z_behind_image_origin = radius * (1 - std::cos(opening_angle_in_rad / 2.0f));
+    min_z = -sim_params.t_far;
+    max_z = z_behind_image_origin;
+  } else {
+    // Fallback for unknown probe types
+    min_x = -probe->get_element_spacing() * probe->get_num_elements() / 2.0f;
+    max_x = probe->get_element_spacing() * probe->get_num_elements() / 2.0f;
+    min_z = 0.f;
+    max_z = sim_params.t_far;
+  }
 
   // Update the class member variables
   min_x_ = min_x;

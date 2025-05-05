@@ -272,6 +272,135 @@ static __global__ void scan_convert_curvilinear_kernel(cudaTextureObject_t input
   output[index.y * output_size.x + index.x] = tex2D<float>(input, source_x, source_y);
 }
 
+static __global__ void scan_convert_linear_kernel(cudaTextureObject_t input, uint2 input_size,
+                                                  float* __restrict__ output, uint2 output_size,
+                                                  float width, float far) {
+  const uint2 index =
+      make_uint2(blockIdx.x * blockDim.x + threadIdx.x, blockIdx.y * blockDim.y + threadIdx.y);
+
+  if ((index.x >= output_size.x) || (index.y >= output_size.y)) { return; }
+
+  // Calculate physical aspect ratio of the linear probe's field of view
+  const float physical_aspect = width / far;
+
+  // Calculate the normalized coordinates in the output image space [0,1] x [0,1]
+  const float normalized_x = float(index.x) / float(output_size.x - 1);
+  const float normalized_y = float(index.y) / float(output_size.y - 1);
+
+  // For x: Convert to centered coordinates in [-0.5, 0.5] range
+  // For y: Keep y = 0 at the top of the image (probe surface)
+  const float centered_x = normalized_x - 0.5f;
+
+  // Calculate the region where the linear probe's field of view is displayed
+  // For square output images, we need to adjust based on aspect ratio
+  float scale_factor;
+  if (physical_aspect < 1.0f) {
+    // Width is smaller than depth - add black bars on sides
+    scale_factor = physical_aspect;
+  } else {
+    // Width is larger than depth - use full width (rare for ultrasound)
+    scale_factor = 1.0f;
+  }
+
+  // Scale the x coordinate to account for the aspect ratio
+  const float scaled_x = centered_x / scale_factor;
+
+  // Check if we're outside the valid image region (add black bars)
+  if (fabsf(scaled_x) > 0.5f) {
+    output[index.y * output_size.x + index.x] = std::numeric_limits<float>::lowest();
+    return;
+  }
+
+  // Map from normalized coordinates to physical coordinates
+  const float px = scaled_x * width;    // Map to [-width/2, width/2]
+  const float pz = normalized_y * far;  // Map to [0, far] with 0 at the top
+
+  // Check if point is within the rectangular field of view
+  if (fabsf(px) > width / 2.0f || pz < 0.0f || pz > far) {
+    output[index.y * output_size.x + index.x] = std::numeric_limits<float>::lowest();
+    return;
+  }
+
+  // Map to texture coordinates [0,1] x [0,1]
+  // Linear arrays have scanlines running along elements (lateral dimension)
+  // Each element's scanline represents depth data from that position
+  const float source_y = (px + width / 2.0f) / width;  // Map lateral position to scanline index
+  const float source_x = pz / far;                     // Map depth to position along scanline
+
+  output[index.y * output_size.x + index.x] = tex2D<float>(input, source_x, source_y);
+}
+
+static __global__ void scan_convert_phased_kernel(cudaTextureObject_t input, uint2 input_size,
+                                                  float* __restrict__ output, uint2 output_size,
+                                                  float sector_angle, float far) {
+  const uint2 index =
+      make_uint2(blockIdx.x * blockDim.x + threadIdx.x, blockIdx.y * blockDim.y + threadIdx.y);
+
+  if ((index.x >= output_size.x) || (index.y >= output_size.y)) { return; }
+
+  // Black out pixels by default
+  output[index.y * output_size.x + index.x] = std::numeric_limits<float>::lowest();
+
+  // Fixed sector angle of 90 degrees for phased array
+  // Convert to radians
+  const float fixed_sector_angle = 90.0f;  // Enforce 90-degree sector regardless of input
+  const float sector_angle_rad = (fixed_sector_angle / 180.0f) * M_PI;
+  const float half_angle_rad = sector_angle_rad / 2.0f;  // 45 degrees in radians
+
+  // ------------- FLAT-TOP SECTOR SCAN CONVERSION -------------
+  // Map the pixel coordinates to a normalized space:
+  // x range: [-1, 1] across the display width
+  // y range: [0, 1] from top to bottom
+  const float nx = ((float)index.x / (float)(output_size.x - 1) - 0.5f) * 2.0f;
+  const float ny = (float)index.y / (float)(output_size.y - 1);
+
+  // Calculate maximum width of sector at the bottom of the display
+  const float max_width = far * tanf(half_angle_rad) * 2.0f;
+
+  // Skip pixels outside lateral bounds of the sector
+  if (fabsf(nx) > 1.0f) { return; }
+
+  // For a true phased array, we need to ensure:
+  // 1. All rays originate from a single point at the top center
+  // 2. The top interface is perfectly flat
+  // 3. Beam spacing is consistent throughout the field of view
+
+  // Define physical coordinates based on normalized display coordinates
+  // Physical y is simply the depth, ranging from 0 to far
+  const float physical_y = ny * far;
+
+  // For physical x, we want a smooth transition from the flat top:
+  // - At y=0 (top), the beams should be perfectly parallel to form a flat interface
+  // - As y increases, the beams should fan out according to angle
+
+  // Calculate angle based on the normalized x coordinate
+  // This creates a direct mapping from display columns to beam steering angles
+  const float beam_angle = nx * half_angle_rad;
+
+  // Calculate physical x based on angle and depth
+  // At the probe face (y=0), x should be proportional to nx to maintain flat top
+  // As y increases, x should diverge according to angle
+  // This creates a smooth transition without artificial boundaries
+  const float physical_x = physical_y * tanf(beam_angle);
+
+  // Convert to polar coordinates for texture lookup
+  const float r = sqrtf(physical_x * physical_x + physical_y * physical_y);
+
+  // Calculate angle from vertical axis (y-axis)
+  // For phased arrays, this gives the steering angle
+  const float theta = atan2f(physical_x, physical_y);
+
+  // Skip pixels outside the sector bounds
+  if (r > far || fabsf(theta) > half_angle_rad) { return; }
+
+  // Convert angle and distance to texture coordinates
+  const float source_x = r / far;                                      // Normalized distance [0,1]
+  const float source_y = (theta + half_angle_rad) / sector_angle_rad;  // Normalized angle [0,1]
+
+  // Sample the scan line data
+  output[index.y * output_size.x + index.x] = tex2D<float>(input, source_x, source_y);
+}
+
 CUDAAlgorithms::CUDAAlgorithms()
     : normalize_launcher_((void*)&normalize_kernel),
       convolve_rows_launcher_((void*)&convolve_rows_kernel),
@@ -280,7 +409,9 @@ CUDAAlgorithms::CUDAAlgorithms()
       mean_planes_launcher_((void*)&mean_planes_kernel),
       log_compression_launcher_((void*)&log_compression_kernel),
       mul_rows_launcher_((void*)&mul_rows_kernel),
-      scan_convert_curvilinear_launcher_((void*)&scan_convert_curvilinear_kernel) {
+      scan_convert_curvilinear_launcher_((void*)&scan_convert_curvilinear_kernel),
+      scan_convert_linear_launcher_((void*)&scan_convert_linear_kernel),
+      scan_convert_phased_launcher_((void*)&scan_convert_phased_kernel) {
   CUDA_CHECK(cudaFuncSetAttribute(hilbert_kernel,
                                   cudaFuncAttributeMaxDynamicSharedMemorySize,
                                   HilbertForwardFFT::shared_memory_size));
@@ -467,6 +598,79 @@ std::unique_ptr<CudaMemory> CUDAAlgorithms::scan_convert_curvilinear(
                                             far / far,
                                             max_x,
                                             min_z);
+
+  return std::move(grid_z);
+}
+
+std::unique_ptr<CudaMemory> CUDAAlgorithms::scan_convert_linear(CudaMemory* scan_lines,
+                                                                uint2 input_size, float width,
+                                                                float far, uint2 output_size,
+                                                                cudaStream_t stream) {
+  // Create the array and the texture
+  if (scan_convert_linear_array_ &&
+      ((scan_convert_linear_array_->get_size().width != input_size.x) ||
+       (scan_convert_linear_array_->get_size().height != input_size.y))) {
+    scan_convert_linear_array_.reset();
+  }
+  if (!scan_convert_linear_array_) {
+    scan_convert_linear_array_ = std::make_shared<CudaArray>(
+        cudaExtent({input_size.x, input_size.y, 0}), cudaChannelFormatKindFloat, sizeof(float));
+    scan_convert_linear_texture_ = std::make_unique<CudaTexture>(
+        scan_convert_linear_array_, cudaAddressModeClamp, cudaFilterModeLinear);
+  }
+
+  // Upload scan lines
+  scan_convert_linear_array_->upload(scan_lines, stream);
+
+  // Create the output memory
+  auto grid_z = std::make_unique<CudaMemory>(output_size.x * output_size.y * sizeof(float), stream);
+
+  // For linear arrays, scan conversion is mostly a direct mapping
+  scan_convert_linear_launcher_.launch(output_size,
+                                       stream,
+                                       scan_convert_linear_texture_->get_texture().get(),
+                                       input_size,
+                                       reinterpret_cast<float*>(grid_z->get_ptr(stream)),
+                                       output_size,
+                                       width,
+                                       far);
+
+  return std::move(grid_z);
+}
+
+std::unique_ptr<CudaMemory> CUDAAlgorithms::scan_convert_phased(CudaMemory* scan_lines,
+                                                                uint2 input_size,
+                                                                float sector_angle, float far,
+                                                                uint2 output_size,
+                                                                cudaStream_t stream) {
+  // Create the array and the texture
+  if (scan_convert_phased_array_ &&
+      ((scan_convert_phased_array_->get_size().width != input_size.x) ||
+       (scan_convert_phased_array_->get_size().height != input_size.y))) {
+    scan_convert_phased_array_.reset();
+  }
+  if (!scan_convert_phased_array_) {
+    scan_convert_phased_array_ = std::make_shared<CudaArray>(
+        cudaExtent({input_size.x, input_size.y, 0}), cudaChannelFormatKindFloat, sizeof(float));
+    scan_convert_phased_texture_ = std::make_unique<CudaTexture>(
+        scan_convert_phased_array_, cudaAddressModeClamp, cudaFilterModeLinear);
+  }
+
+  // Upload scan lines
+  scan_convert_phased_array_->upload(scan_lines, stream);
+
+  // Create the output memory
+  auto grid_z = std::make_unique<CudaMemory>(output_size.x * output_size.y * sizeof(float), stream);
+
+  // Convert from polar coordinates to Cartesian for display
+  scan_convert_phased_launcher_.launch(output_size,
+                                       stream,
+                                       scan_convert_phased_texture_->get_texture().get(),
+                                       input_size,
+                                       reinterpret_cast<float*>(grid_z->get_ptr(stream)),
+                                       output_size,
+                                       sector_angle,
+                                       far);
 
   return std::move(grid_z);
 }

@@ -135,6 +135,35 @@ class CUDAAlgorithms {
                                                        float opening_angle, float radius, float far,
                                                        uint2 output_size, cudaStream_t stream);
 
+  /**
+   * Convert linear array scan data to display format
+   * For linear arrays, this is mostly a pass-through with optional aspect ratio correction
+   *
+   * @param scan_lines 2D array where each row is a scan line (shape: n_elements x n_depths)
+   * @param size Size of scan line array
+   * @param width Width of the linear array in mm
+   * @param far Far depth for samples along scan lines
+   * @param output_size Width and height of output image in pixels
+   * @param stream [in] CUDA stream
+   */
+  std::unique_ptr<CudaMemory> scan_convert_linear(CudaMemory* scan_lines, uint2 size, float width,
+                                                  float far, uint2 output_size,
+                                                  cudaStream_t stream);
+
+  /**
+   * Convert phased array sector scan data to Cartesian coordinates for display
+   *
+   * @param scan_lines 2D array where each row is a scan line (shape: n_angles x n_depths)
+   * @param size Size of scan line array
+   * @param sector_angle Field of view in degrees
+   * @param far Far depth for samples along scan lines
+   * @param output_size Width and height of output image in pixels
+   * @param stream [in] CUDA stream
+   */
+  std::unique_ptr<CudaMemory> scan_convert_phased(CudaMemory* scan_lines, uint2 size,
+                                                  float sector_angle, float far, uint2 output_size,
+                                                  cudaStream_t stream);
+
  private:
   const CudaLauncher normalize_launcher_;
   const CudaLauncher convolve_rows_launcher_;
@@ -144,6 +173,8 @@ class CUDAAlgorithms {
   const CudaLauncher log_compression_launcher_;
   const CudaLauncher mul_rows_launcher_;
   const CudaLauncher scan_convert_curvilinear_launcher_;
+  const CudaLauncher scan_convert_linear_launcher_;
+  const CudaLauncher scan_convert_phased_launcher_;
 
   static const size_t NUM_SUB_STREAMS =
       2;  //< Some algorithms run parallel operations in sub-streams
@@ -155,6 +186,10 @@ class CUDAAlgorithms {
   CudaMemory temp_log_compression_;
   std::shared_ptr<CudaArray> scan_convert_curvilinear_array_;
   std::unique_ptr<CudaTexture> scan_convert_curvilinear_texture_;
+  std::shared_ptr<CudaArray> scan_convert_linear_array_;
+  std::unique_ptr<CudaTexture> scan_convert_linear_texture_;
+  std::shared_ptr<CudaArray> scan_convert_phased_array_;
+  std::unique_ptr<CudaTexture> scan_convert_phased_texture_;
 };
 
 }  // namespace raysim

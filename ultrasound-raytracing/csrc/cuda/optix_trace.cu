@@ -247,21 +247,83 @@ extern "C" __global__ void __raygen__rg() {
   const RayGenData* ray_gen_data = reinterpret_cast<RayGenData*>(optixGetSbtDataPointer());
 
   const float d_x = (static_cast<float>(idx.x) / static_cast<float>(dim.x)) - 0.5f;
-  const float lateral_angle = (ray_gen_data->opening_angle * d_x) * (M_PI / 180.f);
 
-  // Calculate element position on probe surface in probe's local coordinate system
-  // where (0,0,0) is at the probe face center
-  float3 origin =
-      make_float3(ray_gen_data->radius * __sinf(lateral_angle),         // x = r * sin(θ)
-                  0.f,                                                  // y (elevation added later)
-                  ray_gen_data->radius * (__cosf(lateral_angle) - 1.f)  // z = r * (cos(θ) - 1)
+  float3 origin;
+  float3 direction;
+
+  // Different ray generation based on probe type
+  switch (ray_gen_data->probe_type) {
+    case PROBE_TYPE_CURVILINEAR: {
+      // Convert normalized coordinates to lateral angle in radians
+      const float lateral_angle = (ray_gen_data->opening_angle * d_x) * (M_PI / 180.f);
+
+      // Calculate element position on probe surface in probe's local coordinate system
+      // where (0,0,0) is at the probe face center
+      origin =
+          make_float3(ray_gen_data->radius * __sinf(lateral_angle),  // x = r * sin(θ)
+                      0.f,                                           // y (elevation added later)
+                      ray_gen_data->radius * (__cosf(lateral_angle) - 1.f)  // z = r * (cos(θ) - 1)
+          );
+
+      // Calculate ray direction away from center of curvature
+      // Center of curvature is at (0,0,-radius) in probe's local coordinate system
+      direction = normalize(origin - make_float3(0.f, 0.f, -ray_gen_data->radius));
+      break;
+    }
+
+    case PROBE_TYPE_LINEAR_ARRAY: {
+      // For linear arrays, elements are positioned along a straight line
+      // Map normalized coordinate to position along the width
+      const float element_width = ray_gen_data->width;
+      const float element_pos = element_width * d_x;
+
+      // Element position in local coordinates
+      origin = make_float3(element_pos,  // x position along array
+                           0.f,          // y (elevation added later)
+                           0.f           // z at surface (probe face)
       );
 
-  // Calculate ray direction away from center of curvature
-  // Center of curvature is at (0,0,-radius) in probe's local coordinate system
-  float3 direction = normalize(origin - make_float3(0.f, 0.f, -ray_gen_data->radius));
+      // For linear arrays, rays travel perpendicular to the array
+      direction = make_float3(0.f, 0.f, 1.f);
+      break;
+    }
 
-  // Add elevation in probe's local coordinate system
+    case PROBE_TYPE_PHASED_ARRAY: {
+      // Convert normalized coordinates to steering angle in radians
+      // Use half sector_angle since we're calculating from center
+      const float half_angle_rad = (ray_gen_data->opening_angle / 2.0f) * (M_PI / 180.f);
+      const float steering_angle = d_x * 2.0f * half_angle_rad;
+
+      // For phased arrays, all rays originate from a single virtual point (0,0,0)
+      // This is the center of the transducer array face
+      origin = make_float3(0.0f,  // Center of the array
+                           0.f,   // y (elevation added later)
+                           0.f    // z at the surface of the probe
+      );
+
+      // Direction determined by steering angle
+      direction = make_float3(__sinf(steering_angle),  // x component based on steering angle
+                              0.f,                     // y component (no elevation steering)
+                              __cosf(steering_angle)   // z component (along central axis)
+      );
+
+      // Normalize direction to ensure unit length vector
+      direction = normalize(direction);
+      break;
+    }
+
+    default: {
+      // Default to curvilinear behavior as fallback
+      const float lateral_angle = (ray_gen_data->opening_angle * d_x) * (M_PI / 180.f);
+      origin = make_float3(ray_gen_data->radius * __sinf(lateral_angle),
+                           0.f,
+                           ray_gen_data->radius * (__cosf(lateral_angle) - 1.f));
+      direction = normalize(origin - make_float3(0.f, 0.f, -ray_gen_data->radius));
+      break;
+    }
+  }
+
+  // Add elevation in probe's local coordinate system (common for all probes)
   const float d_y = (static_cast<float>(idx.y) / static_cast<float>(dim.y)) - 0.5f;
   const float elevation = ray_gen_data->elevational_height * d_y;
   origin.y = elevation;

@@ -17,9 +17,11 @@
 
 from raysim.ray_sim_python import (
     Hitable,
+    LinearArrayProbe,
     Material,
     Materials,
     Mesh,
+    PhasedArrayProbe,
     Pose,
     RaytracingUltrasoundSimulator,
     SimParams,
@@ -38,5 +40,7 @@ __all__ = [
     "SimParams",
     "Sphere",
     "UltrasoundProbe",
-    "World"
+    "LinearArrayProbe",
+    "PhasedArrayProbe",
+    "World",
 ]

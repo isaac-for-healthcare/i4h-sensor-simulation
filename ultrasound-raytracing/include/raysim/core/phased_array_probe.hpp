@@ -35,7 +35,7 @@ class PhasedArrayProbe : public BaseProbe {
    * @param pose Probe pose (position and orientation)
    * @param num_elements Number of transducer elements
    * @param width Total width of the phased array in mm
-   * @param steering_angle Maximum steering angle (half of the total field of view) in degrees
+   * @param sector_angle Total field of view angle in degrees
    * @param frequency Center frequency in MHz
    * @param elevational_height Height of elements in elevational direction in mm
    * @param num_el_samples Number of samples in elevational direction
@@ -47,7 +47,7 @@ class PhasedArrayProbe : public BaseProbe {
                                                     make_float3(0.f, 0.f, 0.f)),
                             uint32_t num_elements = 128,
                             float width = 20.f,              // mm
-                            float steering_angle = 45.f,     // degrees
+                            float sector_angle = 90.f,       // degrees
                             float frequency = 3.5f,          // MHz
                             float elevational_height = 5.f,  // mm
                             uint32_t num_el_samples = 1,
@@ -56,7 +56,7 @@ class PhasedArrayProbe : public BaseProbe {
                             float pulse_duration = 2.f)
       : BaseProbe(pose, num_elements, frequency, speed_of_sound, pulse_duration),
         width_(width),
-        steering_angle_(steering_angle),
+        sector_angle_(sector_angle),
         elevational_height_(elevational_height),
         num_el_samples_(num_el_samples),
         f_num_(f_num) {}
@@ -108,11 +108,11 @@ class PhasedArrayProbe : public BaseProbe {
   /// Set total width of the phased array in mm
   void set_width(float width) { width_ = width; }
 
-  /// Get maximum steering angle in degrees
-  float get_steering_angle() const { return steering_angle_; }
+  /// Get sector angle (total field of view) in degrees
+  float get_sector_angle() const { return sector_angle_; }
 
-  /// Set maximum steering angle in degrees
-  void set_steering_angle(float steering_angle) { steering_angle_ = steering_angle; }
+  /// Set sector angle (total field of view) in degrees
+  void set_sector_angle(float sector_angle) { sector_angle_ = sector_angle; }
 
   /// Get element spacing (distance between elements) in mm
   float get_element_spacing() const { return width_ / (num_elements_ - 1); }
@@ -155,9 +155,6 @@ class PhasedArrayProbe : public BaseProbe {
     return frequency_ / speed_of_sound_;
   }
 
-  /// Get total field of view in degrees (2x steering angle)
-  float get_field_of_view() const { return 2.0f * steering_angle_; }
-
  private:
   /**
    * Calculate steering angle for a specific element
@@ -166,8 +163,9 @@ class PhasedArrayProbe : public BaseProbe {
    * @return Steering angle in radians
    */
   float calculate_steering_angle(uint32_t element_idx) const {
-    // Convert steering angle from degrees to radians
-    const float max_angle_rad = steering_angle_ * M_PI / 180.0f;
+    // Convert sector angle from degrees to radians
+    // Use half the sector angle since we're calculating from center
+    const float max_angle_rad = (sector_angle_ / 2.0f) * M_PI / 180.0f;
 
     // Calculate steering angle based on element index
     // Mapping element_idx from [0, num_elements-1] to [-max_angle, max_angle]
@@ -175,7 +173,7 @@ class PhasedArrayProbe : public BaseProbe {
   }
 
   float width_;               ///< Total width of the phased array in mm
-  float steering_angle_;      ///< Maximum steering angle in degrees
+  float sector_angle_;        ///< Sector angle (total field of view) in degrees
   float elevational_height_;  ///< Height of elements in elevational direction in mm
   uint32_t num_el_samples_;   ///< Number of samples in elevational direction
   float f_num_;               ///< F-number (focal length / aperture) - unitless
