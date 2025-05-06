@@ -341,61 +341,61 @@ static __global__ void scan_convert_phased_kernel(cudaTextureObject_t input, uin
   // Black out pixels by default
   output[index.y * output_size.x + index.x] = std::numeric_limits<float>::lowest();
 
-  // Fixed sector angle of 90 degrees for phased array
-  // Convert to radians
-  const float fixed_sector_angle = 90.0f;  // Enforce 90-degree sector regardless of input
-  const float sector_angle_rad = (fixed_sector_angle / 180.0f) * M_PI;
-  const float half_angle_rad = sector_angle_rad / 2.0f;  // 45 degrees in radians
+  // Convert sector angle to radians
+  const float sector_angle_rad = (sector_angle / 180.0f) * M_PI;
+  const float half_angle_rad = sector_angle_rad / 2.0f;
 
-  // ------------- FLAT-TOP SECTOR SCAN CONVERSION -------------
-  // Map the pixel coordinates to a normalized space:
-  // x range: [-1, 1] across the display width
-  // y range: [0, 1] from top to bottom
-  const float nx = ((float)index.x / (float)(output_size.x - 1) - 0.5f) * 2.0f;
-  const float ny = (float)index.y / (float)(output_size.y - 1);
+  // PROPER PHASED ARRAY SECTOR GEOMETRY:
+  // 1. Define origin at the top center of the image
+  const float origin_x = output_size.x / 2.0f;
+  const float origin_y = 0.0f;
 
-  // Calculate maximum width of sector at the bottom of the display
-  const float max_width = far * tanf(half_angle_rad) * 2.0f;
+  // 2. Get current pixel coordinates
+  const float px = static_cast<float>(index.x);
+  const float py = static_cast<float>(index.y);
 
-  // Skip pixels outside lateral bounds of the sector
-  if (fabsf(nx) > 1.0f) { return; }
+  // 3. For a true sector, we need:
+  //    - A flat top interface where py = 0
+  //    - Every ray starts from the origin (origin_x, origin_y)
+  //    - The sector widens with depth according to the angle
 
-  // For a true phased array, we need to ensure:
-  // 1. All rays originate from a single point at the top center
-  // 2. The top interface is perfectly flat
-  // 3. Beam spacing is consistent throughout the field of view
+  // Skip if we're at the top (y=0) and outside the width of the probe
+  // This ensures a clean flat interface
+  if (py == 0.0f && fabsf(px - origin_x) > (output_size.x / 2.0f * 0.1f)) { return; }
 
-  // Define physical coordinates based on normalized display coordinates
-  // Physical y is simply the depth, ranging from 0 to far
-  const float physical_y = ny * far;
+  // Calculate the ray angle for this pixel
+  // For points not at the origin, use atan2 to get the angle from vertical
+  float theta;
+  float depth;
 
-  // For physical x, we want a smooth transition from the flat top:
-  // - At y=0 (top), the beams should be perfectly parallel to form a flat interface
-  // - As y increases, the beams should fan out according to angle
+  if (py == 0.0f) {
+    // At the top interface, use a special case to ensure it's flat
+    // All top-row pixels use the angle that corresponds to their x position
+    theta = (px - origin_x) / origin_x * half_angle_rad;
+    depth = 0.0f;
+  } else {
+    // For all other pixels, calculate properly from the origin
+    theta = atan2f(px - origin_x, py - origin_y);
 
-  // Calculate angle based on the normalized x coordinate
-  // This creates a direct mapping from display columns to beam steering angles
-  const float beam_angle = nx * half_angle_rad;
+    // Calculate depth along the ray (distance from origin)
+    depth = sqrtf((px - origin_x) * (px - origin_x) + (py - origin_y) * (py - origin_y));
 
-  // Calculate physical x based on angle and depth
-  // At the probe face (y=0), x should be proportional to nx to maintain flat top
-  // As y increases, x should diverge according to angle
-  // This creates a smooth transition without artificial boundaries
-  const float physical_x = physical_y * tanf(beam_angle);
+    // Scale depth to be in physical units [0, far]
+    depth = depth * far / output_size.y;
+  }
 
-  // Convert to polar coordinates for texture lookup
-  const float r = sqrtf(physical_x * physical_x + physical_y * physical_y);
+  // Skip if outside the sector angle
+  if (fabsf(theta) > half_angle_rad) { return; }
 
-  // Calculate angle from vertical axis (y-axis)
-  // For phased arrays, this gives the steering angle
-  const float theta = atan2f(physical_x, physical_y);
+  // Skip if beyond max depth
+  if (depth > far) { return; }
 
-  // Skip pixels outside the sector bounds
-  if (r > far || fabsf(theta) > half_angle_rad) { return; }
+  // Map to texture coordinates
+  // For angle: convert from [-half_angle, half_angle] to [0, 1]
+  const float source_y = (theta + half_angle_rad) / sector_angle_rad;
 
-  // Convert angle and distance to texture coordinates
-  const float source_x = r / far;                                      // Normalized distance [0,1]
-  const float source_y = (theta + half_angle_rad) / sector_angle_rad;  // Normalized angle [0,1]
+  // For depth: normalize to [0, 1]
+  const float source_x = depth / far;
 
   // Sample the scan line data
   output[index.y * output_size.x + index.x] = tex2D<float>(input, source_x, source_y);

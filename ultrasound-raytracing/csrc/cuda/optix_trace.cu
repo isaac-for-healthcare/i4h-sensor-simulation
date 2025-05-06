@@ -290,8 +290,11 @@ extern "C" __global__ void __raygen__rg() {
 
     case PROBE_TYPE_PHASED_ARRAY: {
       // Convert normalized coordinates to steering angle in radians
-      // Use half sector_angle since we're calculating from center
-      const float half_angle_rad = (ray_gen_data->opening_angle / 2.0f) * (M_PI / 180.f);
+      // The ray_gen_data.opening_angle is already in radians
+      const float half_angle_rad = ray_gen_data->opening_angle / 2.0f;
+
+      // Use full sector angle range
+      // Map d_x from [-0.5, 0.5] directly to [-half_angle_rad, half_angle_rad]
       const float steering_angle = d_x * 2.0f * half_angle_rad;
 
       // For phased arrays, all rays originate from a single virtual point (0,0,0)
@@ -302,9 +305,9 @@ extern "C" __global__ void __raygen__rg() {
       );
 
       // Direction determined by steering angle
-      direction = make_float3(__sinf(steering_angle),  // x component based on steering angle
-                              0.f,                     // y component (no elevation steering)
-                              __cosf(steering_angle)   // z component (along central axis)
+      direction = make_float3(sinf(steering_angle),  // x component based on steering angle
+                              0.f,                   // y component (no elevation steering)
+                              cosf(steering_angle)   // z component (along central axis)
       );
 
       // Normalize direction to ensure unit length vector
