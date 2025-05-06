@@ -92,7 +92,7 @@ initial_poses = {
 
 # Create probes with different geometries
 probes = {
-    "curvilinear": rs.UltrasoundProbe(  # Original curvilinear probe
+    "curvilinear": rs.CurvilinearProbe(  # Original curvilinear probe
         initial_poses["curvilinear"],
         num_elements_x=256,  # Number rays which represent elements
         sector_angle=73.0,  # Field of view in degrees

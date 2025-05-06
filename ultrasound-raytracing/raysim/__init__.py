@@ -27,7 +27,6 @@ from .ray_sim_python import (
     Pose,
     RaytracingUltrasoundSimulator,
     SimParams,
-    UltrasoundProbe,
     World,
 )
 
@@ -41,6 +40,5 @@ __all__ = [
     "Pose",
     "RaytracingUltrasoundSimulator",
     "SimParams",
-    "UltrasoundProbe",
     "World",
 ]

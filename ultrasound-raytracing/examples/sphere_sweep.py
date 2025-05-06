@@ -22,7 +22,8 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # Use non-interactive matplotlib backend to avoid Qt/XCB issues
 # isort: off
 import matplotlib
-matplotlib.use('Agg')
+
+matplotlib.use("Agg")
 # isort: on
 import matplotlib.pyplot as plt
 import numpy as np
@@ -43,7 +44,7 @@ def main():
     world.add(sphere2)
 
     # Create output directory
-    output_dir = 'ultrasound_sweep'
+    output_dir = "ultrasound_sweep"
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
@@ -64,7 +65,6 @@ def main():
     x_end = -20
     x_positions = np.linspace(x_start, x_end, N_frames)
 
-
     # Image dynamic range
     min_val = -60.0
     max_val = 0.0
@@ -72,7 +72,7 @@ def main():
         # Create probe with updated pose
         position = np.array([x, 0, 0], dtype=np.float32)
         rotation = np.array([0, np.pi, 0], dtype=np.float32)
-        probe = rs.UltrasoundProbe(rs.Pose(position=position, rotation=rotation))
+        probe = rs.CurvilinearProbe(rs.Pose(position=position, rotation=rotation))
 
         # Run simulation
         b_mode_image = simulator.simulate(probe, sim_params)
@@ -86,18 +86,23 @@ def main():
 
         # Display and save image with proper axes
         plt.figure(figsize=(10, 8))
-        plt.imshow(normalized_image, cmap='gray',
-                    extent=[min_x, max_x, min_z, max_z], aspect='equal')
-        plt.title(f"B-mode Ultrasound Image\nPosition: ({x:.2f}, 0.00, 0.00), Rotation: (0.00°, 180.00°, 0.00°)")
-        plt.xlabel('Width (mm)')
-        plt.ylabel('Depth (mm)')
-        plt.colorbar(label='Intensity (normalized)')
+        plt.imshow(
+            normalized_image,
+            cmap="gray",
+            extent=[min_x, max_x, min_z, max_z],
+            aspect="equal",
+        )
+        plt.title(
+            f"B-mode Ultrasound Image\nPosition: ({x:.2f}, 0.00, 0.00), Rotation: (0.00°, 180.00°, 0.00°)"
+        )
+        plt.xlabel("Width (mm)")
+        plt.ylabel("Depth (mm)")
+        plt.colorbar(label="Intensity (normalized)")
 
         # Save figure
         filename = os.path.join(output_dir, f"frame_{i:03d}.png")
-        plt.savefig(filename, bbox_inches='tight')
+        plt.savefig(filename, bbox_inches="tight")
         plt.close()
-
 
 
 if __name__ == "__main__":

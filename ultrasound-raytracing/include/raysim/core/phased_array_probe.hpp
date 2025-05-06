@@ -35,7 +35,6 @@ class PhasedArrayProbe : public BaseProbe {
    *
    * @param pose Probe pose (position and orientation)
    * @param num_elements_x Number of transducer elements in lateral (x) direction
-   * @param num_elements_y Number of transducer elements in elevational (y) direction (default 1)
    * @param width Total width of the phased array in mm
    * @param sector_angle Total field of view angle in degrees
    * @param frequency Center frequency in MHz
@@ -47,7 +46,7 @@ class PhasedArrayProbe : public BaseProbe {
    */
   explicit PhasedArrayProbe(const Pose& pose = Pose(make_float3(0.f, 0.f, 0.f),
                                                     make_float3(0.f, 0.f, 0.f)),
-                            uint32_t num_elements_x = 128, uint32_t num_elements_y = 1,
+                            uint32_t num_elements_x = 128,
                             float width = 20.f,              // mm
                             float sector_angle = 90.f,       // degrees
                             float frequency = 3.5f,          // MHz
@@ -56,27 +55,26 @@ class PhasedArrayProbe : public BaseProbe {
                             float f_num = 1.0f,           // unitless
                             float speed_of_sound = 1.54,  // mm/us
                             float pulse_duration = 2.f)   // cycles
-      : BaseProbe(pose, num_elements_x, num_elements_y, frequency, elevational_height,
-                  num_el_samples, f_num, speed_of_sound, pulse_duration),
+      : BaseProbe(pose, num_elements_x, frequency, elevational_height, num_el_samples, f_num,
+                  speed_of_sound, pulse_duration),
         width_(width),
         sector_angle_(sector_angle) {}
 
   /**
    * Get element position for a specific element
    *
-   * @param element_idx Index of the element (in x direction)
+   * @param element_idx Index of the element
    * @param position Output parameter for element position in world coordinates (mm)
    */
   void get_element_position(uint32_t element_idx, float3& position) const override {
-    // Map element index to position along phased array
-    const float element_spacing = get_element_spacing();
-    const float x_offset = (element_idx - (num_elements_x_ - 1) / 2.0f) * element_spacing;
+    // Use base class utility methods for normalization
+    const float norm_x = normalize_element_index_x(element_idx);
 
-    // Position in local coordinates (x along array, z into tissue)
-    position = make_float3(x_offset,  // x position along array
-                           0.0f,      // y (elevation would be added later if needed)
-                           0.0f       // z at surface (face of the probe)
-    );
+    // Calculate position in x direction
+    const float x_pos = norm_x * width_;
+
+    // Position in local coordinates (flat surface)
+    position = make_float3(x_pos, 0.0f, 0.0f);
 
     // Transform to world coordinates
     position = transform_point(pose_, position);
@@ -85,20 +83,25 @@ class PhasedArrayProbe : public BaseProbe {
   /**
    * Get element ray direction for a specific element
    *
-   * @param element_idx Index of the element (in x direction)
+   * @param element_idx Index of the element
    * @param direction Output parameter for element direction in world coordinates (normalized)
    */
   void get_element_direction(uint32_t element_idx, float3& direction) const override {
-    // Calculate steering angle for this element
-    const float angle_rad = element_idx_to_steering_angle_rad(element_idx);
+    // Use base class utility methods for normalization
+    const float norm_x = normalize_element_index_x(element_idx);
 
-    // Direction in local coordinates
-    direction = make_float3(sinf(angle_rad),  // x component based on steering angle
-                            0.0f,             // y component (no elevation angle)
-                            cosf(angle_rad)   // z component based on steering angle
+    // Calculate steering angle
+    float angle_rad = normalized_pos_to_angle_rad(norm_x, sector_angle_);
+
+    // Direction in local coordinates (steered in x direction)
+    direction = make_float3(sinf(angle_rad),  // x component
+                            0.0f,             // y component
+                            cosf(angle_rad)   // z component
     );
 
-    // Transform direction to world coordinates
+    // Direction is already normalized since sin²+cos²=1
+
+    // Transform to world coordinates
     direction = transform_direction(pose_, direction);
   }
 
@@ -118,23 +121,6 @@ class PhasedArrayProbe : public BaseProbe {
   float get_element_spacing() const override { return width_ / (num_elements_x_ - 1); }
 
  private:
-  /**
-   * Calculate steering angle for a specific element index
-   *
-   * @param element_idx Index of the element (in x direction)
-   * @return Steering angle in radians
-   */
-  float element_idx_to_steering_angle_rad(uint32_t element_idx) const {
-    // Use base class utility method for normalization
-    const float normalized_pos = normalize_element_index(element_idx);
-
-    // Half the sector angle (symmetrical sector around the center)
-    const float half_sector_angle = sector_angle_ / 2.0f;
-
-    // Calculate and return the steering angle in radians
-    return normalized_pos_to_angle_rad(normalized_pos * 2.0f, half_sector_angle);
-  }
-
   float width_;         ///< Total width of the phased array in mm
   float sector_angle_;  ///< Sector angle (total field of view) in degrees
 };

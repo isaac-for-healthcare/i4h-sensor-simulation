@@ -20,10 +20,10 @@
 #include <spdlog/fmt/fmt.h>
 #include <filesystem>
 
+#include "raysim/core/curvilinear_probe.hpp"
 #include "raysim/core/linear_array_probe.hpp"
 #include "raysim/core/phased_array_probe.hpp"
 #include "raysim/core/probe.hpp"
-#include "raysim/core/ultrasound_probe.hpp"
 #include "raysim/core/world.hpp"
 #include "raysim/core/write_image.hpp"
 #include "raysim/cuda/cuda_algorithms.hpp"

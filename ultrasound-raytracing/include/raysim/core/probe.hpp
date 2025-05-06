@@ -38,8 +38,6 @@ class BaseProbe {
    *
    * @param pose Probe pose (position in mm and orientation in radians)
    * @param num_elements_x Number of transducer elements in lateral (x) direction
-   * @param num_elements_y Number of transducer elements in elevational (y) direction (default 1 for
-   * standard probes)
    * @param frequency Center frequency in MHz
    * @param elevational_height Height of elements in elevational direction in mm
    * @param num_el_samples Number of samples in elevational direction
@@ -49,7 +47,7 @@ class BaseProbe {
    */
   explicit BaseProbe(const Pose& pose = Pose(make_float3(0.f, 0.f, 0.f),
                                              make_float3(0.f, 0.f, 0.f)),
-                     uint32_t num_elements_x = 256, uint32_t num_elements_y = 1,
+                     uint32_t num_elements_x = 256,
                      float frequency = 2.5f,          // MHz
                      float elevational_height = 5.f,  // mm
                      uint32_t num_el_samples = 1,
@@ -58,7 +56,6 @@ class BaseProbe {
                      float pulse_duration = 2.f)   // cycles
       : pose_(pose),
         num_elements_x_(num_elements_x),
-        num_elements_y_(num_elements_y),
         frequency_(frequency),
         elevational_height_(elevational_height),
         num_el_samples_(num_el_samples),
@@ -71,7 +68,7 @@ class BaseProbe {
   /**
    * Get element position for a specific element index
    *
-   * @param element_idx Index of the element (in x direction)
+   * @param element_idx Index of the element
    * @param position Output parameter for element position in world coordinates (mm)
    */
   virtual void get_element_position(uint32_t element_idx, float3& position) const = 0;
@@ -79,7 +76,7 @@ class BaseProbe {
   /**
    * Get element ray direction for a specific element index
    *
-   * @param element_idx Index of the element (in x direction)
+   * @param element_idx Index of the element
    * @param direction Output parameter for element direction in world coordinates (normalized)
    */
   virtual void get_element_direction(uint32_t element_idx, float3& direction) const = 0;
@@ -102,12 +99,6 @@ class BaseProbe {
 
   /// Set number of transducer elements in x direction (lateral)
   void set_num_elements_x(uint32_t num_elements_x) { num_elements_x_ = num_elements_x; }
-
-  /// Get number of transducer elements in y direction (elevational)
-  uint32_t get_num_elements_y() const { return num_elements_y_; }
-
-  /// Set number of transducer elements in y direction (elevational)
-  void set_num_elements_y(uint32_t num_elements_y) { num_elements_y_ = num_elements_y; }
 
   /// Get center frequency in MHz
   float get_frequency() const { return frequency_; }
@@ -180,7 +171,6 @@ class BaseProbe {
    */
   Pose pose_;                 ///< Probe pose (position and orientation)
   uint32_t num_elements_x_;   ///< Number of transducer elements in lateral direction
-  uint32_t num_elements_y_;   ///< Number of transducer elements in elevational direction
   float frequency_;           ///< Center frequency in MHz
   float elevational_height_;  ///< Height of elements in elevational direction in mm
   uint32_t num_el_samples_;   ///< Number of samples in elevational direction
@@ -194,7 +184,16 @@ class BaseProbe {
    * @return Normalized position in range [-0.5, 0.5]
    */
   float normalize_element_index(uint32_t element_idx) const {
-    return (float)element_idx / (num_elements_x_ - 1) - 0.5f;
+    return normalize_element_index_x(element_idx);
+  }
+
+  /**
+   * Normalize an element index in x direction to range [-0.5, 0.5]
+   * @param x_idx Element index in x direction (0 to num_elements_x - 1)
+   * @return Normalized position in range [-0.5, 0.5]
+   */
+  float normalize_element_index_x(uint32_t x_idx) const {
+    return (float)x_idx / (num_elements_x_ - 1) - 0.5f;
   }
 
   /**

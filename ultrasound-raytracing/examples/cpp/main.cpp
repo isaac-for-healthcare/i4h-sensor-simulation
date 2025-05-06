@@ -23,9 +23,9 @@
 
 #include <spdlog/spdlog.h>
 
+#include "raysim/core/curvilinear_probe.hpp"
 #include "raysim/core/material.hpp"
 #include "raysim/core/raytracing_ultrasound_simulator.hpp"
-#include "raysim/core/ultrasound_probe.hpp"
 #include "raysim/core/world.hpp"
 #include "raysim/core/write_image.hpp"
 
@@ -67,7 +67,7 @@ int main(int argc, char* argv[]) {
 
     raysim::RaytracingUltrasoundSimulator simulator(&world, &materials);
 
-    raysim::UltrasoundProbe probe;
+    raysim::CurvilinearProbe probe;
     probe.set_num_el_samples(1);
 
     // Place probe above the center of the scene pointing down
@@ -114,10 +114,10 @@ int main(int argc, char* argv[]) {
       if (result.b_mode) {
         // Write frame
         auto min_max = make_float2(-60.f, 0.f);
-        write_image(result.b_mode.get(),
-                    sim_params.b_mode_size,
-                    output_dir / fmt::format("frame_{0:03}.png", frame),
-                    &min_max);
+        raysim::write_image(result.b_mode.get(),
+                            sim_params.b_mode_size,
+                            output_dir / fmt::format("frame_{0:03}.png", frame),
+                            &min_max);
       }
     }
 

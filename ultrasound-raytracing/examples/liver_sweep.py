@@ -21,7 +21,8 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # isort: off
 import matplotlib
-matplotlib.use('Agg')
+
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import raysim.cuda as rs
@@ -42,8 +43,9 @@ world.add(mesh)
 # Create probe with initial pose matching C++ implementation
 initial_pose = rs.Pose(
     np.array([10, -145, -361.0], dtype=np.float32),  # position (x, y, z)
-    np.array([-np.pi/2, 0, 0], dtype=np.float32))   # rotation (x, y, z)
-probe = rs.UltrasoundProbe(initial_pose)
+    np.array([-np.pi / 2, 0, 0], dtype=np.float32),
+)  # rotation (x, y, z)
+probe = rs.CurvilinearProbe(initial_pose)
 
 # Create simulator
 simulator = rs.RaytracingUltrasoundSimulator(world, materials)
@@ -54,7 +56,10 @@ sim_params.conv_psf = True
 sim_params.buffer_size = 4096
 sim_params.t_far = 180.0
 sim_params.enable_cuda_timing = True
-sim_params.b_mode_size = (500, 500,)
+sim_params.b_mode_size = (
+    500,
+    500,
+)
 
 # Setup sweep parameters
 N_frames = 100
@@ -69,12 +74,11 @@ max_val = 0.0
 for i, z in tqdm(enumerate(z_positions), total=len(z_positions)):
     # Create probe with updated pose
     position = np.array([-30, -104, z], dtype=np.float32)
-    rotation = np.array([-np.pi/2, np.pi, 0], dtype=np.float32)
-    probe = rs.UltrasoundProbe(rs.Pose(position=position, rotation=rotation))
+    rotation = np.array([-np.pi / 2, np.pi, 0], dtype=np.float32)
+    probe = rs.CurvilinearProbe(rs.Pose(position=position, rotation=rotation))
 
     # Run simulation
     b_mode_image = simulator.simulate(probe, sim_params)
-
 
     normalized_image = np.clip((b_mode_image - min_val) / (max_val - min_val), 0, 1)
 
@@ -86,11 +90,17 @@ for i, z in tqdm(enumerate(z_positions), total=len(z_positions)):
 
     # Display and save image with proper axes
     plt.figure(figsize=(10, 8))
-    plt.imshow(normalized_image, cmap='gray',
-            extent=[min_x, max_x, min_z, max_z], aspect='equal')  # Note: depth axis is flipped
-    plt.xlabel('Width (mm)')
-    plt.ylabel('Depth (mm)')
-    plt.colorbar(label='Intensity (normalized)')
-    plt.title(f"B-mode Ultrasound Image of Liver: (x, y, z) = ({position[0]:.2f}, {position[1]:.2f}, {position[2]:.2f})")
+    plt.imshow(
+        normalized_image,
+        cmap="gray",
+        extent=[min_x, max_x, min_z, max_z],
+        aspect="equal",
+    )  # Note: depth axis is flipped
+    plt.xlabel("Width (mm)")
+    plt.ylabel("Depth (mm)")
+    plt.colorbar(label="Intensity (normalized)")
+    plt.title(
+        f"B-mode Ultrasound Image of Liver: (x, y, z) = ({position[0]:.2f}, {position[1]:.2f}, {position[2]:.2f})"
+    )
     plt.savefig(os.path.join(output_dir, f"frame_{i:03d}.png"))
     plt.show()

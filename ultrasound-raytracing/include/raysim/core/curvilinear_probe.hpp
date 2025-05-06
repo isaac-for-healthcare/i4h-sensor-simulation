@@ -35,7 +35,6 @@ class CurvilinearProbe : public BaseProbe {
    *
    * @param pose Probe pose (position and orientation)
    * @param num_elements_x Number of transducer elements in lateral (x) direction
-   * @param num_elements_y Number of transducer elements in elevational (y) direction (default 1)
    * @param sector_angle Field of view in degrees
    * @param radius Radius of curvature in mm
    * @param frequency Center frequency in MHz
@@ -47,7 +46,7 @@ class CurvilinearProbe : public BaseProbe {
    */
   explicit CurvilinearProbe(const Pose& pose = Pose(make_float3(0.f, 0.f, 0.f),
                                                     make_float3(0.f, 0.f, 0.f)),
-                            uint32_t num_elements_x = 256, uint32_t num_elements_y = 1,
+                            uint32_t num_elements_x = 256,
                             float sector_angle = 73.f,       // degrees
                             float radius = 45.f,             // mm
                             float frequency = 2.5f,          // MHz
@@ -56,30 +55,30 @@ class CurvilinearProbe : public BaseProbe {
                             float f_num = 1.0f,           // unitless
                             float speed_of_sound = 1.54,  // mm/us
                             float pulse_duration = 2.f)   // cycles
-      : BaseProbe(pose, num_elements_x, num_elements_y, frequency, elevational_height,
-                  num_el_samples, f_num, speed_of_sound, pulse_duration),
+      : BaseProbe(pose, num_elements_x, frequency, elevational_height, num_el_samples, f_num,
+                  speed_of_sound, pulse_duration),
         sector_angle_(sector_angle),
         radius_(radius) {}
 
   /**
    * Get element position for a specific element
    *
-   * @param element_idx Index of the element (in x direction)
+   * @param element_idx Index of the element
    * @param position Output parameter for element position in world coordinates (mm)
    */
   void get_element_position(uint32_t element_idx, float3& position) const override {
-    // Use base class utility method for normalization
-    const float normalized_pos = normalize_element_index(element_idx);
+    // Use base class utility methods for normalization
+    const float norm_x = normalize_element_index_x(element_idx);
 
-    // Use helper method to calculate angle in radians
-    const float angle_rad = normalized_pos_to_angle_rad(normalized_pos, sector_angle_);
+    // Calculate angle in lateral direction
+    const float angle_rad = normalized_pos_to_angle_rad(norm_x, sector_angle_);
 
-    // Position in local coordinates (curved surface)
-    position =
-        make_float3(radius_ * sinf(angle_rad),  // x position along curved surface
-                    0.0f,                       // y (elevation would be added later if needed)
-                    radius_ * (1.f - cosf(angle_rad))  // z position (depth) based on curvature
-        );
+    // Position in local coordinates (curved surface in lateral direction)
+    const float x_pos = radius_ * sinf(angle_rad);
+    const float z_offset = radius_ * (1.f - cosf(angle_rad));
+
+    // Construct final position
+    position = make_float3(x_pos, 0.0f, z_offset);
 
     // Transform to world coordinates
     position = transform_point(pose_, position);
@@ -88,23 +87,22 @@ class CurvilinearProbe : public BaseProbe {
   /**
    * Get element ray direction for a specific element
    *
-   * @param element_idx Index of the element (in x direction)
+   * @param element_idx Index of the element
    * @param direction Output parameter for element direction in world coordinates (normalized)
    */
   void get_element_direction(uint32_t element_idx, float3& direction) const override {
-    // Use base class utility method for normalization
-    const float normalized_pos = normalize_element_index(element_idx);
+    // Use base class utility methods for normalization
+    const float norm_x = normalize_element_index_x(element_idx);
 
-    // Use helper method to calculate angle in radians
-    const float angle_rad = normalized_pos_to_angle_rad(normalized_pos, sector_angle_);
+    // Calculate angle in lateral direction
+    const float angle_rad = normalized_pos_to_angle_rad(norm_x, sector_angle_);
 
-    // Direction in local coordinates (ray perpendicular to surface at this point)
-    direction = make_float3(sinf(angle_rad),  // x component based on angle
-                            0.0f,             // y component (no elevation angle)
-                            cosf(angle_rad)   // z component based on angle
-    );
+    // For a curved surface, direction is perpendicular to the surface at that point
+    direction = make_float3(sinf(angle_rad), 0.0f, cosf(angle_rad));
 
-    // Transform direction to world coordinates
+    // Direction is already normalized since sin²+cos²=1
+
+    // Transform to world coordinates
     direction = transform_direction(pose_, direction);
   }
 
