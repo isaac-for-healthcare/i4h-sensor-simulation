@@ -162,6 +162,22 @@ class BaseProbe {
     return frequency_ / speed_of_sound_;
   }
 
+  /**
+   * Get sector angle in degrees
+   * Default implementation returns 0.0
+   * Overridden by derived classes that have a sector angle
+   * @return Sector angle in degrees
+   */
+  virtual float get_sector_angle() const { return 0.0f; }
+
+  /**
+   * Get radius of curvature in mm
+   * Default implementation returns 0.0
+   * Overridden by derived classes that have a radius of curvature
+   * @return Radius of curvature in mm
+   */
+  virtual float get_radius() const { return 0.0f; }
+
  protected:
   /**
    * Probe coordinate system convention:

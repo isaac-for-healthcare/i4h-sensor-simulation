@@ -354,11 +354,6 @@ static __global__ void scan_convert_phased_kernel(cudaTextureObject_t input, uin
   const float px = static_cast<float>(index.x);
   const float py = static_cast<float>(index.y);
 
-  // 3. For a true sector, we need:
-  //    - A flat top interface where py = 0
-  //    - Every ray starts from the origin (origin_x, origin_y)
-  //    - The sector widens with depth according to the angle
-
   // Skip if we're at the top (y=0) and outside the width of the probe
   // This ensures a clean flat interface
   if (py == 0.0f && fabsf(px - origin_x) > (output_size.x / 2.0f * 0.1f)) { return; }

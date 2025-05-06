@@ -289,13 +289,10 @@ extern "C" __global__ void __raygen__rg() {
     }
 
     case PROBE_TYPE_PHASED_ARRAY: {
-      // Convert normalized coordinates to steering angle in radians
-      // The ray_gen_data.opening_angle is already in radians
-      const float half_angle_rad = ray_gen_data->opening_angle / 2.0f;
-
       // Use full sector angle range
       // Map d_x from [-0.5, 0.5] directly to [-half_angle_rad, half_angle_rad]
-      const float steering_angle = d_x * 2.0f * half_angle_rad;
+      const float steering_angle = d_x * ray_gen_data->opening_angle;    // in degrees
+      const float steering_angle_rad = steering_angle * (M_PI / 180.f);  // convert to radians
 
       // For phased arrays, all rays originate from a single virtual point (0,0,0)
       // This is the center of the transducer array face
@@ -305,23 +302,13 @@ extern "C" __global__ void __raygen__rg() {
       );
 
       // Direction determined by steering angle
-      direction = make_float3(sinf(steering_angle),  // x component based on steering angle
-                              0.f,                   // y component (no elevation steering)
-                              cosf(steering_angle)   // z component (along central axis)
+      direction = make_float3(sinf(steering_angle_rad),  // x component based on steering angle
+                              0.f,                       // y component (no elevation steering)
+                              cosf(steering_angle_rad)   // z component (along central axis)
       );
 
       // Normalize direction to ensure unit length vector
       direction = normalize(direction);
-      break;
-    }
-
-    default: {
-      // Default to curvilinear behavior as fallback
-      const float lateral_angle = (ray_gen_data->opening_angle * d_x) * (M_PI / 180.f);
-      origin = make_float3(ray_gen_data->radius * __sinf(lateral_angle),
-                           0.f,
-                           ray_gen_data->radius * (__cosf(lateral_angle) - 1.f));
-      direction = normalize(origin - make_float3(0.f, 0.f, -ray_gen_data->radius));
       break;
     }
   }

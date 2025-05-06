@@ -247,20 +247,21 @@ RaytracingUltrasoundSimulator::SimResult RaytracingUltrasoundSimulator::simulate
   CudaTiming cuda_timing(sim_params.enable_cuda_timing, "Simulation", sim_params.stream);
 
   // Check if this is a curvilinear probe (for compatibility)
-  const auto* curvilinear_probe = dynamic_cast<const CurvilinearProbe*>(probe);
-  float opening_angle = 0.0f;
-  float radius = 0.0f;
 
-  if (curvilinear_probe) {
-    opening_angle = curvilinear_probe->get_sector_angle();
-    radius = curvilinear_probe->get_radius();
-  } else {
-    // For linear array probes, approximate with a large radius and narrow opening angle
-    radius = 1000.0f;  // Large radius for nearly flat surface
-    opening_angle =
-        atan2f(probe->get_element_spacing() * probe->get_num_elements() / 2.0f, radius) * 360.0f /
-        M_PI;
-  }
+  float opening_angle = probe->get_sector_angle();
+  float radius = probe->get_radius();
+  // opening_angle = 90.0f;
+  // radius = 0.0f;
+  // if (curvilinear_probe) {
+  //   opening_angle = curvilinear_probe->get_sector_angle();
+  //   radius = curvilinear_probe->get_radius();
+  // } else {
+  //   // For linear array probes, approximate with a large radius and narrow opening angle
+  //   radius =  ;  // Large radius for nearly flat surface
+  //   opening_angle =
+  //       atan2f(probe->get_element_spacing() * probe->get_num_elements() / 2.0f, radius) * 360.0f
+  //       / M_PI;
+  // }
 
   // Update the ray gen record
   {
@@ -432,6 +433,7 @@ RaytracingUltrasoundSimulator::SimResult RaytracingUltrasoundSimulator::simulate
     // Check probe type and use appropriate scan conversion
     const auto* linear_probe = dynamic_cast<const LinearArrayProbe*>(probe);
     const auto* phased_probe = dynamic_cast<const PhasedArrayProbe*>(probe);
+    const auto* curvilinear_probe = dynamic_cast<const CurvilinearProbe*>(probe);
 
     if (phased_probe) {
       // For phased array probes
@@ -478,6 +480,7 @@ RaytracingUltrasoundSimulator::SimResult RaytracingUltrasoundSimulator::simulate
 
   const auto* linear_probe = dynamic_cast<const LinearArrayProbe*>(probe);
   const auto* phased_probe = dynamic_cast<const PhasedArrayProbe*>(probe);
+  const auto* curvilinear_probe = dynamic_cast<const CurvilinearProbe*>(probe);
 
   if (phased_probe) {
     // For phased array probes
