@@ -255,10 +255,22 @@ Note: Pose orientation is specified in radians (roll, pitch, yaw).
       .def("get_pose", &raysim::BaseProbe::get_pose, "Get the probe's current pose")
       .def("get_num_elements",
            &raysim::BaseProbe::get_num_elements,
-           "Get number of transducer elements")
+           "Get number of transducer elements in lateral (x) direction")
       .def("set_num_elements",
            &raysim::BaseProbe::set_num_elements,
-           "Set number of transducer elements")
+           "Set number of transducer elements in lateral (x) direction")
+      .def("get_num_elements_x",
+           &raysim::BaseProbe::get_num_elements_x,
+           "Get number of transducer elements in lateral (x) direction")
+      .def("set_num_elements_x",
+           &raysim::BaseProbe::set_num_elements_x,
+           "Set number of transducer elements in lateral (x) direction")
+      .def("get_num_elements_y",
+           &raysim::BaseProbe::get_num_elements_y,
+           "Get number of transducer elements in elevational (y) direction")
+      .def("set_num_elements_y",
+           &raysim::BaseProbe::set_num_elements_y,
+           "Set number of transducer elements in elevational (y) direction")
       .def("get_frequency", &raysim::BaseProbe::get_frequency, "Get probe frequency (MHz)")
       .def("set_frequency", &raysim::BaseProbe::set_frequency, "Set probe frequency (MHz)")
       .def("get_speed_of_sound",
@@ -280,6 +292,7 @@ Curvilinear ultrasound probe with elements positioned along a curved surface.
 )pbdoc")
       .def(py::init<const raysim::Pose&,
                     uint32_t,
+                    uint32_t,
                     float,
                     float,
                     float,
@@ -289,8 +302,9 @@ Curvilinear ultrasound probe with elements positioned along a curved surface.
                     float,
                     float>(),
            py::arg("pose") = raysim::Pose(),
-           py::arg("num_elements") = 256,
-           py::arg("opening_angle") = 73.0f,
+           py::arg("num_elements_x") = 256,
+           py::arg("num_elements_y") = 1,
+           py::arg("sector_angle") = 73.0f,
            py::arg("radius") = 45.0f,
            py::arg("frequency") = 2.5f,
            py::arg("elevational_height") = 7.0f,
@@ -298,11 +312,11 @@ Curvilinear ultrasound probe with elements positioned along a curved surface.
            py::arg("f_num") = 0.7f,
            py::arg("speed_of_sound") = 1.54f,
            py::arg("pulse_duration") = 2.0f)
-      .def("get_opening_angle",
-           &raysim::CurvilinearProbe::get_opening_angle,
+      .def("get_sector_angle",
+           &raysim::CurvilinearProbe::get_sector_angle,
            "Get field of view in degrees")
-      .def("set_opening_angle",
-           &raysim::CurvilinearProbe::set_opening_angle,
+      .def("set_sector_angle",
+           &raysim::CurvilinearProbe::set_sector_angle,
            "Set field of view in degrees")
       .def("get_radius", &raysim::CurvilinearProbe::get_radius, "Get probe radius of curvature")
       .def("set_radius", &raysim::CurvilinearProbe::set_radius, "Set probe radius of curvature")
@@ -331,7 +345,11 @@ Curvilinear ultrasound probe with elements positioned along a curved surface.
            &raysim::CurvilinearProbe::get_elevational_spatial_frequency,
            "Get elevational spatial frequency")
       .def("get_f_num", &raysim::CurvilinearProbe::get_f_num, "Get F-number")
-      .def("set_f_num", &raysim::CurvilinearProbe::set_f_num, "Set F-number");
+      .def("set_f_num", &raysim::CurvilinearProbe::set_f_num, "Set F-number")
+      // Legacy alias for backward compatibility
+      .def("get_opening_angle",
+           &raysim::CurvilinearProbe::get_opening_angle,
+           "Get field of view in degrees (legacy alias for get_sector_angle)");
 
   // Add LinearArrayProbe binding
   py::class_<raysim::LinearArrayProbe, raysim::BaseProbe>(m, "LinearArrayProbe", R"pbdoc(
@@ -339,6 +357,7 @@ Linear array ultrasound probe with elements positioned in a straight line.
 Elements emit parallel beams perpendicular to the face of the probe.
 )pbdoc")
       .def(py::init<const raysim::Pose&,
+                    uint32_t,
                     uint32_t,
                     float,
                     float,
@@ -348,7 +367,8 @@ Elements emit parallel beams perpendicular to the face of the probe.
                     float,
                     float>(),
            py::arg("pose") = raysim::Pose(),
-           py::arg("num_elements") = 256,
+           py::arg("num_elements_x") = 256,
+           py::arg("num_elements_y") = 1,
            py::arg("width") = 60.0f,
            py::arg("frequency") = 5.0f,
            py::arg("elevational_height") = 5.0f,
@@ -392,6 +412,7 @@ Elements steer beams electronically to create a sector image from a small footpr
 )pbdoc")
       .def(py::init<const raysim::Pose&,
                     uint32_t,
+                    uint32_t,
                     float,
                     float,
                     float,
@@ -401,7 +422,8 @@ Elements steer beams electronically to create a sector image from a small footpr
                     float,
                     float>(),
            py::arg("pose") = raysim::Pose(),
-           py::arg("num_elements") = 128,
+           py::arg("num_elements_x") = 128,
+           py::arg("num_elements_y") = 1,
            py::arg("width") = 20.0f,
            py::arg("sector_angle") = 90.0f,
            py::arg("frequency") = 3.5f,
@@ -452,6 +474,7 @@ Elements steer beams electronically to create a sector image from a small footpr
     )pbdoc")
       .def(py::init<const raysim::Pose&,
                     uint32_t,
+                    uint32_t,
                     float,
                     float,
                     float,
@@ -460,9 +483,10 @@ Elements steer beams electronically to create a sector image from a small footpr
                     float,
                     float,
                     float>(),
-           py::arg("pose"),
-           py::arg("num_elements") = 4096,
-           py::arg("opening_angle") = 73.f,
+           py::arg("pose") = raysim::Pose(),
+           py::arg("num_elements_x") = 4096,
+           py::arg("num_elements_y") = 1,
+           py::arg("sector_angle") = 73.f,
            py::arg("radius") = 45.f,
            py::arg("frequency") = 2.5f,
            py::arg("elevational_height") = 7.f,
@@ -475,9 +499,12 @@ Elements steer beams electronically to create a sector image from a small footpr
       .def("get_num_elements",
            &raysim::UltrasoundProbe::get_num_elements,
            "Get number of probe elements")
+      .def("get_sector_angle",
+           &raysim::UltrasoundProbe::get_sector_angle,
+           "Get probe sector angle (degrees)")
       .def("get_opening_angle",
            &raysim::UltrasoundProbe::get_opening_angle,
-           "Get probe opening angle (degrees)")
+           "Get probe opening angle (degrees) - Legacy method, use get_sector_angle instead")
       .def("get_radius", &raysim::UltrasoundProbe::get_radius, "Get probe radius of curvature")
       .def("get_frequency", &raysim::UltrasoundProbe::get_frequency, "Get probe frequency (MHz)")
       .def("get_element_spacing",
@@ -654,8 +681,8 @@ Elements steer beams electronically to create a sector image from a small footpr
 
               std::vector<ssize_t> shape = {static_cast<ssize_t>(params.b_mode_size.y),
                                             static_cast<ssize_t>(params.b_mode_size.x)};
-              auto array = py::array_t<float>(shape, host_data.get());
 
+              auto array = py::array_t<float>(shape, host_data.get());
               spdlog::info("Simulation completed successfully");
               return array;
             } catch (const std::exception& e) {

@@ -18,6 +18,7 @@
 #ifndef CPP_LINEAR_ARRAY_PROBE
 #define CPP_LINEAR_ARRAY_PROBE
 
+#include "raysim/core/math_utils.hpp"
 #include "raysim/core/probe.hpp"
 #include "raysim/core/transform_utils.hpp"
 
@@ -33,41 +34,40 @@ class LinearArrayProbe : public BaseProbe {
    * Initialize linear array probe parameters
    *
    * @param pose Probe pose (position and orientation)
-   * @param num_elements Number of transducer elements
+   * @param num_elements_x Number of transducer elements in lateral (x) direction
+   * @param num_elements_y Number of transducer elements in elevational (y) direction (default 1)
    * @param width Total width of the linear array in mm
    * @param frequency Center frequency in MHz
    * @param elevational_height Height of elements in elevational direction in mm
    * @param num_el_samples Number of samples in elevational direction
    * @param f_num F-number (focal length / aperture) - unitless
    * @param speed_of_sound Speed of sound in tissue in mm/μs
-   * @param pulse_duration Duration of excitation pulse in cycles
+   * @param pulse_duration Duration of excitation pulse in cycles (number of oscillations)
    */
   explicit LinearArrayProbe(const Pose& pose = Pose(make_float3(0.f, 0.f, 0.f),
                                                     make_float3(0.f, 0.f, 0.f)),
-                            uint32_t num_elements = 256,
+                            uint32_t num_elements_x = 256, uint32_t num_elements_y = 1,
                             float width = 60.f,              // mm
                             float frequency = 5.0f,          // MHz
                             float elevational_height = 5.f,  // mm
                             uint32_t num_el_samples = 1,
                             float f_num = 1.0f,           // unitless
                             float speed_of_sound = 1.54,  // mm/us
-                            float pulse_duration = 2.f)
-      : BaseProbe(pose, num_elements, frequency, speed_of_sound, pulse_duration),
-        width_(width),
-        elevational_height_(elevational_height),
-        num_el_samples_(num_el_samples),
-        f_num_(f_num) {}
+                            float pulse_duration = 2.f)   // cycles
+      : BaseProbe(pose, num_elements_x, num_elements_y, frequency, elevational_height,
+                  num_el_samples, f_num, speed_of_sound, pulse_duration),
+        width_(width) {}
 
   /**
    * Get element position for a specific element
    *
-   * @param element_idx Index of the element
-   * @param position Output parameter for element position
+   * @param element_idx Index of the element (in x direction)
+   * @param position Output parameter for element position in world coordinates (mm)
    */
   void get_element_position(uint32_t element_idx, float3& position) const override {
-    // Map element index to position along linear array
-    const float element_spacing = get_element_spacing();
-    const float x_offset = (element_idx - (num_elements_ - 1) / 2.0f) * element_spacing;
+    // Map element index to position along linear array using base class utility
+    const float normalized_pos = normalize_element_index(element_idx);
+    const float x_offset = normalized_pos * width_;  // Map from [-0.5, 0.5] to [-width/2, width/2]
 
     // Position in local coordinates (x along array, z into tissue)
     position = make_float3(x_offset,  // x position along array
@@ -82,8 +82,8 @@ class LinearArrayProbe : public BaseProbe {
   /**
    * Get element ray direction for a specific element
    *
-   * @param element_idx Index of the element
-   * @param direction Output parameter for element direction
+   * @param element_idx Index of the element (in x direction)
+   * @param direction Output parameter for element direction in world coordinates (normalized)
    */
   void get_element_direction(uint32_t element_idx, float3& direction) const override {
     // For linear array, all rays are parallel and perpendicular to the face
@@ -100,51 +100,10 @@ class LinearArrayProbe : public BaseProbe {
   void set_width(float width) { width_ = width; }
 
   /// Get element spacing (distance between elements) in mm
-  float get_element_spacing() const { return width_ / (num_elements_ - 1); }
-
-  /// Get height of elements in elevational direction in mm
-  float get_elevational_height() const { return elevational_height_; }
-
-  /// Set height of elements in elevational direction in mm
-  void set_elevational_height(float elevational_height) {
-    elevational_height_ = elevational_height;
-  }
-
-  /// Get number of samples in elevational direction
-  uint32_t get_num_el_samples() const { return num_el_samples_; }
-
-  /// Set number of samples in elevational direction
-  void set_num_el_samples(uint32_t num_el_samples) { num_el_samples_ = num_el_samples; }
-
-  /// Get F-number (focal length / aperture) - unitless
-  float get_f_num() const { return f_num_; }
-
-  /// Set F-number (focal length / aperture) - unitless
-  void set_f_num(float f_num) { f_num_ = f_num; }
-
-  /// Get axial resolution in mm
-  float get_axial_resolution() const {
-    // Axial resolution is approximately half the wavelength
-    return get_wave_length() / 2.0f;
-  }
-
-  /// Get lateral resolution in mm
-  float get_lateral_resolution() const {
-    // Lateral resolution is approximately wavelength * f_number
-    return get_wave_length() * f_num_;
-  }
-
-  /// Get elevational spatial frequency in 1/mm
-  float get_elevational_spatial_frequency() const {
-    // This is a simplified approximation
-    return frequency_ / speed_of_sound_;
-  }
+  float get_element_spacing() const override { return width_ / (num_elements_x_ - 1); }
 
  private:
-  float width_;               ///< Total width of the linear array in mm
-  float elevational_height_;  ///< Height of elements in elevational direction in mm
-  uint32_t num_el_samples_;   ///< Number of samples in elevational direction
-  float f_num_;               ///< F-number (focal length / aperture) - unitless
+  float width_;  ///< Total width of the linear array in mm
 };
 
 }  // namespace raysim

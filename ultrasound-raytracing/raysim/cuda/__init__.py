@@ -16,6 +16,7 @@
 """Explicitly import CUDA implementations from ray_sim_python"""
 
 from raysim.ray_sim_python import (
+    CurvilinearProbe,
     Hitable,
     LinearArrayProbe,
     Material,
@@ -31,16 +32,17 @@ from raysim.ray_sim_python import (
 )
 
 __all__ = [
+    "CurvilinearProbe",
     "Hitable",
+    "LinearArrayProbe",
     "Material",
     "Materials",
     "Mesh",
+    "PhasedArrayProbe",
     "Pose",
     "RaytracingUltrasoundSimulator",
     "SimParams",
     "Sphere",
     "UltrasoundProbe",
-    "LinearArrayProbe",
-    "PhasedArrayProbe",
     "World",
 ]

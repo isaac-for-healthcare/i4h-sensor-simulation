@@ -252,7 +252,7 @@ RaytracingUltrasoundSimulator::SimResult RaytracingUltrasoundSimulator::simulate
   float radius = 0.0f;
 
   if (curvilinear_probe) {
-    opening_angle = curvilinear_probe->get_opening_angle();
+    opening_angle = curvilinear_probe->get_sector_angle();
     radius = curvilinear_probe->get_radius();
   } else {
     // For linear array probes, approximate with a large radius and narrow opening angle

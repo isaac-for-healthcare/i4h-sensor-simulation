@@ -20,6 +20,7 @@
 
 #include <vector>
 
+#include "raysim/core/math_utils.hpp"
 #include "raysim/core/pose.hpp"
 #include "raysim/cuda/cuda_helper.hpp"
 #include "raysim/cuda/matrix.hpp"
@@ -36,20 +37,32 @@ class BaseProbe {
    * Initialize base probe parameters
    *
    * @param pose Probe pose (position in mm and orientation in radians)
-   * @param num_elements Number of transducer elements
+   * @param num_elements_x Number of transducer elements in lateral (x) direction
+   * @param num_elements_y Number of transducer elements in elevational (y) direction (default 1 for
+   * standard probes)
    * @param frequency Center frequency in MHz
+   * @param elevational_height Height of elements in elevational direction in mm
+   * @param num_el_samples Number of samples in elevational direction
+   * @param f_num F-number (focal length / aperture) - unitless
    * @param speed_of_sound Speed of sound in tissue in mm/μs
-   * @param pulse_duration Duration of excitation pulse in cycles
+   * @param pulse_duration Duration of excitation pulse in cycles (number of oscillations)
    */
   explicit BaseProbe(const Pose& pose = Pose(make_float3(0.f, 0.f, 0.f),
                                              make_float3(0.f, 0.f, 0.f)),
-                     uint32_t num_elements = 256,
-                     float frequency = 2.5f,       // MHz
+                     uint32_t num_elements_x = 256, uint32_t num_elements_y = 1,
+                     float frequency = 2.5f,          // MHz
+                     float elevational_height = 5.f,  // mm
+                     uint32_t num_el_samples = 1,
+                     float f_num = 1.0f,           // unitless
                      float speed_of_sound = 1.54,  // mm/us
-                     float pulse_duration = 2.f)
+                     float pulse_duration = 2.f)   // cycles
       : pose_(pose),
-        num_elements_(num_elements),
+        num_elements_x_(num_elements_x),
+        num_elements_y_(num_elements_y),
         frequency_(frequency),
+        elevational_height_(elevational_height),
+        num_el_samples_(num_el_samples),
+        f_num_(f_num),
         speed_of_sound_(speed_of_sound),
         pulse_duration_(pulse_duration) {}
 
@@ -58,16 +71,16 @@ class BaseProbe {
   /**
    * Get element position for a specific element index
    *
-   * @param element_idx Index of the element
-   * @param position Output parameter for element position
+   * @param element_idx Index of the element (in x direction)
+   * @param position Output parameter for element position in world coordinates (mm)
    */
   virtual void get_element_position(uint32_t element_idx, float3& position) const = 0;
 
   /**
    * Get element ray direction for a specific element index
    *
-   * @param element_idx Index of the element
-   * @param direction Output parameter for element direction
+   * @param element_idx Index of the element (in x direction)
+   * @param direction Output parameter for element direction in world coordinates (normalized)
    */
   virtual void get_element_direction(uint32_t element_idx, float3& direction) const = 0;
 
@@ -77,11 +90,24 @@ class BaseProbe {
   /// Get the current pose
   const Pose& get_pose() const { return pose_; }
 
-  /// Get number of transducer elements
-  uint32_t get_num_elements() const { return num_elements_; }
+  /// Get number of transducer elements in x direction (lateral)
+  uint32_t get_num_elements() const { return num_elements_x_; }
 
-  /// Set number of transducer elements
-  void set_num_elements(uint32_t num_elements) { num_elements_ = num_elements; }
+  /// Set number of transducer elements in x direction (lateral)
+  void set_num_elements(uint32_t num_elements) { num_elements_x_ = num_elements; }
+
+  /// Get number of transducer elements in x direction (lateral) - same as get_num_elements() for
+  /// compatibility
+  uint32_t get_num_elements_x() const { return num_elements_x_; }
+
+  /// Set number of transducer elements in x direction (lateral)
+  void set_num_elements_x(uint32_t num_elements_x) { num_elements_x_ = num_elements_x; }
+
+  /// Get number of transducer elements in y direction (elevational)
+  uint32_t get_num_elements_y() const { return num_elements_y_; }
+
+  /// Set number of transducer elements in y direction (elevational)
+  void set_num_elements_y(uint32_t num_elements_y) { num_elements_y_ = num_elements_y; }
 
   /// Get center frequency in MHz
   float get_frequency() const { return frequency_; }
@@ -95,10 +121,10 @@ class BaseProbe {
   /// Set speed of sound in tissue in mm/μs
   void set_speed_of_sound(float speed_of_sound) { speed_of_sound_ = speed_of_sound; }
 
-  /// Get duration of excitation pulse in cycles
+  /// Get duration of excitation pulse in cycles (number of oscillations)
   float get_pulse_duration() const { return pulse_duration_; }
 
-  /// Set duration of excitation pulse in cycles
+  /// Set duration of excitation pulse in cycles (number of oscillations)
   void set_pulse_duration(float pulse_duration) { pulse_duration_ = pulse_duration; }
 
   /// Get wavelength in mm
@@ -107,27 +133,80 @@ class BaseProbe {
   /// Get element spacing (distance between elements) in mm - virtual
   virtual float get_element_spacing() const = 0;
 
-  /// Get elevational height (aperture size) in mm - virtual
-  virtual float get_elevational_height() const = 0;
+  /// Get height of elements in elevational direction in mm
+  float get_elevational_height() const { return elevational_height_; }
 
-  /// Get number of elevational samples - virtual
-  virtual uint32_t get_num_el_samples() const = 0;
+  /// Set height of elements in elevational direction in mm
+  void set_elevational_height(float elevational_height) {
+    elevational_height_ = elevational_height;
+  }
 
-  /// Get axial resolution in mm - virtual
-  virtual float get_axial_resolution() const = 0;
+  /// Get number of samples in elevational direction
+  uint32_t get_num_el_samples() const { return num_el_samples_; }
 
-  /// Get lateral resolution in mm - virtual
-  virtual float get_lateral_resolution() const = 0;
+  /// Set number of samples in elevational direction
+  void set_num_el_samples(uint32_t num_el_samples) { num_el_samples_ = num_el_samples; }
 
-  /// Get elevational spatial frequency in 1/mm - virtual
-  virtual float get_elevational_spatial_frequency() const = 0;
+  /// Get F-number (focal length / aperture) - unitless
+  float get_f_num() const { return f_num_; }
+
+  /// Set F-number (focal length / aperture) - unitless
+  void set_f_num(float f_num) { f_num_ = f_num; }
+
+  /// Get axial resolution in mm
+  float get_axial_resolution() const {
+    // Axial resolution is approximately half the wavelength
+    return get_wave_length() / 2.0f;
+  }
+
+  /// Get lateral resolution in mm
+  float get_lateral_resolution() const {
+    // Lateral resolution is approximately wavelength * f_number
+    return get_wave_length() * f_num_;
+  }
+
+  /// Get elevational spatial frequency in 1/mm
+  float get_elevational_spatial_frequency() const {
+    // This is a simplified approximation
+    return frequency_ / speed_of_sound_;
+  }
 
  protected:
-  Pose pose_;              ///< Probe pose (position and orientation)
-  uint32_t num_elements_;  ///< Number of transducer elements
-  float frequency_;        ///< Center frequency in MHz
-  float speed_of_sound_;   ///< Speed of sound in tissue in mm/μs
-  float pulse_duration_;   ///< Duration of excitation pulse in cycles
+  /**
+   * Probe coordinate system convention:
+   * - x-axis: lateral direction (along the width of the probe)
+   * - y-axis: elevational direction (height of the elements)
+   * - z-axis: axial direction (depth into tissue)
+   */
+  Pose pose_;                 ///< Probe pose (position and orientation)
+  uint32_t num_elements_x_;   ///< Number of transducer elements in lateral direction
+  uint32_t num_elements_y_;   ///< Number of transducer elements in elevational direction
+  float frequency_;           ///< Center frequency in MHz
+  float elevational_height_;  ///< Height of elements in elevational direction in mm
+  uint32_t num_el_samples_;   ///< Number of samples in elevational direction
+  float f_num_;               ///< F-number (focal length / aperture) - unitless
+  float speed_of_sound_;      ///< Speed of sound in tissue in mm/μs
+  float pulse_duration_;      ///< Duration of excitation pulse in cycles (number of oscillations)
+
+  /**
+   * Normalize an element index to range [-0.5, 0.5]
+   * @param element_idx Element index (0 to num_elements_x - 1)
+   * @return Normalized position in range [-0.5, 0.5]
+   */
+  float normalize_element_index(uint32_t element_idx) const {
+    return (float)element_idx / (num_elements_x_ - 1) - 0.5f;
+  }
+
+  /**
+   * Convert a normalized position and sector angle to a steering angle in radians
+   * @param normalized_pos Normalized position in range [-0.5, 0.5]
+   * @param sector_angle_deg Sector angle in degrees
+   * @return Steering angle in radians
+   */
+  float normalized_pos_to_angle_rad(float normalized_pos, float sector_angle_deg) const {
+    // Map normalized position to angle in degrees, then convert to radians
+    return math::deg2rad(normalized_pos * sector_angle_deg);
+  }
 };
 
 }  // namespace raysim
