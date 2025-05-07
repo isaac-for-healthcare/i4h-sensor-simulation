@@ -41,7 +41,7 @@ struct Params {
 
 struct RayGenData {
   int probe_type;            // Type of probe (curvilinear, linear, phased)
-  float opening_angle;       // Field of view in degrees (sector angle for phased array)
+  float sector_angle;        // Field of view in degrees (sector angle for phased array)
   float elevational_height;  // Height in elevational direction in mm
   float radius;              // Radius of curvature in mm (for curvilinear)
   float width;               // Width of linear/phased array in mm

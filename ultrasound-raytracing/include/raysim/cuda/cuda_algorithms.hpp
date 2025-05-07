@@ -125,14 +125,14 @@ class CUDAAlgorithms {
    *
    * @param scan_lines 2D array where each row is a scan line (shape: n_angles x n_depths)
    * @param size Size of scan line array
-   * @param opening_angle Field of view in degrees
+   * @param sector_angle Field of view in degrees
    * @param radius Radius of curvature of the transducer in mm
    * @param far Far depth for samples along scan lines
    * @param output_size Width and height of output image in pixels
    * @param stream [in] CUDA stream
    */
   std::unique_ptr<CudaMemory> scan_convert_curvilinear(CudaMemory* scan_lines, uint2 size,
-                                                       float opening_angle, float radius, float far,
+                                                       float sector_angle, float radius, float far,
                                                        uint2 output_size, cudaStream_t stream);
 
   /**

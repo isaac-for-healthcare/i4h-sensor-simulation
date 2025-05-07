@@ -18,15 +18,11 @@
 #ifndef CPP_TRANSFORM_UTILS
 #define CPP_TRANSFORM_UTILS
 
+#include <vector_functions.h>  // For normalize() and float3 operators
 #include "raysim/core/pose.hpp"
 #include "raysim/cuda/matrix.hpp"
 
 namespace raysim {
-
-// Helper function to add vectors
-inline float3 add_vectors(const float3& a, const float3& b) {
-  return make_float3(a.x + b.x, a.y + b.y, a.z + b.z);
-}
 
 /**
  * Transform a point from local to world coordinates using a pose.
@@ -39,8 +35,9 @@ inline float3 transform_point(const Pose& pose, const float3& point) {
   // Use built-in matrix-vector multiplication
   float3 rotated = pose.rotation_matrix_ * point;
 
-  // Use helper function for addition instead of operator+
-  return add_vectors(rotated, pose.position_);
+  // Explicitly add components to avoid operator+ issues with const float3
+  return make_float3(
+      rotated.x + pose.position_.x, rotated.y + pose.position_.y, rotated.z + pose.position_.z);
 }
 
 /**
@@ -54,17 +51,6 @@ inline float3 transform_point(const Pose& pose, const float3& point) {
 inline float3 transform_direction(const Pose& pose, const float3& direction) {
   // Use built-in matrix-vector multiplication (no translation)
   return pose.rotation_matrix_ * direction;
-}
-
-// Helper function to subtract vectors (used by curvilinear probe)
-inline float3 subtract_vectors(const float3& a, const float3& b) {
-  return make_float3(a.x - b.x, a.y - b.y, a.z - b.z);
-}
-
-// Helper function to normalize a vector (used by curvilinear probe)
-inline float3 normalize_vector(const float3& v) {
-  float len = sqrtf(v.x * v.x + v.y * v.y + v.z * v.z);
-  return make_float3(v.x / len, v.y / len, v.z / len);
 }
 
 }  // namespace raysim

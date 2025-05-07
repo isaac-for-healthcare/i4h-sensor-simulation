@@ -243,27 +243,18 @@ RaytracingUltrasoundSimulator::SimResult RaytracingUltrasoundSimulator::simulate
     const BaseProbe* probe, const SimParams& sim_params) {
   CudaTiming cuda_timing(sim_params.enable_cuda_timing, "Simulation", sim_params.stream);
 
-  // Check if this is a curvilinear probe (for compatibility)
-
-  float opening_angle = probe->get_sector_angle();
-  float radius = probe->get_radius();
-
   // Update the ray gen record
   {
     RayGenSbtRecord rg_sbt{};
 
     rg_sbt.data.probe_type = static_cast<int>(probe->get_probe_type());
 
-    rg_sbt.data.opening_angle = opening_angle;
+    rg_sbt.data.sector_angle = probe->get_sector_angle();
     rg_sbt.data.elevational_height =
         probe->get_num_el_samples() ? probe->get_elevational_height() : 0.f;
-    rg_sbt.data.radius = radius;
+    rg_sbt.data.radius = probe->get_radius();
 
-    // The get_width() method is overridden by each probe type to return an appropriate value.
-    // For Linear/Phased, it's their physical width.
-    // For Curvilinear, it's now the arc length (as defined in CurvilinearProbe::get_width()).
     rg_sbt.data.width = probe->get_width();
-
     rg_sbt.data.position = probe->get_pose().position_;
     rg_sbt.data.rotation_matrix = probe->get_pose().rotation_matrix_;
 
@@ -418,16 +409,14 @@ RaytracingUltrasoundSimulator::SimResult RaytracingUltrasoundSimulator::simulate
                                                        sim_params.stream);
         break;
       case ProbeType::PROBE_TYPE_CURVILINEAR:
-      default:  // Fallback to curvilinear for safety or if new types are added without explicit
-                // cases
-        b_mode = cuda_algorithms_->scan_convert_curvilinear(
-            d_scanlines.get(),
-            plane_size,
-            opening_angle,  // Uses the general opening_angle from above
-            radius,         // Uses the general radius from above
-            sim_params.t_far + radius,
-            sim_params.b_mode_size,
-            sim_params.stream);
+
+        b_mode = cuda_algorithms_->scan_convert_curvilinear(d_scanlines.get(),
+                                                            plane_size,
+                                                            probe->get_sector_angle(),
+                                                            probe->get_radius(),
+                                                            sim_params.t_far + probe->get_radius(),
+                                                            sim_params.b_mode_size,
+                                                            sim_params.stream);
         break;
     }
   }
