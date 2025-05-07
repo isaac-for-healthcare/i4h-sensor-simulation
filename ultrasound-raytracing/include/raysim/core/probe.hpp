@@ -23,6 +23,7 @@
 #include "raysim/core/math_utils.hpp"
 #include "raysim/core/pose.hpp"
 #include "raysim/core/probe_types.hpp"
+#include "raysim/core/transform_utils.hpp"
 #include "raysim/cuda/cuda_helper.hpp"
 #include "raysim/cuda/matrix.hpp"
 
@@ -45,16 +46,18 @@ class BaseProbe {
    * @param f_num F-number (focal length / aperture) - unitless
    * @param speed_of_sound Speed of sound in tissue in mm/μs
    * @param pulse_duration Duration of excitation pulse in cycles (number of oscillations)
+   * @param width Total width of the probe in mm
    */
   explicit BaseProbe(const Pose& pose = Pose(make_float3(0.f, 0.f, 0.f),
                                              make_float3(0.f, 0.f, 0.f)),
-                     uint32_t num_elements_x = 256,
-                     float frequency = 2.5f,          // MHz
+                     uint32_t num_elements_x = 128,
+                     float frequency = 5.0f,          // MHz
                      float elevational_height = 5.f,  // mm
                      uint32_t num_el_samples = 1,
                      float f_num = 1.0f,           // unitless
                      float speed_of_sound = 1.54,  // mm/us
-                     float pulse_duration = 2.f)   // cycles
+                     float pulse_duration = 2.f,   // cycles
+                     float width = 40.f)           // mm
       : pose_(pose),
         num_elements_x_(num_elements_x),
         frequency_(frequency),
@@ -62,25 +65,49 @@ class BaseProbe {
         num_el_samples_(num_el_samples),
         f_num_(f_num),
         speed_of_sound_(speed_of_sound),
-        pulse_duration_(pulse_duration) {}
+        pulse_duration_(pulse_duration),
+        width_(width) {}
 
   virtual ~BaseProbe() = default;
 
   /**
-   * Get element position for a specific element index
+   * Get element position for a specific element
    *
    * @param element_idx Index of the element
    * @param position Output parameter for element position in world coordinates (mm)
+   *
+   * Default implementation for flat probes (linear and phased arrays).
+   * Curvilinear probes will override this.
    */
-  virtual void get_element_position(uint32_t element_idx, float3& position) const = 0;
+  virtual void get_element_position(uint32_t element_idx, float3& position) const {
+    // Use base class utility methods for normalization
+    const float norm_x = normalize_element_index_x(element_idx);
+
+    // Calculate position in x direction
+    const float x_pos = norm_x * width_;
+
+    // Position in local coordinates (flat surface)
+    position = make_float3(x_pos, 0.0f, 0.0f);
+
+    // Transform to world coordinates
+    position = transform_point(pose_, position);
+  }
 
   /**
    * Get element ray direction for a specific element index
    *
    * @param element_idx Index of the element
    * @param direction Output parameter for element direction in world coordinates (normalized)
+   *
+   * Default implementation for flat arrays (linear and phased) where all elements
+   * face perpendicular to the array surface. Curvilinear probes will override this.
    */
-  virtual void get_element_direction(uint32_t element_idx, float3& direction) const = 0;
+  virtual void get_element_direction(uint32_t element_idx, float3& direction) const {
+    // For flat arrays (linear and phased), all elements face forward
+    direction = make_float3(0.0f, 0.0f, 1.0f);
+    // Transform to world coordinates
+    direction = transform_direction(pose_, direction);
+  }
 
   /// Update probe pose (orientation in radians)
   void set_pose(const Pose& new_pose) { pose_ = new_pose; }
@@ -185,7 +212,7 @@ class BaseProbe {
    * Overridden by derived classes that have a meaningful width.
    * @return Width in mm
    */
-  virtual float get_width() const { return 0.0f; }
+  virtual float get_width() const { return width_; }
 
   /**
    * Get the specific type of this probe.
@@ -208,6 +235,7 @@ class BaseProbe {
   float f_num_;               ///< F-number (focal length / aperture) - unitless
   float speed_of_sound_;      ///< Speed of sound in tissue in mm/μs
   uint16_t pulse_duration_;   ///< Duration of excitation pulse in cycles (number of oscillations)
+  float width_;               ///< Total width of the probe in mm
 
   /**
    * Normalize an element index to range [-0.5, 0.5]

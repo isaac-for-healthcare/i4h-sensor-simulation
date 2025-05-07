@@ -56,63 +56,11 @@ class PhasedArrayProbe : public BaseProbe {
                             float speed_of_sound = 1.54,  // mm/us
                             float pulse_duration = 2.f)   // cycles
       : BaseProbe(pose, num_elements_x, frequency, elevational_height, num_el_samples, f_num,
-                  speed_of_sound, pulse_duration),
-        width_(width),
+                  speed_of_sound, pulse_duration, width),
         sector_angle_(sector_angle) {}
 
-  /**
-   * Get element position for a specific element
-   *
-   * @param element_idx Index of the element
-   * @param position Output parameter for element position in world coordinates (mm)
-   */
-  void get_element_position(uint32_t element_idx, float3& position) const override {
-    // Use base class utility methods for normalization
-    const float norm_x = normalize_element_index_x(element_idx);
-
-    // Calculate position in x direction
-    const float x_pos = norm_x * width_;
-
-    // Position in local coordinates (flat surface)
-    position = make_float3(x_pos, 0.0f, 0.0f);
-
-    // Transform to world coordinates
-    position = transform_point(pose_, position);
-  }
-
-  /**
-   * Get element ray direction for a specific element
-   *
-   * @param element_idx Index of the element
-   * @param direction Output parameter for element direction in world coordinates (normalized)
-   */
-  void get_element_direction(uint32_t element_idx, float3& direction) const override {
-    // Use base class utility methods for normalization
-    const float norm_x = normalize_element_index_x(element_idx);
-
-    // Calculate steering angle
-    float angle_rad = normalized_pos_to_angle_rad(norm_x, sector_angle_);
-
-    // Direction in local coordinates (steered in x direction)
-    direction = make_float3(sinf(angle_rad),  // x component
-                            0.0f,             // y component
-                            cosf(angle_rad)   // z component
-    );
-
-    // Direction is already normalized since sin²+cos²=1
-
-    // Transform to world coordinates
-    direction = transform_direction(pose_, direction);
-  }
-
-  /// Get total width of the phased array in mm
-  float get_width() const override { return width_; }
-
-  /// Set total width of the phased array in mm
-  void set_width(float width) { width_ = width; }
-
   /// Get sector angle (total field of view) in degrees
-  float get_sector_angle() const { return sector_angle_; }
+  float get_sector_angle() const override { return sector_angle_; }
 
   /// Set sector angle (total field of view) in degrees
   void set_sector_angle(float sector_angle) { sector_angle_ = sector_angle; }
@@ -123,7 +71,6 @@ class PhasedArrayProbe : public BaseProbe {
   ProbeType get_probe_type() const override { return ProbeType::PROBE_TYPE_PHASED_ARRAY; }
 
  private:
-  float width_;         ///< Total width of the phased array in mm
   float sector_angle_;  ///< Sector angle (total field of view) in degrees
 };
 
