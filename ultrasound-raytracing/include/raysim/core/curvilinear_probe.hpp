@@ -127,6 +127,32 @@ class CurvilinearProbe : public BaseProbe {
   /// Get opening angle (legacy alias for sector_angle) in degrees
   float get_opening_angle() const { return sector_angle_; }
 
+  ProbeType get_probe_type() const override { return ProbeType::PROBE_TYPE_CURVILINEAR; }
+
+  /**
+   * For a curvilinear probe, "width" can be interpreted as the arc length of the active surface.
+   * @return The arc length of the probe face in mm.
+   */
+  float get_width() const override {
+    // Arc length = radius * angle_in_radians
+    // Ensure num_elements_x_ is at least 1 to avoid division by zero or negative if it were 0.
+    // If num_elements_x_ is 1, spacing is effectively the whole arc, but typically it implies
+    // multiple elements.
+    if (num_elements_x_ > 1) {
+      return radius_ * math::deg2rad(sector_angle_);
+    } else if (num_elements_x_ == 1) {
+      // A single element curvilinear doesn't really have a 'width' in the array sense,
+      // but if forced, its angular extent * radius might be considered.
+      // For simplicity, let's assume it's small or 0 if num_elements_x is 1 for width calc.
+      // Or, more consistently, the concept of element spacing isn't well defined for a single
+      // element. The original calculation for sbt_width was element_spacing * num_elements.
+      // element_spacing = (radius_ * math::deg2rad(sector_angle_)) / (num_elements_x_ - 1);
+      // so if num_elements_x_ == 1, it's div by zero. Let's just return the arc length.
+      return radius_ * math::deg2rad(sector_angle_);
+    }
+    return 0.0f;  // Should not happen if num_elements_x_ is always >= 1
+  }
+
  private:
   float sector_angle_;  ///< Sector angle (field of view) in degrees
   float radius_;        ///< Radius of curvature in mm

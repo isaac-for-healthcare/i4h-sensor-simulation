@@ -22,16 +22,10 @@
 #include <cstdint>
 
 #include "raysim/core/material.hpp"
+#include "raysim/core/probe_types.hpp"
 #include "raysim/cuda/matrix.hpp"
 
 namespace raysim {
-// Define probe types
-enum ProbeType {
-  PROBE_TYPE_CURVILINEAR = 0,
-  PROBE_TYPE_LINEAR_ARRAY = 1,
-  PROBE_TYPE_PHASED_ARRAY = 2
-};
-
 struct Params {
   float* scanlines;
   uint32_t buffer_size;

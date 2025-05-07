@@ -92,13 +92,15 @@ class LinearArrayProbe : public BaseProbe {
   }
 
   /// Get total width of the linear array in mm
-  float get_width() const { return width_; }
+  float get_width() const override { return width_; }
 
   /// Set total width of the linear array in mm
   void set_width(float width) { width_ = width; }
 
   /// Get element spacing (distance between elements) in mm
   float get_element_spacing() const override { return width_ / (num_elements_x_ - 1); }
+
+  ProbeType get_probe_type() const override { return ProbeType::PROBE_TYPE_LINEAR_ARRAY; }
 
  private:
   float width_;  ///< Total width of the linear array in mm

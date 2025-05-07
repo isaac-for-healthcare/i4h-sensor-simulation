@@ -22,6 +22,7 @@
 
 #include "raysim/core/math_utils.hpp"
 #include "raysim/core/pose.hpp"
+#include "raysim/core/probe_types.hpp"
 #include "raysim/cuda/cuda_helper.hpp"
 #include "raysim/cuda/matrix.hpp"
 
@@ -177,6 +178,20 @@ class BaseProbe {
    * @return Radius of curvature in mm
    */
   virtual float get_radius() const { return 0.0f; }
+
+  /**
+   * Get width of the probe (e.g., for linear or phased arrays)
+   * Default implementation returns 0.0
+   * Overridden by derived classes that have a meaningful width.
+   * @return Width in mm
+   */
+  virtual float get_width() const { return 0.0f; }
+
+  /**
+   * Get the specific type of this probe.
+   * @return The ProbeType enum value.
+   */
+  virtual ProbeType get_probe_type() const = 0;
 
  protected:
   /**
