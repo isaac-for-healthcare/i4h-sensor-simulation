@@ -236,11 +236,11 @@ class BaseProbe {
 
   /**
    * Get radius of curvature in mm
-   * Default implementation returns 0.0
+   * Default implementation returns infinity (flat probe)
    * Overridden by derived classes that have a radius of curvature
    * @return Radius of curvature in mm
    */
-  virtual float get_radius() const { return 0.0f; }
+  virtual float get_radius() const { return std::numeric_limits<float>::infinity(); }
 
   /**
    * Get width of the active aperture of the probe

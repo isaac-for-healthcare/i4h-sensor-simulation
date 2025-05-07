@@ -56,7 +56,7 @@ class CurvilinearProbe : public BaseProbe {
                             float speed_of_sound = 1.54,  // mm/us
                             float pulse_duration = 2.f)   // cycles
       : BaseProbe(pose, num_elements_x, frequency, elevational_height, num_el_samples, f_num,
-                  speed_of_sound, pulse_duration),
+                  speed_of_sound, pulse_duration, radius * math::deg2rad(sector_angle)),
         sector_angle_(sector_angle),
         radius_(radius) {}
 
@@ -103,21 +103,26 @@ class CurvilinearProbe : public BaseProbe {
   float get_sector_angle() const { return sector_angle_; }
 
   /// Set sector angle (field of view) in degrees
-  void set_sector_angle(float sector_angle) { sector_angle_ = sector_angle; }
+  void set_sector_angle(float sector_angle) {
+    sector_angle_ = sector_angle;
+    width_ = radius_ * math::deg2rad(sector_angle_);  // Update width in base class
+  }
 
   /// Get radius of curvature in mm
   float get_radius() const { return radius_; }
 
   /// Set radius of curvature in mm
-  void set_radius(float radius) { radius_ = radius; }
+  void set_radius(float radius) {
+    radius_ = radius;
+    width_ = radius_ * math::deg2rad(sector_angle_);  // Update width in base class
+  }
 
-  /// Get element spacing (distance between elements) in mm
-  float get_element_spacing() const override {
-    if (num_elements_x_ <= 1) {
-      return 0.0f;  // Or some other sensible default
-    }
-    // Arc length = radius * angle (in radians)
-    return (radius_ * math::deg2rad(sector_angle_)) / (num_elements_x_ - 1);
+  /// Override set_width to maintain consistency with radius and sector angle
+  void set_width(float width) {
+    width_ = width;  // Update base class width
+    // Given width = radius * angle, and we want to keep radius constant,
+    // solve for new sector angle in degrees
+    sector_angle_ = math::rad2deg(width / radius_);
   }
 
   ProbeType get_probe_type() const override { return ProbeType::PROBE_TYPE_CURVILINEAR; }
