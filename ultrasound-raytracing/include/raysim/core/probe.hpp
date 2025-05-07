@@ -71,15 +71,15 @@ class BaseProbe {
   virtual ~BaseProbe() = default;
 
   /**
-   * Get element position for a specific element
+   * Get element position in local probe coordinates
    *
    * @param element_idx Index of the element
-   * @param position Output parameter for element position in world coordinates (mm)
+   * @param position Output parameter for element position in local coordinates (mm)
    *
    * Default implementation for flat probes (linear and phased arrays).
    * Curvilinear probes will override this.
    */
-  virtual void get_element_position(uint32_t element_idx, float3& position) const {
+  virtual void get_local_element_position(uint32_t element_idx, float3& position) const {
     // Use base class utility methods for normalization
     const float norm_x = normalize_element_index_x(element_idx);
 
@@ -88,23 +88,54 @@ class BaseProbe {
 
     // Position in local coordinates (flat surface)
     position = make_float3(x_pos, 0.0f, 0.0f);
+  }
+
+  /**
+   * Get element position in world coordinates
+   *
+   * @param element_idx Index of the element
+   * @param position Output parameter for element position in world coordinates (mm)
+   *
+   * This method uses get_local_element_position to get the position in local coordinates,
+   * then transforms it to world coordinates using the probe's pose.
+   */
+  void get_element_position(uint32_t element_idx, float3& position) const {
+    // Get position in local coordinates
+    get_local_element_position(element_idx, position);
 
     // Transform to world coordinates
     position = transform_point(pose_, position);
   }
 
   /**
-   * Get element ray direction for a specific element index
+   * Get element ray direction in local probe coordinates
    *
    * @param element_idx Index of the element
-   * @param direction Output parameter for element direction in world coordinates (normalized)
+   * @param direction Output parameter for element direction in local coordinates (normalized)
    *
    * Default implementation for flat arrays (linear and phased) where all elements
    * face perpendicular to the array surface. Curvilinear probes will override this.
    */
-  virtual void get_element_direction(uint32_t element_idx, float3& direction) const {
+  virtual void get_local_element_direction(uint32_t element_idx, float3& direction) const {
     // For flat arrays (linear and phased), all elements face forward
     direction = make_float3(0.0f, 0.0f, 1.0f);
+  }
+
+  /**
+   * Get element ray direction in world coordinates
+   *
+   * @param element_idx Index of the element
+   * @param direction Output parameter for element direction in world coordinates (normalized)
+   *
+   * This method uses get_local_element_direction to get the direction in local coordinates,
+   * then transforms it to world coordinates using the probe's pose.
+   * This method is final and should not be overridden by derived classes.
+   * Override get_local_element_direction instead.
+   */
+  virtual void get_element_direction(uint32_t element_idx, float3& direction) const final {
+    // Get direction in local coordinates
+    get_local_element_direction(element_idx, direction);
+
     // Transform to world coordinates
     direction = transform_direction(pose_, direction);
   }

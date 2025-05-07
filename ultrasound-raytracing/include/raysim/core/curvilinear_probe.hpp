@@ -61,36 +61,33 @@ class CurvilinearProbe : public BaseProbe {
         radius_(radius) {}
 
   /**
-   * Get element position for a specific element
+   * Get element position in local probe coordinates
    *
    * @param element_idx Index of the element
-   * @param position Output parameter for element position in world coordinates (mm)
+   * @param position Output parameter for element position in local coordinates (mm)
    */
-  void get_element_position(uint32_t element_idx, float3& position) const override {
+  void get_local_element_position(uint32_t element_idx, float3& position) const override {
     // Use base class utility methods for normalization
     const float norm_x = normalize_element_index_x(element_idx);
 
-    // Calculate angle in lateral direction
-    const float angle_rad = normalized_pos_to_angle_rad(norm_x, sector_angle_);
+    // Calculate angle for this element
+    const float angle = normalized_pos_to_angle_rad(norm_x, sector_angle_);
 
-    // Position in local coordinates (curved surface in lateral direction)
-    const float x_pos = radius_ * sinf(angle_rad);
-    const float z_offset = radius_ * (1.f - cosf(angle_rad));
+    // Calculate position on arc
+    const float x_pos = radius_ * sinf(angle);
+    const float z_pos = radius_ * (1.0f - cosf(angle));
 
-    // Construct final position
-    position = make_float3(x_pos, 0.0f, z_offset);
-
-    // Transform to world coordinates
-    position = transform_point(pose_, position);
+    // Position in local coordinates (curved surface)
+    position = make_float3(x_pos, 0.0f, z_pos);
   }
 
   /**
-   * Get element ray direction for a specific element
+   * Get element ray direction in local probe coordinates
    *
    * @param element_idx Index of the element
-   * @param direction Output parameter for element direction in world coordinates (normalized)
+   * @param direction Output parameter for element direction in local coordinates (normalized)
    */
-  void get_element_direction(uint32_t element_idx, float3& direction) const override {
+  void get_local_element_direction(uint32_t element_idx, float3& direction) const override {
     // Use base class utility methods for normalization
     const float norm_x = normalize_element_index_x(element_idx);
 
@@ -99,11 +96,7 @@ class CurvilinearProbe : public BaseProbe {
 
     // For a curved surface, direction is perpendicular to the surface at that point
     direction = make_float3(sinf(angle_rad), 0.0f, cosf(angle_rad));
-
     // Direction is already normalized since sin²+cos²=1
-
-    // Transform to world coordinates
-    direction = transform_direction(pose_, direction);
   }
 
   /// Get sector angle (field of view) in degrees
