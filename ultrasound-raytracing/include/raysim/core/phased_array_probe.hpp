@@ -65,9 +65,6 @@ class PhasedArrayProbe : public BaseProbe {
   /// Set sector angle (total field of view) in degrees
   void set_sector_angle(float sector_angle) { sector_angle_ = sector_angle; }
 
-  /// Get element spacing (distance between elements) in mm
-  float get_element_spacing() const override { return width_ / (num_elements_x_ - 1); }
-
   ProbeType get_probe_type() const override { return ProbeType::PROBE_TYPE_PHASED_ARRAY; }
 
  private:

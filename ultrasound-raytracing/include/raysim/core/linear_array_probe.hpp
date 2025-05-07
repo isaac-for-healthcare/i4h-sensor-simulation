@@ -56,13 +56,7 @@ class LinearArrayProbe : public BaseProbe {
       : BaseProbe(pose, num_elements_x, frequency, elevational_height, num_el_samples, f_num,
                   speed_of_sound, pulse_duration, width) {}
 
-  /// Get element spacing (distance between elements) in mm
-  float get_element_spacing() const override { return width_ / (num_elements_x_ - 1); }
-
   ProbeType get_probe_type() const override { return ProbeType::PROBE_TYPE_LINEAR_ARRAY; }
-
- private:
-  float width_;  ///< Total width of the linear array in mm
 };
 
 }  // namespace raysim

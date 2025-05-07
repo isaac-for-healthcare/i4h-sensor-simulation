@@ -180,8 +180,13 @@ class BaseProbe {
   /// Get wavelength in mm
   float get_wave_length() const { return speed_of_sound_ / frequency_; }
 
-  /// Get element spacing (distance between elements) in mm - virtual
-  virtual float get_element_spacing() const = 0;
+  /// Get element spacing (distance between elements) in mm
+  virtual float get_element_spacing() const {
+    if (num_elements_x_ <= 1) {
+      return 0.0f;  // Handle edge case
+    }
+    return width_ / (num_elements_x_ - 1);
+  }
 
   /// Get height of elements in elevational direction in mm
   float get_elevational_height() const { return elevational_height_; }
