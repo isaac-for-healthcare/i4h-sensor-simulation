@@ -88,7 +88,7 @@ class BaseProbe {
   /// Get the current pose
   const Pose& get_pose() const { return pose_; }
 
-  /// Get number of transducer elements in x direction (lateral)
+  /// Get the total number of transducer elements
   uint32_t get_num_elements() const { return num_elements_x_; }
 
   /// Set number of transducer elements in x direction (lateral)
@@ -117,7 +117,7 @@ class BaseProbe {
   float get_pulse_duration() const { return pulse_duration_; }
 
   /// Set duration of excitation pulse in cycles (number of oscillations)
-  void set_pulse_duration(float pulse_duration) { pulse_duration_ = pulse_duration; }
+  void set_pulse_duration(uint16_t pulse_duration) { pulse_duration_ = pulse_duration; }
 
   /// Get wavelength in mm
   float get_wave_length() const { return speed_of_sound_ / frequency_; }
@@ -180,8 +180,8 @@ class BaseProbe {
   virtual float get_radius() const { return 0.0f; }
 
   /**
-   * Get width of the probe (e.g., for linear or phased arrays)
-   * Default implementation returns 0.0
+   * Get width of the active aperture of the probe
+   *  F
    * Overridden by derived classes that have a meaningful width.
    * @return Width in mm
    */
@@ -207,7 +207,7 @@ class BaseProbe {
   uint32_t num_el_samples_;   ///< Number of samples in elevational direction
   float f_num_;               ///< F-number (focal length / aperture) - unitless
   float speed_of_sound_;      ///< Speed of sound in tissue in mm/μs
-  float pulse_duration_;      ///< Duration of excitation pulse in cycles (number of oscillations)
+  uint16_t pulse_duration_;   ///< Duration of excitation pulse in cycles (number of oscillations)
 
   /**
    * Normalize an element index to range [-0.5, 0.5]
