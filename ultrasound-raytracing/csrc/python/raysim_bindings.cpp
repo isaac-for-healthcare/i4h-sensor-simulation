@@ -316,7 +316,6 @@ Curvilinear ultrasound probe with elements positioned along a curved surface.
            py::arg("speed_of_sound") = 1.54f,
            py::arg("pulse_duration") = 2.0f);
 
-  // Add LinearArrayProbe binding
   py::class_<raysim::LinearArrayProbe, raysim::BaseProbe>(m, "LinearArrayProbe", R"pbdoc(
 Linear array ultrasound probe with elements positioned in a straight line.
 Elements emit parallel beams perpendicular to the face of the probe.
@@ -340,7 +339,6 @@ Elements emit parallel beams perpendicular to the face of the probe.
            py::arg("speed_of_sound") = 1.54f,
            py::arg("pulse_duration") = 2.0f);
 
-  // Add PhasedArrayProbe binding
   py::class_<raysim::PhasedArrayProbe, raysim::BaseProbe>(m, "PhasedArrayProbe", R"pbdoc(
 Phased array ultrasound probe with elements positioned in a straight line.
 Elements steer beams electronically to create a sector image from a small footprint.
