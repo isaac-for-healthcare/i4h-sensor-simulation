@@ -20,10 +20,8 @@
 
 #include <vector>
 
-#include "raysim/core/math_utils.hpp"
 #include "raysim/core/pose.hpp"
 #include "raysim/core/probe_types.hpp"
-#include "raysim/core/transform_utils.hpp"
 #include "raysim/cuda/cuda_helper.hpp"
 #include "raysim/cuda/matrix.hpp"
 
@@ -104,7 +102,7 @@ class BaseProbe {
     get_local_element_position(element_idx, position);
 
     // Transform to world coordinates
-    position = transform_point(pose_, position);
+    position = pose_.transform_point(position);
   }
 
   /**
@@ -136,8 +134,8 @@ class BaseProbe {
     // Get direction in local coordinates
     get_local_element_direction(element_idx, direction);
 
-    // Transform to world coordinates
-    direction = transform_direction(pose_, direction);
+    // Transform to world coordinates by applying rotation only
+    direction = pose_.apply_rotation(direction);
   }
 
   /// Update probe pose (orientation in radians)
@@ -298,7 +296,7 @@ class BaseProbe {
    */
   float normalized_pos_to_angle_rad(float normalized_pos, float sector_angle_deg) const {
     // Map normalized position to angle in degrees, then convert to radians
-    return math::deg2rad(normalized_pos * sector_angle_deg);
+    return deg2rad(normalized_pos * sector_angle_deg);
   }
 };
 

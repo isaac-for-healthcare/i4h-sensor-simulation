@@ -18,9 +18,7 @@
 #ifndef CPP_LINEAR_ARRAY_PROBE
 #define CPP_LINEAR_ARRAY_PROBE
 
-#include "raysim/core/math_utils.hpp"
 #include "raysim/core/probe.hpp"
-#include "raysim/core/transform_utils.hpp"
 
 namespace raysim {
 

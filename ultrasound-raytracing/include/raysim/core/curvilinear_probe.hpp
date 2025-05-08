@@ -18,9 +18,7 @@
 #ifndef CPP_CURVILINEAR_PROBE
 #define CPP_CURVILINEAR_PROBE
 
-#include "raysim/core/math_utils.hpp"
 #include "raysim/core/probe.hpp"
-#include "raysim/core/transform_utils.hpp"
 
 namespace raysim {
 
@@ -56,7 +54,7 @@ class CurvilinearProbe : public BaseProbe {
                             float speed_of_sound = 1.54,  // mm/us
                             float pulse_duration = 2.f)   // cycles
       : BaseProbe(pose, num_elements_x, frequency, elevational_height, num_el_samples, f_num,
-                  speed_of_sound, pulse_duration, radius * math::deg2rad(sector_angle)),
+                  speed_of_sound, pulse_duration, radius * deg2rad(sector_angle)),
         sector_angle_(sector_angle),
         radius_(radius) {}
 
@@ -105,7 +103,7 @@ class CurvilinearProbe : public BaseProbe {
   /// Set sector angle (field of view) in degrees
   void set_sector_angle(float sector_angle) {
     sector_angle_ = sector_angle;
-    width_ = radius_ * math::deg2rad(sector_angle_);  // Update width in base class
+    width_ = radius_ * deg2rad(sector_angle_);  // Update width in base class
   }
 
   /// Get radius of curvature in mm
@@ -114,7 +112,7 @@ class CurvilinearProbe : public BaseProbe {
   /// Set radius of curvature in mm
   void set_radius(float radius) {
     radius_ = radius;
-    width_ = radius_ * math::deg2rad(sector_angle_);  // Update width in base class
+    width_ = radius_ * deg2rad(sector_angle_);  // Update width in base class
   }
 
   /// Override set_width to maintain consistency with radius and sector angle
@@ -122,7 +120,7 @@ class CurvilinearProbe : public BaseProbe {
     width_ = width;  // Update base class width
     // Given width = radius * angle, and we want to keep radius constant,
     // solve for new sector angle in degrees
-    sector_angle_ = math::rad2deg(width / radius_);
+    sector_angle_ = rad2deg(width / radius_);
   }
 
   ProbeType get_probe_type() const override { return ProbeType::PROBE_TYPE_CURVILINEAR; }
