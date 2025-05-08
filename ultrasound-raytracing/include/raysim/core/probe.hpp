@@ -244,7 +244,6 @@ class BaseProbe {
 
   /**
    * Get width of the active aperture of the probe
-   *  F
    * Overridden by derived classes that have a meaningful width.
    * @return Width in mm
    */
@@ -254,7 +253,7 @@ class BaseProbe {
    * Get the specific type of this probe.
    * @return The ProbeType enum value.
    */
-  virtual ProbeType get_probe_type() const = 0;
+  virtual ProbeType get_probe_type() const { return ProbeType::PROBE_TYPE_LINEAR_ARRAY; }
 
  protected:
   /**
