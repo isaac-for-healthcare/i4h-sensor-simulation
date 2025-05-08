@@ -102,7 +102,7 @@ class BaseProbe {
     get_local_element_position(element_idx, position);
 
     // Transform to world coordinates
-    position = pose_.transform_point(position);
+    position = pose_.local_to_world_point(position);
   }
 
   /**
@@ -135,7 +135,7 @@ class BaseProbe {
     get_local_element_direction(element_idx, direction);
 
     // Transform to world coordinates by applying rotation only
-    direction = pose_.apply_rotation(direction);
+    direction = pose_.local_to_world_direction(direction);
   }
 
   /// Update probe pose (orientation in radians)

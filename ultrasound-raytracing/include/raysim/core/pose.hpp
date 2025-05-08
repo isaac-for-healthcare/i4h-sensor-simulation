@@ -43,58 +43,62 @@ constexpr float rad2deg(float radians) {
   return radians * (180.0f / M_PI);
 }
 
-// 3D pose with position and orientation
+/**
+ * Represents a 3D pose with position and orientation.
+ * Handles coordinate transformations between local and world space.
+ *
+ * Note: position_, rotation_, and rotation_matrix_ are public to allow direct
+ * access by GPU/OptiX code for performance reasons. In CPU code, prefer using
+ * the transformation methods local_to_world_point() and local_to_world_direction().
+ */
 class Pose {
  public:
-  // Default constructor
+  /**
+   * Default constructor initializes to identity pose at origin
+   */
   Pose()
       : position_(make_float3(0.f, 0.f, 0.f)),
         rotation_(make_float3(0.f, 0.f, 0.f)),
         rotation_matrix_(make_identity()) {}
 
-  // Constructor declaration
+  /**
+   * Construct a pose from position and rotation
+   *
+   * @param position Position vector [x, y, z] in world coordinates (mm)
+   * @param rotation Rotation vector [rx, ry, rz] in radians
+   */
   Pose(float3 position, float3 rotation);
 
-  float3 position_;  // [x, y, z]
-  float3 rotation_;  // [rx, ry, rz] in radians
-
-  float33 rotation_matrix_;
-
-  /**
-   * Apply rotation to a vector using this pose's rotation matrix.
-   * This is used for both directions (which only need rotation)
-   * and as part of point transformation (which needs both rotation and translation).
-   *
-   * @param vec The vector to rotate in local coordinates
-   * @return The rotated vector
-   */
-  inline float3 apply_rotation(const float3& vec) const { return rotation_matrix_ * vec; }
+  // Core data members - public for direct GPU access
+  float3 position_;          // [x, y, z] in world coordinates (mm)
+  float3 rotation_;          // [rx, ry, rz] in radians
+  float33 rotation_matrix_;  // Cached rotation matrix for efficient transforms
 
   /**
-   * Transform a point from local to world coordinates using this pose.
-   * This applies both rotation and translation.
+   * Transform a point from local to world coordinates.
+   * Applies both rotation and translation.
    *
-   * @param point The point in local coordinates
-   * @return The point in world coordinates
+   * For CPU code, prefer this over direct matrix operations.
+   *
+   * @param local_point Point in local coordinates
+   * @return Point in world coordinates
    */
-  inline float3 transform_point(const float3& point) const {
-    // First rotate, then translate
-    float3 rotated = apply_rotation(point);
-
-    // Add translation
+  float3 local_to_world_point(const float3& local_point) const {
+    float3 rotated = rotation_matrix_ * local_point;
     return make_float3(rotated.x + position_.x, rotated.y + position_.y, rotated.z + position_.z);
   }
 
   /**
-   * Transform a direction vector from local to world coordinates using this pose.
-   * Note: Unlike points, directions only need to be rotated, not translated.
+   * Transform a direction vector from local to world coordinates.
+   * Only applies rotation, not translation.
    *
-   * @param direction The direction in local coordinates
-   * @return The direction in world coordinates
+   * For CPU code, prefer this over direct matrix operations.
+   *
+   * @param local_dir Direction vector in local coordinates
+   * @return Direction vector in world coordinates
    */
-  inline float3 transform_direction(const float3& direction) const {
-    // Use built-in matrix-vector multiplication (no translation)
-    return rotation_matrix_ * direction;
+  float3 local_to_world_direction(const float3& local_dir) const {
+    return rotation_matrix_ * local_dir;
   }
 };
 
