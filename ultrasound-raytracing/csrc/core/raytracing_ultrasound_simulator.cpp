@@ -444,11 +444,11 @@ RaytracingUltrasoundSimulator::SimResult RaytracingUltrasoundSimulator::simulate
     case ProbeType::PROBE_TYPE_CURVILINEAR:
     default:  // Fallback for safety or new types
     {
-      float opening_angle_in_rad = probe->get_sector_angle() * M_PI / 180.0f;  // Use generic getter
-      float current_radius = probe->get_radius();                              // Use generic getter
-      min_x = (current_radius + sim_params.t_far) * std::sin(-opening_angle_in_rad / 2.0f);
-      max_x = (current_radius + sim_params.t_far) * std::sin(opening_angle_in_rad / 2.0f);
-      float z_behind_image_origin = current_radius * (1 - std::cos(opening_angle_in_rad / 2.0f));
+      float sector_angle_in_rad = probe->get_sector_angle() * M_PI / 180.0f;  // Use generic getter
+      float current_radius = probe->get_radius();                             // Use generic getter
+      min_x = (current_radius + sim_params.t_far) * std::sin(-sector_angle_in_rad / 2.0f);
+      max_x = (current_radius + sim_params.t_far) * std::sin(sector_angle_in_rad / 2.0f);
+      float z_behind_image_origin = current_radius * (1 - std::cos(sector_angle_in_rad / 2.0f));
       min_z = -sim_params.t_far;  // Curvilinear depth can be negative relative to image origin if
                                   // radius is large
       max_z = z_behind_image_origin;

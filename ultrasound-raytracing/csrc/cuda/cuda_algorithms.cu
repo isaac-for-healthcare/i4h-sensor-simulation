@@ -238,7 +238,7 @@ static __launch_bounds__(HilbertForwardFFT::max_threads_per_block) __global__
 
 static __global__ void scan_convert_curvilinear_kernel(cudaTextureObject_t input, uint2 input_size,
                                                        float* __restrict__ output,
-                                                       uint2 output_size, float opening_angle,
+                                                       uint2 output_size, float sector_angle,
                                                        float near, float far, float scale_x,
                                                        float offset_z) {
   const uint2 index =
@@ -261,13 +261,13 @@ static __global__ void scan_convert_curvilinear_kernel(cudaTextureObject_t input
 
   // Mask out outside of opening angle
   const float angle = atanf(coord.x / coord.y);
-  if (fabsf(angle) > opening_angle / 2.f) {
+  if (fabsf(angle) > sector_angle / 2.f) {
     output[index.y * output_size.x + index.x] = std::numeric_limits<float>::lowest();
     return;
   }
 
   const float source_x = (dist - near) / (far - near);
-  const float source_y = angle / opening_angle + 0.5f;
+  const float source_y = angle / sector_angle + 0.5f;
 
   output[index.y * output_size.x + index.x] = tex2D<float>(input, source_x, source_y);
 }
@@ -555,9 +555,11 @@ void CUDAAlgorithms::hilbert_row(CudaMemory* buffer, uint2 size, cudaStream_t st
                    stream>>>(reinterpret_cast<float*>(buffer->get_ptr(stream)));
 }
 
-std::unique_ptr<CudaMemory> CUDAAlgorithms::scan_convert_curvilinear(
-    CudaMemory* scan_lines, uint2 input_size, float opening_angle, float near, float far,
-    uint2 output_size, cudaStream_t stream) {
+std::unique_ptr<CudaMemory> CUDAAlgorithms::scan_convert_curvilinear(CudaMemory* scan_lines,
+                                                                     uint2 input_size,
+                                                                     float sector_angle, float near,
+                                                                     float far, uint2 output_size,
+                                                                     cudaStream_t stream) {
   // Create the array and the texture
   if (scan_convert_curvilinear_array_ &&
       ((scan_convert_curvilinear_array_->get_size().width != input_size.x) ||
@@ -578,9 +580,9 @@ std::unique_ptr<CudaMemory> CUDAAlgorithms::scan_convert_curvilinear(
   auto grid_z = std::make_unique<CudaMemory>(output_size.x * output_size.y * sizeof(float), stream);
 
   // Calculate the image bounds
-  const float opening_angle_rad = (opening_angle / 360.f) * 2.f * M_PI;
-  const float max_x = std::sin(opening_angle_rad * 0.5f);                 // width / 2
-  const float min_z = std::cos(opening_angle_rad * 0.5f) * (near / far);  // depth
+  const float sector_angle_rad = (sector_angle / 360.f) * 2.f * M_PI;
+  const float max_x = std::sin(sector_angle_rad * 0.5f);                 // width / 2
+  const float min_z = std::cos(sector_angle_rad * 0.5f) * (near / far);  // depth
 
   scan_convert_curvilinear_launcher_.launch(output_size,
                                             stream,
@@ -588,7 +590,7 @@ std::unique_ptr<CudaMemory> CUDAAlgorithms::scan_convert_curvilinear(
                                             input_size,
                                             reinterpret_cast<float*>(grid_z->get_ptr(stream)),
                                             output_size,
-                                            opening_angle_rad,
+                                            sector_angle_rad,
                                             near / far,
                                             far / far,
                                             max_x,
