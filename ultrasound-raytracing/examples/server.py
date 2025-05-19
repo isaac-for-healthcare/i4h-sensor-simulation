@@ -22,13 +22,12 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import numpy as np
 import raysim.cuda as rs
-from flask import Flask, request, send_file
+from flask import Flask, jsonify, request, send_file
 from flask_cors import CORS
 from PIL import Image
 
 app = Flask(__name__)
 CORS(app)
-
 
 # Create materials and world
 materials = rs.Materials()
@@ -59,7 +58,6 @@ world.add(galbladder_mesh)
 material_idx = materials.get_index("liver")
 spleen_mesh = rs.Mesh("mesh/Spleen.obj", material_idx)
 world.add(spleen_mesh)
-
 material_idx = materials.get_index("liver")
 heart_mesh = rs.Mesh("mesh/Heart.obj", material_idx)
 world.add(heart_mesh)
@@ -76,22 +74,55 @@ material_idx = materials.get_index("water")
 large_intestine_mesh = rs.Mesh("mesh/Colon.obj", material_idx)
 world.add(large_intestine_mesh)
 
+# Initial poses for different probe types
+initial_poses = {
+    "curvilinear": rs.Pose(
+        np.array([-14, -122, 72], dtype=np.float32),  # position (x, y, z)
+        np.array([np.deg2rad(-90), np.deg2rad(180), np.deg2rad(0)], dtype=np.float32),
+    ),
+    "linear": rs.Pose(
+        np.array([-14, -122, 72], dtype=np.float32),  # position (x, y, z)
+        np.array([np.deg2rad(-90), np.deg2rad(180), np.deg2rad(0)], dtype=np.float32),
+    ),
+    "phased": rs.Pose(
+        np.array([-14, -122, 72], dtype=np.float32),  # position (x, y, z)
+        np.array([np.deg2rad(-90), np.deg2rad(180), np.deg2rad(0)], dtype=np.float32),
+    ),
+}
 
+# Create probes with different geometries
+probes = {
+    "curvilinear": rs.CurvilinearProbe(  # Original curvilinear probe
+        initial_poses["curvilinear"],
+        num_elements_x=256,  # Number rays which represent elements
+        sector_angle=73.0,  # Field of view in degrees
+        radius=45.0,  # probe radius in mm
+        frequency=5.0,  # probe frequency in MHz
+        elevational_height=7.0,  # probe elevational aperture height in mm
+        num_el_samples=10,  # number of samples in elevational direction (default is 1)
+    ),
+    "linear": rs.LinearArrayProbe(  # Linear array probe
+        initial_poses["linear"],
+        num_elements_x=256,  # Number of elements
+        width=50.0,  # Width of the array in mm
+        frequency=7.5,  # probe frequency in MHz
+        elevational_height=5.0,  # probe elevational aperture height in mm
+        num_el_samples=10,  # number of samples in elevational direction
+    ),
+    "phased": rs.PhasedArrayProbe(  # Phased array probe
+        initial_poses["phased"],
+        num_elements_x=128,  # Number of elements
+        width=20.0,  # Width of the array in mm
+        sector_angle=90.0,  # Full sector angle in degrees
+        frequency=3.5,  # probe frequency in MHz
+        elevational_height=5.0,  # probe elevational aperture height in mm
+        num_el_samples=10,  # number of samples in elevational direction
+    ),
+}
 
-# Create probe with initial pose matching C++ implementation
-initial_pose = rs.Pose(
-    np.array([-14,-122,72], dtype=np.float32),  # position (x, y, z)
-    np.array([np.deg2rad(-90), np.deg2rad(180), np.deg2rad(0)], dtype=np.float32))   # rotation (x, y, z)
-# Create ultrasound probe with elevational extent parameters
-probe = rs.UltrasoundProbe(
-    initial_pose,
-    num_elements=256,            # Number rays which represent elements
-    opening_angle=73.0,          # default value in degrees
-    radius=45.0,                 # probe radius  in mm
-    frequency=5.0,               # probe frequency in MHz
-    elevational_height=7.0,      # probe elevational aperture height in mm
-    num_el_samples=10,         # number of samples in elevational direction (default is 1)
-)
+# Current active probe
+active_probe = "curvilinear"
+
 # Create simulator
 simulator = rs.RaytracingUltrasoundSimulator(world, materials)
 
@@ -102,25 +133,44 @@ sim_params.buffer_size = 4096
 sim_params.t_far = 180.0
 sim_params.enable_cuda_timing = True
 
-@app.route('/')
-def home():
-    return send_file('templates/index.html')
 
-@app.route('/get_initial_pose', methods=['GET'])
+@app.route("/")
+def home():
+    return send_file("templates/index.html")
+
+
+@app.route("/get_probe_types", methods=["GET"])
+def get_probe_types():
+    # Return list of available probe types
+    return jsonify(list(probes.keys()))
+
+
+@app.route("/set_probe_type", methods=["POST"])
+def set_probe_type():
+    global active_probe
+    probe_type = request.json["probe_type"]
+    if probe_type in probes:
+        active_probe = probe_type
+        return {"status": "success", "probe_type": active_probe}
+    else:
+        return {"status": "error", "message": f"Unknown probe type: {probe_type}"}, 400
+
+
+@app.route("/get_initial_pose", methods=["GET"])
 def get_initial_pose():
-    current_pose = probe.get_pose()
+    current_pose = probes[active_probe].get_pose()
     # Convert the pose to a list for JSON serialization
     pose_list = current_pose.position.tolist() + current_pose.rotation.tolist()
-    return {'pose': pose_list}
+    return {"pose": pose_list, "probe_type": active_probe}
 
 
-@app.route('/simulate', methods=['POST'])
+@app.route("/simulate", methods=["POST"])
 def simulate():
-    pose_delta = request.json['pose_delta']
+    pose_delta = request.json["pose_delta"]
     print(f"Applying delta: {pose_delta}")
 
     # Get current pose
-    current_pose = probe.get_pose()
+    current_pose = probes[active_probe].get_pose()
 
     # Apply deltas to current pose
     position_delta = np.array(pose_delta[0:3], dtype=np.float32)
@@ -132,14 +182,13 @@ def simulate():
 
     # Set new pose
     new_pose = rs.Pose(new_position, new_rotation)
-    probe.set_pose(new_pose)
+    probes[active_probe].set_pose(new_pose)
 
-    b_mode_image = simulator.simulate(probe, sim_params)
-
+    b_mode_image = simulator.simulate(probes[active_probe], sim_params)
 
     # Apply normalization as in C++ code
     min_val = -60.0  # Matching C++ min_max.x
-    max_val = 0.0    # Matching C++ min_max.y
+    max_val = 0.0  # Matching C++ min_max.y
     normalized_image = np.clip((b_mode_image - min_val) / (max_val - min_val), 0, 1)
 
     # Convert to 8-bit image for display
@@ -149,13 +198,12 @@ def simulate():
     pil_img = Image.fromarray(img_uint8)
 
     img_io = io.BytesIO()
-    pil_img.save(img_io, 'PNG')
+    pil_img.save(img_io, "PNG")
     img_io.seek(0)
 
-    # We could add a json response with the current pose, but for simplicity
-    # we'll just keep the image response as is. The frontend can get the latest
-    # pose from the /get_initial_pose endpoint if needed
-    return send_file(img_io, mimetype='image/png')
+    # Return the image and the current probe type
+    return send_file(img_io, mimetype="image/png")
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     app.run(port=8000, debug=True)

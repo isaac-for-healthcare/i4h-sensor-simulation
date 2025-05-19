@@ -20,7 +20,7 @@
 #include <spdlog/fmt/fmt.h>
 #include <filesystem>
 
-#include "raysim/core/ultrasound_probe.hpp"
+#include "raysim/core/probe.hpp"
 #include "raysim/core/world.hpp"
 #include "raysim/core/write_image.hpp"
 #include "raysim/cuda/cuda_algorithms.hpp"
@@ -207,7 +207,7 @@ RaytracingUltrasoundSimulator::RaytracingUltrasoundSimulator(World* world,
   cuda_algorithms_ = std::make_shared<CUDAAlgorithms>();
 }
 
-void RaytracingUltrasoundSimulator::update_psfs(const UltrasoundProbe* probe, cudaStream_t stream) {
+void RaytracingUltrasoundSimulator::update_psfs(const BaseProbe* probe, cudaStream_t stream) {
   if (probe_frequency_ != probe->get_frequency()) {
     probe_frequency_ = probe->get_frequency();
     psf_ax_.reset();
@@ -240,16 +240,21 @@ void RaytracingUltrasoundSimulator::update_psfs(const UltrasoundProbe* probe, cu
 }
 
 RaytracingUltrasoundSimulator::SimResult RaytracingUltrasoundSimulator::simulate(
-    const UltrasoundProbe* probe, const SimParams& sim_params) {
+    const BaseProbe* probe, const SimParams& sim_params) {
   CudaTiming cuda_timing(sim_params.enable_cuda_timing, "Simulation", sim_params.stream);
 
   // Update the ray gen record
   {
     RayGenSbtRecord rg_sbt{};
-    rg_sbt.data.opening_angle = probe->get_opening_angle();
+
+    rg_sbt.data.probe_type = static_cast<int>(probe->get_probe_type());
+
+    rg_sbt.data.sector_angle = probe->get_sector_angle();
     rg_sbt.data.elevational_height =
         probe->get_num_el_samples() ? probe->get_elevational_height() : 0.f;
     rg_sbt.data.radius = probe->get_radius();
+
+    rg_sbt.data.width = probe->get_width();
     rg_sbt.data.position = probe->get_pose().position_;
     rg_sbt.data.rotation_matrix = probe->get_pose().rotation_matrix_;
 
@@ -381,34 +386,74 @@ RaytracingUltrasoundSimulator::SimResult RaytracingUltrasoundSimulator::simulate
     write_image(d_scanlines.get(), plane_size, "debug_images/4_log_compression.png");
   }
 
-  // 4. Scan conversion
+  // 4. Scan conversion - based on probe type
   std::unique_ptr<CudaMemory> b_mode;
   {
     CudaTiming cuda_timing(sim_params.enable_cuda_timing, "Scan conversion", sim_params.stream);
 
-    b_mode = cuda_algorithms_->scan_convert_curvilinear(d_scanlines.get(),
-                                                        plane_size,
-                                                        probe->get_opening_angle(),
-                                                        probe->get_radius(),
-                                                        sim_params.t_far + probe->get_radius(),
-                                                        sim_params.b_mode_size,
-                                                        sim_params.stream);
+    switch (probe->get_probe_type()) {
+      case ProbeType::PROBE_TYPE_PHASED_ARRAY:
+        b_mode = cuda_algorithms_->scan_convert_phased(d_scanlines.get(),
+                                                       plane_size,
+                                                       probe->get_sector_angle(),
+                                                       sim_params.t_far,
+                                                       sim_params.b_mode_size,
+                                                       sim_params.stream);
+        break;
+      case ProbeType::PROBE_TYPE_LINEAR_ARRAY:
+        b_mode = cuda_algorithms_->scan_convert_linear(d_scanlines.get(),
+                                                       plane_size,
+                                                       probe->get_width(),
+                                                       sim_params.t_far,
+                                                       sim_params.b_mode_size,
+                                                       sim_params.stream);
+        break;
+      case ProbeType::PROBE_TYPE_CURVILINEAR:
+
+        b_mode = cuda_algorithms_->scan_convert_curvilinear(d_scanlines.get(),
+                                                            plane_size,
+                                                            probe->get_sector_angle(),
+                                                            probe->get_radius(),
+                                                            sim_params.t_far + probe->get_radius(),
+                                                            sim_params.b_mode_size,
+                                                            sim_params.stream);
+        break;
+    }
   }
 
-  // extract min and max x and z values from Probe dimensions and imaging depth
-  // the Image origin is the center of the face of the probe
-  // The probe origin is the center of the circle of the probe curvature
-  // min_x is the bottom left corner of the image (x is the width)
-  // min_z is the bottom center of the image (z is the depth)
-  // max_x is the bottom right corner of the image (x is the width)
-  // max_z is the top left and right corners of the image that are behind the image origing
+  // extract min and max x and z values based on probe type
+  float min_x = 0.f;
+  float max_x = 0.f;
+  float min_z = 0.f;
+  float max_z = 0.f;
 
-  float opening_angle_in_rad = probe->get_opening_angle() * M_PI / 180.0f;
-  float min_x = (probe->get_radius() + sim_params.t_far) * std::sin(-opening_angle_in_rad / 2.0f);
-  float max_x = (probe->get_radius() + sim_params.t_far) * std::sin(opening_angle_in_rad / 2.0f);
-  float z_behind_image_origin = probe->get_radius() * (1 - std::cos(opening_angle_in_rad / 2.0f));
-  float min_z = -sim_params.t_far;
-  float max_z = z_behind_image_origin;
+  switch (probe->get_probe_type()) {
+    case ProbeType::PROBE_TYPE_PHASED_ARRAY: {
+      float sector_angle_rad = probe->get_sector_angle() * M_PI / 180.0f;
+      min_x = sim_params.t_far * std::sin(-sector_angle_rad / 2.0f);
+      max_x = sim_params.t_far * std::sin(sector_angle_rad / 2.0f);
+      min_z = 0.f;  // Phased array image typically starts at depth 0 from the origin
+      max_z = sim_params.t_far * std::cos(sector_angle_rad / 2.0f);
+    } break;
+    case ProbeType::PROBE_TYPE_LINEAR_ARRAY:
+      min_x = -probe->get_width() / 2.0f;
+      max_x = probe->get_width() / 2.0f;
+      min_z = 0.f;
+      max_z = sim_params.t_far;
+      break;
+    case ProbeType::PROBE_TYPE_CURVILINEAR:
+    default:  // Fallback for safety or new types
+    {
+      float sector_angle_in_rad = probe->get_sector_angle() * M_PI / 180.0f;  // Use generic getter
+      float current_radius = probe->get_radius();                             // Use generic getter
+      min_x = (current_radius + sim_params.t_far) * std::sin(-sector_angle_in_rad / 2.0f);
+      max_x = (current_radius + sim_params.t_far) * std::sin(sector_angle_in_rad / 2.0f);
+      float z_behind_image_origin = current_radius * (1 - std::cos(sector_angle_in_rad / 2.0f));
+      min_z = -sim_params.t_far;  // Curvilinear depth can be negative relative to image origin if
+                                  // radius is large
+      max_z = z_behind_image_origin;
+    } break;
+  }
 
   // Update the class member variables
   min_x_ = min_x;

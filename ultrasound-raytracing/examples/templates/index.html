@@ -136,6 +136,30 @@
             margin: 12px 0 8px 0;
             font-size: 0.95em;
         }
+        .probe-select {
+            margin-bottom: 15px;
+        }
+        .probe-select select {
+            width: 100%;
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            margin-top: 8px;
+        }
+        .probe-icon {
+            display: inline-block;
+            width: 30px;
+            height: 30px;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+        .probe-info {
+            margin-top: 15px;
+            padding: 10px;
+            background-color: #e9f7ef;
+            border-radius: 4px;
+            border-left: 4px solid #2ecc71;
+        }
     </style>
 </head>
 <body>
@@ -147,6 +171,18 @@
         <div class="controls">
             <h3>Controls</h3>
             <div class="controls-content">
+                <div class="probe-select control-group">
+                    <strong>Probe Type:</strong>
+                    <select id="probeTypeSelect">
+                        <option value="curvilinear">Curvilinear Probe</option>
+                        <option value="linear">Linear Array Probe</option>
+                        <option value="phased">Phased Array Probe</option>
+                    </select>
+                    <div id="probeInfo" class="probe-info">
+                        <p><strong>Curvilinear Probe:</strong> Uses a curved transducer array to generate a sector-shaped field of view with a wide view at depth.</p>
+                    </div>
+                </div>
+
                 <div class="control-group">
                     <strong>Navigation Mode:</strong><br>
                     <label style="display: flex; align-items: center; gap: 8px; margin: 12px 0;">
@@ -228,10 +264,18 @@
 
     <script>
         let pose = [0, 0, 0, 0, 0, 0];  // Default pose, will be overridden by server values
+        let currentProbeType = "curvilinear";  // Default probe type
         const stepSize = 2;  // Reduced from 0.5 to 0.2 for finer movement control
         const rotationStep = 0.05;  // Reduced from 0.1 to 0.05 for finer rotation control
         let isUpdating = false;  // Lock for preventing simultaneous requests
         let initialPoseFetched = false;  // Flag to track if we've successfully fetched the initial pose
+
+        // Probe information for display
+        const probeInfo = {
+            "curvilinear": "Uses a curved transducer array to generate a sector-shaped field of view with a wide view at depth.",
+            "linear": "Features a straight row of elements to create a rectangular field of view, ideal for superficial structures.",
+            "phased": "Has elements arranged in a straight line but steers beams electronically to create a sector image from a small footprint."
+        };
 
         // Helper functions for coordinate transformations
         function rotateVector(vector, rotX, rotY, rotZ) {
@@ -266,6 +310,10 @@
             document.getElementById('rotX').value = (pose[3] * 180 / Math.PI).toFixed(1);
             document.getElementById('rotY').value = (pose[4] * 180 / Math.PI).toFixed(1);
             document.getElementById('rotZ').value = (pose[5] * 180 / Math.PI).toFixed(1);
+
+            // Update probe info text
+            document.getElementById('probeInfo').innerHTML =
+                `<p><strong>${currentProbeType.charAt(0).toUpperCase() + currentProbeType.slice(1)} Probe:</strong> ${probeInfo[currentProbeType]}</p>`;
         }
 
         async function updateSimulation(newPoseDelta) {
@@ -298,6 +346,39 @@
                 return false;  // Return false if update failed
             } finally {
                 isUpdating = false;
+            }
+        }
+
+        // Function to change probe type
+        async function changeProbeType(probeType) {
+            if (probeType === currentProbeType) return; // No change needed
+
+            try {
+                const response = await fetch('/set_probe_type', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ probe_type: probeType }),
+                });
+
+                if (!response.ok) throw new Error('Failed to change probe type');
+
+                const data = await response.json();
+                currentProbeType = data.probe_type;
+
+                // Get the updated pose for the new probe
+                const poseResponse = await fetch('/get_initial_pose');
+                if (poseResponse.ok) {
+                    const poseData = await poseResponse.json();
+                    pose = poseData.pose;
+                    updateDisplay();
+
+                    // Get a fresh simulation image
+                    await updateSimulation([0, 0, 0, 0, 0, 0]);
+                }
+            } catch (error) {
+                console.error('Error changing probe type:', error);
             }
         }
 
@@ -402,14 +483,45 @@
 
         // Initialize the simulation when the page loads
         document.addEventListener('DOMContentLoaded', async () => {
+            // Add event listener for probe type change
+            document.getElementById('probeTypeSelect').addEventListener('change', (e) => {
+                changeProbeType(e.target.value);
+            });
+
+            // Fetch available probe types
+            try {
+                const response = await fetch('/get_probe_types');
+                if (response.ok) {
+                    const probeTypes = await response.json();
+
+                    // Populate the select element
+                    const selectElement = document.getElementById('probeTypeSelect');
+                    selectElement.innerHTML = ''; // Clear existing options
+
+                    probeTypes.forEach(type => {
+                        const option = document.createElement('option');
+                        option.value = type;
+                        option.textContent = type.charAt(0).toUpperCase() + type.slice(1) + ' Probe';
+                        selectElement.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error("Failed to get probe types:", error);
+            }
+
             // Fetch initial pose from server
             try {
                 const response = await fetch('/get_initial_pose');
                 if (response.ok) {
                     const data = await response.json();
                     pose = data.pose;
+                    currentProbeType = data.probe_type;
                     initialPoseFetched = true;
                     console.log("Received initial pose:", pose);
+                    console.log("Current probe type:", currentProbeType);
+
+                    // Update probe type selector
+                    document.getElementById('probeTypeSelect').value = currentProbeType;
 
                     // Update display with initial position
                     updateDisplay();

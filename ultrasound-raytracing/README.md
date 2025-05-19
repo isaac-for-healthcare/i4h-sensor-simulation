@@ -7,6 +7,7 @@ A high-performance GPU-accelerated ultrasound simulator using NVIDIA OptiX raytr
 - GPU acceleration with CUDA and NVIDIA OptiX
 - Python interface for ease of use
 - Real-time simulation capabilities
+- Support for curvilinear, linear, and phased array ultrasound probe simulation
 
 ## Benchmark Results
 To reproduce these results, run `python examples/benchmark.py`.

@@ -28,10 +28,12 @@
 
 #include <spdlog/spdlog.h>
 
+#include "raysim/core/curvilinear_probe.hpp"
 #include "raysim/core/hitable.hpp"
+#include "raysim/core/linear_array_probe.hpp"
 #include "raysim/core/material.hpp"
+#include "raysim/core/phased_array_probe.hpp"
 #include "raysim/core/raytracing_ultrasound_simulator.hpp"
-#include "raysim/core/ultrasound_probe.hpp"
 #include "raysim/core/world.hpp"
 #include "raysim/core/write_image.hpp"
 #include "raysim/cuda/cuda_helper.hpp"
@@ -71,7 +73,7 @@ PYBIND11_MODULE(ray_sim_python, m) {
             - Materials: Manages acoustic material properties
             - World: Contains the 3D scene geometry
             - Pose: Represents 3D position and orientation
-            - UltrasoundProbe: Defines the ultrasound probe parameters
+            - CurvilinearProbe, LinearArrayProbe, PhasedArrayProbe: Define ultrasound probe parameters
             - RaytracingUltrasoundSimulator: Main simulation engine
     )pbdoc";
 
@@ -238,18 +240,61 @@ PYBIND11_MODULE(ray_sim_python, m) {
           },
           "Get the maximum point of the world's bounding box");
 
-  // Bind UltrasoundProbe class
-  py::class_<raysim::UltrasoundProbe>(m, "UltrasoundProbe", R"pbdoc(
-        Represents an ultrasound probe with its imaging parameters.
+  // Bind BaseProbe class and derived classes
+  py::class_<raysim::BaseProbe>(m, "BaseProbe", R"pbdoc(
+Base class for ultrasound probes.
 
-        The probe is defined by:
-            - pose: 3D position and orientation
-            - number of elements
-            - opening angle
-            - radius of curvature
-            - frequency
-            - elevational parameters
-    )pbdoc")
+All probe types derive from this class and inherit common functionality such as:
+- Position and orientation (pose) handling
+- Element position and ray direction calculation
+- Basic acoustic parameters
+- Support for 1D and 2D (matrix) arrays
+
+Note: Pose orientation is specified in radians (roll, pitch, yaw).
+)pbdoc")
+      .def("set_pose", &raysim::BaseProbe::set_pose, "Set the probe's pose")
+      .def("get_pose", &raysim::BaseProbe::get_pose, "Get the probe's current pose")
+      .def("get_num_elements_x",
+           &raysim::BaseProbe::get_num_elements_x,
+           "Get number of transducer elements in lateral (x) direction")
+      .def("set_num_elements_x",
+           &raysim::BaseProbe::set_num_elements_x,
+           "Set number of transducer elements in lateral (x) direction")
+      .def("get_frequency", &raysim::BaseProbe::get_frequency, "Get probe frequency (MHz)")
+      .def("set_frequency", &raysim::BaseProbe::set_frequency, "Set probe frequency (MHz)")
+      .def("get_speed_of_sound",
+           &raysim::BaseProbe::get_speed_of_sound,
+           "Get speed of sound (mm/μs)")
+      .def("set_speed_of_sound",
+           &raysim::BaseProbe::set_speed_of_sound,
+           "Set speed of sound (mm/μs)")
+      .def("get_pulse_duration",
+           &raysim::BaseProbe::get_pulse_duration,
+           "Get pulse duration (cycles)")
+      .def("set_pulse_duration",
+           &raysim::BaseProbe::set_pulse_duration,
+           "Set pulse duration (cycles)")
+      .def("get_wave_length", &raysim::BaseProbe::get_wave_length, "Get wavelength")
+      .def(
+          "get_element_position",
+          [](const raysim::BaseProbe& self, uint32_t element_idx) {
+            float3 position;
+            self.get_element_position(element_idx, position);
+            return float3_to_numpy(position);
+          },
+          "Get position of an element by index")
+      .def(
+          "get_element_direction",
+          [](const raysim::BaseProbe& self, uint32_t element_idx) {
+            float3 direction;
+            self.get_element_direction(element_idx, direction);
+            return float3_to_numpy(direction);
+          },
+          "Get direction for an element by index");
+
+  py::class_<raysim::CurvilinearProbe, raysim::BaseProbe>(m, "CurvilinearProbe", R"pbdoc(
+Curvilinear ultrasound probe with elements positioned along a curved surface.
+)pbdoc")
       .def(py::init<const raysim::Pose&,
                     uint32_t,
                     float,
@@ -260,45 +305,64 @@ PYBIND11_MODULE(ray_sim_python, m) {
                     float,
                     float,
                     float>(),
-           py::arg("pose"),
-           py::arg("num_elements") = 4096,
-           py::arg("opening_angle") = 73.f,
-           py::arg("radius") = 45.f,
+           py::arg("pose") = raysim::Pose(),
+           py::arg("num_elements_x") = 256,
+           py::arg("sector_angle") = 73.0f,
+           py::arg("radius") = 45.0f,
            py::arg("frequency") = 2.5f,
-           py::arg("elevational_height") = 7.f,
+           py::arg("elevational_height") = 7.0f,
            py::arg("num_el_samples") = 1,
            py::arg("f_num") = 0.7f,
            py::arg("speed_of_sound") = 1.54f,
-           py::arg("pulse_duration") = 2.f)
-      .def("set_pose", &raysim::UltrasoundProbe::set_pose, "Set the probe's pose")
-      .def("get_pose", &raysim::UltrasoundProbe::get_pose, "Get the probe's current pose")
-      .def("get_num_elements",
-           &raysim::UltrasoundProbe::get_num_elements,
-           "Get number of probe elements")
-      .def("get_opening_angle",
-           &raysim::UltrasoundProbe::get_opening_angle,
-           "Get probe opening angle (degrees)")
-      .def("get_radius", &raysim::UltrasoundProbe::get_radius, "Get probe radius of curvature")
-      .def("get_frequency", &raysim::UltrasoundProbe::get_frequency, "Get probe frequency (MHz)")
-      .def("get_element_spacing",
-           &raysim::UltrasoundProbe::get_element_spacing,
-           "Get spacing between elements")
-      .def("get_elevational_height",
-           &raysim::UltrasoundProbe::get_elevational_height,
-           "Get elevational aperture height")
-      .def("get_num_el_samples",
-           &raysim::UltrasoundProbe::get_num_el_samples,
-           "Get number of elevational samples")
-      .def("get_axial_resolution",
-           &raysim::UltrasoundProbe::get_axial_resolution,
-           "Get axial resolution")
-      .def("get_lateral_resolution",
-           &raysim::UltrasoundProbe::get_lateral_resolution,
-           "Get lateral resolution")
-      .def("get_wave_length", &raysim::UltrasoundProbe::get_wave_length, "Get wavelength")
-      .def("get_elevational_spatial_frequency",
-           &raysim::UltrasoundProbe::get_elevational_spatial_frequency,
-           "Get elevational spatial frequency");
+           py::arg("pulse_duration") = 2.0f);
+
+  py::class_<raysim::LinearArrayProbe, raysim::BaseProbe>(m, "LinearArrayProbe", R"pbdoc(
+Linear array ultrasound probe with elements positioned in a straight line.
+Elements emit parallel beams perpendicular to the face of the probe.
+)pbdoc")
+      .def(py::init<const raysim::Pose&,
+                    uint32_t,
+                    float,
+                    float,
+                    float,
+                    uint32_t,
+                    float,
+                    float,
+                    float>(),
+           py::arg("pose") = raysim::Pose(),
+           py::arg("num_elements_x") = 256,
+           py::arg("width") = 60.0f,
+           py::arg("frequency") = 5.0f,
+           py::arg("elevational_height") = 5.0f,
+           py::arg("num_el_samples") = 1,
+           py::arg("f_num") = 1.0f,
+           py::arg("speed_of_sound") = 1.54f,
+           py::arg("pulse_duration") = 2.0f);
+
+  py::class_<raysim::PhasedArrayProbe, raysim::BaseProbe>(m, "PhasedArrayProbe", R"pbdoc(
+Phased array ultrasound probe with elements positioned in a straight line.
+Elements steer beams electronically to create a sector image from a small footprint.
+)pbdoc")
+      .def(py::init<const raysim::Pose&,
+                    uint32_t,
+                    float,
+                    float,
+                    float,
+                    float,
+                    uint32_t,
+                    float,
+                    float,
+                    float>(),
+           py::arg("pose") = raysim::Pose(),
+           py::arg("num_elements_x") = 128,
+           py::arg("width") = 20.0f,
+           py::arg("sector_angle") = 90.0f,
+           py::arg("frequency") = 3.5f,
+           py::arg("elevational_height") = 5.0f,
+           py::arg("num_el_samples") = 1,
+           py::arg("f_num") = 1.0f,
+           py::arg("speed_of_sound") = 1.54f,
+           py::arg("pulse_duration") = 2.0f);
 
   // Bind SimParams struct
   py::class_<raysim::RaytracingUltrasoundSimulator::SimParams>(m, "SimParams", R"pbdoc(
@@ -437,7 +501,7 @@ PYBIND11_MODULE(ray_sim_python, m) {
       .def(
           "simulate",
           [](raysim::RaytracingUltrasoundSimulator& self,
-             const raysim::UltrasoundProbe* probe,
+             const raysim::BaseProbe* probe,
              const raysim::RaytracingUltrasoundSimulator::SimParams& params) {
             try {
               spdlog::info("Starting simulation");
@@ -454,11 +518,10 @@ PYBIND11_MODULE(ray_sim_python, m) {
 
               std::vector<ssize_t> shape = {static_cast<ssize_t>(params.b_mode_size.y),
                                             static_cast<ssize_t>(params.b_mode_size.x)};
-              auto array = py::array_t<float>(shape, host_data.get());
 
+              auto array = py::array_t<float>(shape, host_data.get());
               spdlog::info("Simulation completed successfully");
               return array;
-
             } catch (const std::exception& e) {
               spdlog::error("Exception in simulate: {}", e.what());
               throw;
@@ -468,7 +531,7 @@ PYBIND11_MODULE(ray_sim_python, m) {
         Perform ultrasound simulation.
 
         Args:
-            probe: UltrasoundProbe instance defining imaging parameters
+            probe: BaseProbe instance defining imaging parameters
             params: SimParams instance with simulation settings
 
         Returns:

@@ -22,7 +22,6 @@ add_library(ray_sim_core STATIC
     material.cpp
     pose.cpp
     raytracing_ultrasound_simulator.cpp
-    ultrasound_probe.cpp
     world.cpp
     write_image.cpp
     )

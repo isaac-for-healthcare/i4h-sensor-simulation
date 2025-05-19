@@ -240,18 +240,15 @@ static __device__ void get_save_start_point(float3& out_front_start, float3& out
       out_front_start, out_back_start, wld_pos, out_wld_norm, wld_offset);
 }
 
-extern "C" __global__ void __raygen__rg() {
-  const uint3 idx = optixGetLaunchIndex();
-  const uint3 dim = optixGetLaunchDimensions();
-
-  const RayGenData* ray_gen_data = reinterpret_cast<RayGenData*>(optixGetSbtDataPointer());
-
-  const float d_x = (static_cast<float>(idx.x) / static_cast<float>(dim.x)) - 0.5f;
-  const float lateral_angle = (ray_gen_data->opening_angle * d_x) * (M_PI / 180.f);
+// Helper function to generate ray for curvilinear probe in local coordinates
+static __forceinline__ __device__ void generate_curvilinear_probe_ray_local(
+    const RayGenData* ray_gen_data, float d_x, float3& out_origin, float3& out_direction) {
+  // Convert normalized coordinates to lateral angle in radians
+  const float lateral_angle = (ray_gen_data->sector_angle * d_x) * (M_PI / 180.f);
 
   // Calculate element position on probe surface in probe's local coordinate system
   // where (0,0,0) is at the probe face center
-  float3 origin =
+  out_origin =
       make_float3(ray_gen_data->radius * __sinf(lateral_angle),         // x = r * sin(θ)
                   0.f,                                                  // y (elevation added later)
                   ray_gen_data->radius * (__cosf(lateral_angle) - 1.f)  // z = r * (cos(θ) - 1)
@@ -259,9 +256,82 @@ extern "C" __global__ void __raygen__rg() {
 
   // Calculate ray direction away from center of curvature
   // Center of curvature is at (0,0,-radius) in probe's local coordinate system
-  float3 direction = normalize(origin - make_float3(0.f, 0.f, -ray_gen_data->radius));
+  out_direction = normalize(out_origin - make_float3(0.f, 0.f, -ray_gen_data->radius));
+}
 
-  // Add elevation in probe's local coordinate system
+// Helper function to generate ray for linear array probe in local coordinates
+static __forceinline__ __device__ void generate_linear_array_probe_ray_local(
+    const RayGenData* ray_gen_data, float d_x, float3& out_origin, float3& out_direction) {
+  // For linear arrays, elements are positioned along a straight line
+  // Map normalized coordinate to position along the width
+  const float element_width = ray_gen_data->width;
+  const float element_pos = element_width * d_x;
+
+  // Element position in local coordinates
+  out_origin = make_float3(element_pos,  // x position along array
+                           0.f,          // y (elevation added later)
+                           0.f           // z at surface (probe face)
+  );
+
+  // For linear arrays, rays travel perpendicular to the array
+  out_direction = make_float3(0.f, 0.f, 1.f);
+}
+
+// Helper function to generate ray for phased array probe in local coordinates
+static __forceinline__ __device__ void generate_phased_array_probe_ray_local(
+    const RayGenData* ray_gen_data, float d_x, float3& out_origin, float3& out_direction) {
+  // Use full sector angle range
+  // Map d_x from [-0.5, 0.5] directly to [-half_angle_rad, half_angle_rad]
+  const float steering_angle = d_x * ray_gen_data->sector_angle;     // in degrees
+  const float steering_angle_rad = steering_angle * (M_PI / 180.f);  // convert to radians
+
+  // For phased arrays, all rays originate from a single virtual point (0,0,0)
+  // This is the center of the transducer array face
+  out_origin = make_float3(0.0f,  // Center of the array
+                           0.f,   // y (elevation added later)
+                           0.f    // z at the surface of the probe
+  );
+
+  // Direction determined by steering angle
+  out_direction = make_float3(sinf(steering_angle_rad),  // x component based on steering angle
+                              0.f,                       // y component (no elevation steering)
+                              cosf(steering_angle_rad)   // z component (along central axis)
+  );
+
+  // Normalize direction to ensure unit length vector
+  out_direction = normalize(out_direction);
+}
+
+extern "C" __global__ void __raygen__rg() {
+  const uint3 idx = optixGetLaunchIndex();
+  const uint3 dim = optixGetLaunchDimensions();
+
+  const RayGenData* ray_gen_data = reinterpret_cast<RayGenData*>(optixGetSbtDataPointer());
+
+  const float d_x = (static_cast<float>(idx.x) / static_cast<float>(dim.x)) - 0.5f;
+
+  float3 origin;
+  float3 direction;
+
+  // Different ray generation based on probe type
+  switch (ray_gen_data->probe_type) {
+    case PROBE_TYPE_CURVILINEAR: {
+      generate_curvilinear_probe_ray_local(ray_gen_data, d_x, origin, direction);
+      break;
+    }
+
+    case PROBE_TYPE_LINEAR_ARRAY: {
+      generate_linear_array_probe_ray_local(ray_gen_data, d_x, origin, direction);
+      break;
+    }
+
+    case PROBE_TYPE_PHASED_ARRAY: {
+      generate_phased_array_probe_ray_local(ray_gen_data, d_x, origin, direction);
+      break;
+    }
+  }
+
+  // Add elevation in probe's local coordinate system (common for all probes)
   const float d_y = (static_cast<float>(idx.y) / static_cast<float>(dim.y)) - 0.5f;
   const float elevation = ray_gen_data->elevational_height * d_y;
   origin.y = elevation;

@@ -18,13 +18,14 @@
 #ifndef CPP_OPTIX_TRACE
 #define CPP_OPTIX_TRACE
 
+#include <optix.h>
 #include <cstdint>
 
 #include "raysim/core/material.hpp"
+#include "raysim/core/probe_types.hpp"
 #include "raysim/cuda/matrix.hpp"
 
 namespace raysim {
-
 struct Params {
   float* scanlines;
   uint32_t buffer_size;
@@ -39,11 +40,13 @@ struct Params {
 };
 
 struct RayGenData {
-  float opening_angle;
-  float elevational_height;
-  float radius;
-  float3 position;
-  float33 rotation_matrix;
+  int probe_type;            // Type of probe (curvilinear, linear, phased)
+  float sector_angle;        // Field of view in degrees (sector angle for phased array)
+  float elevational_height;  // Height in elevational direction in mm
+  float radius;              // Radius of curvature in mm (for curvilinear)
+  float width;               // Width of linear/phased array in mm
+  float3 position;           // Probe position in world coordinates
+  float33 rotation_matrix;   // Probe orientation in world coordinates
 };
 
 struct MissData {};
