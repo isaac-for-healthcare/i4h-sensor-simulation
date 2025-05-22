@@ -14,6 +14,8 @@ Ultrasound imaging relies on high-frequency sound waves (typically 1-20 MHz) pro
 - **Reflection and Refraction**: At interfaces between tissues with different acoustic impedances, waves are partially reflected and refracted
 - **Scattering**: Small tissue structure that are smaller than the wavelength of the transmitted pulse scatter ultrasound energy in multiple directions. When scattered signals return to the transducer, they create the characteristic speckle pattern
 
+see further definitions in [Helpful Definitions](#8-helpful-definitions)
+
 #### Point Spread Function
 
 The Point Spread Function (PSF) represents how the imaging system responds to a point reflector and defines the theoretical resolution of the ultrasound image. In our ray-based simulator:
@@ -231,15 +233,11 @@ After ray-tracing has populated the scanlines with raw reflection data, the data
 
 This processing chain transforms the idealized reflection data into images with the characteristic appearance and artifacts of clinical ultrasound.
 
-## 4. Physics-Based Features
-
-The simulator implements several physics-based features for realistic ultrasound imaging:
-
-### 4.1 Tissue Modeling and Material System
+## 4. Tissue Modeling and Material System
 
 The simulator uses a material system to define the acoustic properties of different tissues and their interaction with ultrasound. This section explains how materials are defined, assigned to objects, and utilized throughout the ray-tracing process.
 
-#### Material Definition and Properties
+### 4.1 Material Definition and Properties
 
 Materials in the simulator are defined through the `Material` class [`csrc/core/material.cpp`], which encapsulates all acoustic properties relevant to ultrasound simulation:
 
@@ -255,7 +253,7 @@ Materials in the simulator are defined through the `Material` class [`csrc/core/
   - Affects: Amplitude decay with depth, shadowing
   - Typical values: Water (0.002 dB/cm/MHz), Fat (0.63 dB/cm/MHz), Muscle (1.3-3.3 dB/cm/MHz)
 
-- **Scattering Properties** (`mu0_`, `sigma_`): Control how tissue scatters ultrasound
+- **Scattering Properties** (`mu0_`, `sigma_): Control how tissue scatters ultrasound
   - `mu0_`: Scattering density threshold (0-1)
   - `sigma_`: Scattering coefficient intensity
   - Together these parameters create the characteristic speckle pattern of different tissues
@@ -343,79 +341,42 @@ This volumetric scattering approach achieves three key goals:
 
 The tissue modeling system's integration with the OptiX ray-tracing pipeline enables simulation of complex acoustic phenomena while maintaining interactive performance.
 
-### 4.2 Ultrasound-Specific Artifacts
+### 4.2 Generating simulation inputs from CT and MRI
 
-The simulator accurately reproduces key ultrasound artifacts that result from the underlying physics. The following artifacts emerge naturally from the simulation rather than being artificially added:
+<TODO>
 
-#### Acoustic Shadowing
-
-![Acoustic Shadowing: Image showing dark region behind a highly attenuating structure (e.g., bone or air pocket)]()
-
-**Physics Principle**: Occurs when strongly attenuating or reflecting structures block the ultrasound beam, preventing it from reaching deeper structures.
-
-**Implementation**:
-- Beer-Lambert law calculates intensity attenuation through materials
-- Ray-by-ray accumulation of attenuation effects
-- Visible in the simulation when imaging through materials with high attenuation coefficients (e.g., bone)
-
-#### Reverberation
-
-![Reverberation: Image showing multiple parallel bright lines at regular intervals below a strong reflector]()
-
-**Physics Principle**: Sound waves bounce back and forth between highly reflective parallel interfaces, creating ghost images at regular intervals.
-
-**Implementation**:
-- Multiple reflection paths through recursive ray tracing (`params.max_depth` parameter)
-- Particularly visible when imaging perpendicular to two strong reflectors
-- Note: Currently partially implemented as reflection recursion is limited (controlled by `reflection_on` flag)
-
-#### Refraction
-
-![Refraction: Image showing distortion of structures beneath an interface with speed of sound mismatch]()
-
-**Physics Principle**: Bending of ultrasound waves at tissue interfaces due to speed of sound differences.
-
-**Implementation**:
-- Application of Snell's law at material interfaces [`csrc/cuda/optix_trace.cu:177-193`]
-- Ray direction changes according to the ratio of speed of sound between materials
-- Creates positional distortions when imaging through tissues with varying speeds of sound
-
-#### Speckle
-
-![Speckle: Image showing characteristic grainy texture in a homogeneous region of tissue]()
-
-**Physics Principle**: Interference patterns caused by constructive and destructive interaction of echoes from sub-resolution scatterers.
-
-**Implementation**:
-- Spatially varying 3D texture combined with material-specific scattering properties
-- Creates consistent, tissue-specific texture patterns
-- Varies realistically with imaging parameters like frequency and aperture size
-
-These artifacts are key components in creating realistic ultrasound images for training and simulation purposes. By reproducing them accurately through physics-based modeling rather than post-processing effects, the simulator provides a more authentic representation of how real ultrasound systems interact with biological tissues.
-
-## 5. Performance Optimization
-
-### 5.1 GPU Acceleration
-
-The simulator leverages GPU parallelism for real-time performance:
-
-- **OptiX Ray Tracing**: Efficient ray-scene intersection
-  - Acceleration structure for fast geometric queries
-  - Parallel tracing of thousands of rays simultaneously
-
-- **CUDA Kernel Optimizations**: Parallel processing of post-processing steps
-  - Separable convolution kernels for PSF application
-  - Efficient parallel scan conversion
-
-- **Memory Management**: Efficient texture memory usage for scattering data
-  - 3D textures with hardware interpolation for scattering patterns
-  - Coalesced memory access patterns for scan line processing
-
-Next, have a look at our [Quick Start Guide](ultrasound_simulator_quickstart.md)
-## 7. References
+Next, have a look at our [Quick Start Guide](../ultrasound-raytracing/README.md)
+## 5. References
 
 1. Bürger et al. (2013) - "Real-time GPU-based ultrasound simulation using deformable mesh models"
 2. Mattausch & Goksel (2016) - "Monte-Carlo Ray-Tracing for Realistic Ultrasound Training Simulation"
 3. Law et al. (2016) - "Real-time simulation of B-mode ultrasound images for medical training"
 4. Szabo, T. L. (2004) - "Diagnostic Ultrasound Imaging: Inside Out"
 5. Prince, J. L., & Links, J. M. (2015) - "Medical Imaging Signals and Systems"
+
+## 6. Helpful Definitions
+
+- **Sound Speed (c)**: Propagation velocity of ultrasound in tissue; measured in m/s or mm/μs
+- **Density (ρ)**: Mass per unit volume of tissue; measured in kg/m³
+- **Wavelength (λ)**: Distance between consecutive wave peaks; λ = c/f measured in m
+- **Frequency (f)**: Number of oscillations per second; measured in Hz (typically MHz for ultrasound)
+- **Acoustic Impedance (Z)**: Resistance to sound propagation; Z = ρc measured in MRayl (10⁶ kg/m²s)
+- **Attenuation Coefficient (α)**: Rate of intensity reduction with distance; measured in dB/(cm·MHz)
+- **Reflection Coefficient (R)**: Proportion of wave intensity reflected at an interface; R = ((Z₂-Z₁)/(Z₂+Z₁))² (unitless)
+- **Refraction**: Bending of waves at interfaces between materials with different sound speeds
+- **Speckle**: Granular texture in ultrasound images caused by interference of scattered waves
+- **Axial Resolution**: Ability to distinguish objects along beam axis; approximately λ/2
+- **Lateral Resolution**: Ability to distinguish objects perpendicular to beam axis; determined by beam width
+- **Near Field**: Region close to transducer where beam converges; distances less than D²/4λ where D is aperture diameter
+- **Far Field**: Region beyond near field where beam diverges with predictable pattern
+- **B-mode**: Brightness mode imaging that displays echo amplitude as brightness variations
+- **Beamforming**: Process of focusing and steering ultrasound waves by coordinated firing of multiple transducer elements
+- **Dynamic Range**: Ratio between largest and smallest detectable signals; measured in decibels (dB)
+- **Time Gain Compensation (TGC)**: Depth-dependent amplification to compensate for attenuation
+- **Scan Conversion**: Process of mapping scanlines from acquisition geometry to display geometry
+- **Rayleigh Scattering**: Scattering from objects much smaller than wavelength; intensity ∝ f⁴
+- **Transducer Bandwidth**: Range of frequencies a transducer can transmit/receive; affects axial resolution
+- **Focal Zone**: Region where ultrasound beam is narrowest; provides best lateral resolution
+- **Shadowing**: Reduction in echo intensity beyond a strongly attenuating or reflecting structure
+- **Couplant**: Material (usually gel) used to eliminate air between transducer and skin
+- **RF Data**: Raw radio-frequency signal before envelope detection; contains phase information
