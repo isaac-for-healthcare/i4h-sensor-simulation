@@ -343,9 +343,10 @@ The tissue modeling system's integration with the OptiX ray-tracing pipeline ena
 
 ### 4.2 Generating simulation inputs from CT and MRI
 
-<TODO>
+Mesh assets used as input to the simulation can be created by hand, or derived from segmentation masks from medical imaging modalities like MRI, CT or ultrasound.
+You can generate your own assets from CT or MRI using MONAI by following [this tutorial](https://github.com/Project-MONAI/tutorials/blob/main/modules/omniverse/omniverse_integration.ipynb), though this is not required to get started with the simulator.
+Have a look at our [Quick Start Guide](../ultrasound-raytracing/README.md) to run simulation with pre-generated assets.
 
-Next, have a look at our [Quick Start Guide](../ultrasound-raytracing/README.md)
 ## 5. References
 
 1. Bürger et al. (2013) - "Real-time GPU-based ultrasound simulation using deformable mesh models"
