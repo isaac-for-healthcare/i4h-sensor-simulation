@@ -386,7 +386,7 @@ RaytracingUltrasoundSimulator::SimResult RaytracingUltrasoundSimulator::simulate
     write_image(d_scanlines.get(), plane_size, "debug_images/4_log_compression.png");
   }
 
-  // 3.6. Pepper vertical filter for speckle noise reduction
+  // 4. Pepper vertical filter for speckle noise reduction
   if (sim_params.pepper_vertical_filter) {
     {
       CudaTiming cuda_timing(
@@ -407,7 +407,7 @@ RaytracingUltrasoundSimulator::SimResult RaytracingUltrasoundSimulator::simulate
     }
   }
 
-  // 4. Scan conversion - based on probe type
+  // 5. Scan conversion - based on probe type
   std::unique_ptr<CudaMemory> b_mode;
   {
     CudaTiming cuda_timing(sim_params.enable_cuda_timing, "Scan conversion", sim_params.stream);
