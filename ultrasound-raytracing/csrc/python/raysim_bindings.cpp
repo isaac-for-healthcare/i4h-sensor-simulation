@@ -375,6 +375,7 @@ Elements steer beams electronically to create a sector image from a small footpr
             - min_intensity: Minimum ray intensity threshold
             - use_scattering: Enable scattering simulation
             - conv_psf: Enable PSF convolution
+            - pepper_vertical_filter: Enable pepper vertical filter for speckle reduction
             - enable_cuda_timing: Enable CUDA timing measurements
             - write_debug_images: Enable debug image output
             - b_mode_size: B-mode image size as (width, height), accepts tuple, list, or numpy array
@@ -398,6 +399,9 @@ Elements steer beams electronically to create a sector image from a small footpr
       .def_readwrite("conv_psf",
                      &raysim::RaytracingUltrasoundSimulator::SimParams::conv_psf,
                      "Enable PSF convolution")
+      .def_readwrite("pepper_vertical_filter",
+                     &raysim::RaytracingUltrasoundSimulator::SimParams::pepper_vertical_filter,
+                     "Enable pepper vertical filter for speckle reduction")
       .def_readwrite("enable_cuda_timing",
                      &raysim::RaytracingUltrasoundSimulator::SimParams::enable_cuda_timing,
                      "Enable CUDA timing measurements")

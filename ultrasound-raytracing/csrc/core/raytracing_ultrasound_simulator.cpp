@@ -386,6 +386,27 @@ RaytracingUltrasoundSimulator::SimResult RaytracingUltrasoundSimulator::simulate
     write_image(d_scanlines.get(), plane_size, "debug_images/4_log_compression.png");
   }
 
+
+  // 3.6. Pepper vertical filter for speckle noise reduction
+  if (sim_params.pepper_vertical_filter) {
+    {
+      CudaTiming cuda_timing(sim_params.enable_cuda_timing, "Pepper vertical filter", sim_params.stream);
+
+      // Create temporary buffer for filter output
+      auto d_filtered = std::make_unique<CudaMemory>(d_scanlines->get_size(), sim_params.stream);
+      
+      // Apply pepper vertical filter with 5x1 kernel, dMin=-60, dMax=0 (clamping)
+      cuda_algorithms_->pepper_vertical_filter(d_scanlines.get(), plane_size, d_filtered.get(),
+                                              5, -60.0f, 0.0f, sim_params.stream);
+      
+      // Replace original with filtered data
+      d_scanlines = std::move(d_filtered);
+    }
+    if (sim_params.write_debug_images) {
+      write_image(d_scanlines.get(), plane_size, "debug_images/5_pepper_vertical.png");
+    }
+  }
+
   // 4. Scan conversion - based on probe type
   std::unique_ptr<CudaMemory> b_mode;
   {

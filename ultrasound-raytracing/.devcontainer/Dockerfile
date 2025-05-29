@@ -43,5 +43,9 @@ RUN apt-get update \
         python3.12-dev="3.12.3-*" \
     && rm -rf /var/lib/apt/lists/*
 
+# link /usr/bin/python3.12 to python3
+RUN ln -s /usr/bin/python3.12 /usr/bin/python3 \
+    && ln -s /usr/bin/python3.12 /usr/bin/python
+
 # Set the default user
 USER $USERNAME
