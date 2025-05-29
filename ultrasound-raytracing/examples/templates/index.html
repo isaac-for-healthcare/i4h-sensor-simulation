@@ -410,7 +410,7 @@
                 const response = await fetch('/get_sim_params');
                 if (response.ok) {
                     const params = await response.json();
-                    
+
                     // Update checkboxes with current values
                     document.getElementById('pepperVerticalFilter').checked = params.pepper_vertical_filter;
                     document.getElementById('convPsf').checked = params.conv_psf;
@@ -427,7 +427,7 @@
             try {
                 const params = {};
                 params[paramName] = value;
-                
+
                 const response = await fetch('/set_sim_params', {
                     method: 'POST',
                     headers: {
@@ -440,7 +440,7 @@
 
                 const data = await response.json();
                 console.log('Updated simulation parameters:', data.params);
-                
+
                 // Trigger a new simulation with the updated parameters
                 await updateSimulation([0, 0, 0, 0, 0, 0]);
             } catch (error) {
@@ -557,15 +557,15 @@
             document.getElementById('pepperVerticalFilter').addEventListener('change', (e) => {
                 updateSimParams('pepper_vertical_filter', e.target.checked);
             });
-            
+
             document.getElementById('convPsf').addEventListener('change', (e) => {
                 updateSimParams('conv_psf', e.target.checked);
             });
-            
+
             document.getElementById('enableCudaTiming').addEventListener('change', (e) => {
                 updateSimParams('enable_cuda_timing', e.target.checked);
             });
-            
+
             document.getElementById('writeDebugImages').addEventListener('change', (e) => {
                 updateSimParams('write_debug_images', e.target.checked);
             });

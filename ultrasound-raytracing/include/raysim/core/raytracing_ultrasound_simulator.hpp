@@ -43,12 +43,12 @@ class RaytracingUltrasoundSimulator {
 
   /// Simulation parameters
   struct SimParams {
-    float t_far = 180.f;          // Maximum ray distance [mm]
-    uint32_t buffer_size = 4096;  // Samples per line
-    uint32_t max_depth = 15;      // Maximum reflection depth
-    float min_intensity = 1e-3f;  // Minimum intensity threshold
-    bool use_scattering = true;   // Enable scattering simulation
-    bool conv_psf = false;        // Convolve the raw hits with the PSF
+    float t_far = 180.f;                  // Maximum ray distance [mm]
+    uint32_t buffer_size = 4096;          // Samples per line
+    uint32_t max_depth = 15;              // Maximum reflection depth
+    float min_intensity = 1e-3f;          // Minimum intensity threshold
+    bool use_scattering = true;           // Enable scattering simulation
+    bool conv_psf = false;                // Convolve the raw hits with the PSF
     bool pepper_vertical_filter = false;  // Enable pepper vertical filter for speckle reduction
     uint2 b_mode_size = make_uint2(500, 500);
     cudaStream_t stream = cudaStreamPerThread;  // CUDA stream

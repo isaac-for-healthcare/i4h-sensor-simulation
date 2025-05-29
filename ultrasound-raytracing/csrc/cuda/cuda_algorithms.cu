@@ -152,28 +152,26 @@ static __global__ void mul_rows_kernel(float* __restrict__ buffer, uint2 size,
 }
 
 static __global__ void pepper_vertical_kernel(const float* __restrict__ source, uint2 size,
-                                             float* __restrict__ dst, uint32_t filter_size,
-                                             float d_min, float d_max) {
+                                              float* __restrict__ dst, uint32_t filter_size,
+                                              float d_min, float d_max) {
   const uint2 index =
       make_uint2(blockIdx.x * blockDim.x + threadIdx.x, blockIdx.y * blockDim.y + threadIdx.y);
 
   if ((index.x >= size.x) || (index.y >= size.y)) { return; }
 
   const uint32_t offset = index.y * size.x + index.x;
-  
+
   // Calculate median filter bounds
   const int half_size = filter_size / 2;
   const int y_min = max(0, (int)index.y - half_size);
   const int y_max = min((int)size.y - 1, (int)index.y + half_size);
-  
+
   // Collect values for median calculation
-  float values[11]; // Maximum filter size is 11
+  float values[11];  // Maximum filter size is 11
   int count = 0;
-  
-  for (int y = y_min; y <= y_max; ++y) {
-    values[count++] = source[y * size.x + index.x];
-  }
-  
+
+  for (int y = y_min; y <= y_max; ++y) { values[count++] = source[y * size.x + index.x]; }
+
   // Simple bubble sort for small arrays (efficient for small filter sizes)
   for (int i = 0; i < count - 1; ++i) {
     for (int j = 0; j < count - i - 1; ++j) {
@@ -184,14 +182,14 @@ static __global__ void pepper_vertical_kernel(const float* __restrict__ source, 
       }
     }
   }
-  
+
   // Get median value
   float median = values[count / 2];
-  
+
   // Calculate bounds
   float lower_bound = fmaxf(d_min, median);
   float upper_bound = fminf(d_max, median);
-  
+
   // Clamp original value to bounds
   float original_value = source[offset];
   dst[offset] = fmaxf(lower_bound, fminf(original_value, upper_bound));
@@ -602,10 +600,9 @@ void CUDAAlgorithms::hilbert_row(CudaMemory* buffer, uint2 size, cudaStream_t st
                    stream>>>(reinterpret_cast<float*>(buffer->get_ptr(stream)));
 }
 
-
 void CUDAAlgorithms::pepper_vertical_filter(CudaMemory* source, uint2 size, CudaMemory* dst,
-                                           uint32_t filter_size, float d_min, float d_max,
-                                           cudaStream_t stream) {
+                                            uint32_t filter_size, float d_min, float d_max,
+                                            cudaStream_t stream) {
   if (filter_size > 11 || filter_size % 2 == 0) {
     throw std::runtime_error("Filter size must be odd and <= 11");
   }

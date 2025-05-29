@@ -181,19 +181,19 @@ def set_sim_params():
     """Update simulation parameters"""
     try:
         params = request.json
-        
+
         if "pepper_vertical_filter" in params:
             sim_params.pepper_vertical_filter = bool(params["pepper_vertical_filter"])
-        
+
         if "conv_psf" in params:
             sim_params.conv_psf = bool(params["conv_psf"])
-        
+
         if "enable_cuda_timing" in params:
             sim_params.enable_cuda_timing = bool(params["enable_cuda_timing"])
-        
+
         if "write_debug_images" in params:
             sim_params.write_debug_images = bool(params["write_debug_images"])
-        
+
         return {
             "status": "success",
             "params": {

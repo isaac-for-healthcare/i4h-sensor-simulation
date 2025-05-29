@@ -120,10 +120,9 @@ class CUDAAlgorithms {
    */
   void hilbert_row(CudaMemory* buffer, uint2 size, cudaStream_t stream);
 
-
   /**
    * Apply pepper vertical filter (median filter with clamping).
-   * 
+   *
    * Applies a vertical median filter and clamps the center pixel to be within
    * a range of [median-d_min, median+d_max].
    *
@@ -135,9 +134,8 @@ class CUDAAlgorithms {
    * @param d_max [in] maximum distance from median (upper bound)
    * @param stream [in] CUDA stream
    */
-  void pepper_vertical_filter(CudaMemory* source, uint2 size, CudaMemory* dst,
-                             uint32_t filter_size, float d_min, float d_max,
-                             cudaStream_t stream);
+  void pepper_vertical_filter(CudaMemory* source, uint2 size, CudaMemory* dst, uint32_t filter_size,
+                              float d_min, float d_max, cudaStream_t stream);
 
   /**
    * Convert curvilinear scan data to Cartesian coordinates for display
