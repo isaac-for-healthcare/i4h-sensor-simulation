@@ -30,6 +30,15 @@ option(BUILD_EXAMPLES "Build C++ examples" ON)
 
 add_subdirectory(third_party ${CMAKE_CURRENT_BINARY_DIR}/thirdparty)
 
+
+# Add coverage flags if building with coverage
+if(CMAKE_BUILD_TYPE STREQUAL "Coverage")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -O0 --coverage")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -O0 --coverage")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} --coverage")
+    set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler --coverage")
+endif()
+
 # Add core C++ libraries
 add_subdirectory(csrc)
 
