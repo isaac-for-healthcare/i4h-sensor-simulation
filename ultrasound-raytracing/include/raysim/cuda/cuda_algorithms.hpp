@@ -135,7 +135,7 @@ class CUDAAlgorithms {
    * @param stream [in] CUDA stream
    */
   void median_clip_filter(CudaMemory* source, uint2 size, CudaMemory* dst, uint32_t filter_size,
-                              float d_min, float d_max, cudaStream_t stream);
+                          float d_min, float d_max, cudaStream_t stream);
 
   /**
    * Convert curvilinear scan data to Cartesian coordinates for display

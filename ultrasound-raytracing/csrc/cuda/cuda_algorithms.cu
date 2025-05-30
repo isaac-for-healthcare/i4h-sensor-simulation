@@ -152,8 +152,8 @@ static __global__ void mul_rows_kernel(float* __restrict__ buffer, uint2 size,
 }
 
 static __global__ void median_clip_kernel(const float* __restrict__ source, uint2 size,
-                                              float* __restrict__ dst, uint32_t filter_size,
-                                              float d_min, float d_max) {
+                                          float* __restrict__ dst, uint32_t filter_size,
+                                          float d_min, float d_max) {
   const uint2 index =
       make_uint2(blockIdx.x * blockDim.x + threadIdx.x, blockIdx.y * blockDim.y + threadIdx.y);
 
@@ -601,20 +601,20 @@ void CUDAAlgorithms::hilbert_row(CudaMemory* buffer, uint2 size, cudaStream_t st
 }
 
 void CUDAAlgorithms::median_clip_filter(CudaMemory* source, uint2 size, CudaMemory* dst,
-                                            uint32_t filter_size, float d_min, float d_max,
-                                            cudaStream_t stream) {
+                                        uint32_t filter_size, float d_min, float d_max,
+                                        cudaStream_t stream) {
   if (filter_size > 11 || filter_size % 2 == 0) {
     throw std::runtime_error("Filter size must be odd and <= 11");
   }
 
   median_clip_launcher_.launch(size,
-                                   stream,
-                                   reinterpret_cast<const float*>(source->get_ptr(stream)),
-                                   size,
-                                   reinterpret_cast<float*>(dst->get_ptr(stream)),
-                                   filter_size,
-                                   d_min,
-                                   d_max);
+                               stream,
+                               reinterpret_cast<const float*>(source->get_ptr(stream)),
+                               size,
+                               reinterpret_cast<float*>(dst->get_ptr(stream)),
+                               filter_size,
+                               d_min,
+                               d_max);
 }
 
 std::unique_ptr<CudaMemory> CUDAAlgorithms::scan_convert_curvilinear(CudaMemory* scan_lines,
