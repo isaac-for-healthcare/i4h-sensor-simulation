@@ -132,7 +132,7 @@ sim_params.conv_psf = True
 sim_params.buffer_size = 4096
 sim_params.t_far = 180.0
 sim_params.enable_cuda_timing = True
-sim_params.pepper_vertical_filter = False
+sim_params.median_clip_filter = False
 
 
 @app.route("/")
@@ -169,7 +169,7 @@ def get_initial_pose():
 def get_sim_params():
     """Get current simulation parameters"""
     return {
-        "pepper_vertical_filter": sim_params.pepper_vertical_filter,
+        "median_clip_filter": sim_params.median_clip_filter,
         "enable_cuda_timing": sim_params.enable_cuda_timing,
         "write_debug_images": sim_params.write_debug_images
     }
@@ -181,8 +181,8 @@ def set_sim_params():
     try:
         params = request.json
 
-        if "pepper_vertical_filter" in params:
-            sim_params.pepper_vertical_filter = bool(params["pepper_vertical_filter"])
+        if "median_clip_filter" in params:
+            sim_params.median_clip_filter = bool(params["median_clip_filter"])
 
         if "enable_cuda_timing" in params:
             sim_params.enable_cuda_timing = bool(params["enable_cuda_timing"])
@@ -193,7 +193,7 @@ def set_sim_params():
         return {
             "status": "success",
             "params": {
-                "pepper_vertical_filter": sim_params.pepper_vertical_filter,
+                "median_clip_filter": sim_params.median_clip_filter,
                 "enable_cuda_timing": sim_params.enable_cuda_timing,
                 "write_debug_images": sim_params.write_debug_images
             }

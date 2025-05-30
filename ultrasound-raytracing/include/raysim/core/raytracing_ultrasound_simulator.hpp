@@ -49,7 +49,7 @@ class RaytracingUltrasoundSimulator {
     float min_intensity = 1e-3f;          // Minimum intensity threshold
     bool use_scattering = true;           // Enable scattering simulation
     bool conv_psf = false;                // Convolve the raw hits with the PSF
-    bool pepper_vertical_filter = false;  // Enable pepper vertical filter for speckle reduction
+    bool median_clip_filter = false;  // Enable median clip filter for speckle reduction
     uint2 b_mode_size = make_uint2(500, 500);
     cudaStream_t stream = cudaStreamPerThread;  // CUDA stream
     bool enable_cuda_timing = false;            // Print timing of CUDA operations

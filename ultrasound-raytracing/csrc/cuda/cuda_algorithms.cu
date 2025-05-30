@@ -151,7 +151,7 @@ static __global__ void mul_rows_kernel(float* __restrict__ buffer, uint2 size,
   buffer[index.y * size.x + index.x] *= multiplicator[index.x];
 }
 
-static __global__ void pepper_vertical_kernel(const float* __restrict__ source, uint2 size,
+static __global__ void median_clip_kernel(const float* __restrict__ source, uint2 size,
                                               float* __restrict__ dst, uint32_t filter_size,
                                               float d_min, float d_max) {
   const uint2 index =
@@ -448,7 +448,7 @@ CUDAAlgorithms::CUDAAlgorithms()
       mean_planes_launcher_((void*)&mean_planes_kernel),
       log_compression_launcher_((void*)&log_compression_kernel),
       mul_rows_launcher_((void*)&mul_rows_kernel),
-      pepper_vertical_launcher_((void*)&pepper_vertical_kernel),
+      median_clip_launcher_((void*)&median_clip_kernel),
       scan_convert_curvilinear_launcher_((void*)&scan_convert_curvilinear_kernel),
       scan_convert_linear_launcher_((void*)&scan_convert_linear_kernel),
       scan_convert_phased_launcher_((void*)&scan_convert_phased_kernel) {
@@ -600,14 +600,14 @@ void CUDAAlgorithms::hilbert_row(CudaMemory* buffer, uint2 size, cudaStream_t st
                    stream>>>(reinterpret_cast<float*>(buffer->get_ptr(stream)));
 }
 
-void CUDAAlgorithms::pepper_vertical_filter(CudaMemory* source, uint2 size, CudaMemory* dst,
+void CUDAAlgorithms::median_clip_filter(CudaMemory* source, uint2 size, CudaMemory* dst,
                                             uint32_t filter_size, float d_min, float d_max,
                                             cudaStream_t stream) {
   if (filter_size > 11 || filter_size % 2 == 0) {
     throw std::runtime_error("Filter size must be odd and <= 11");
   }
 
-  pepper_vertical_launcher_.launch(size,
+  median_clip_launcher_.launch(size,
                                    stream,
                                    reinterpret_cast<const float*>(source->get_ptr(stream)),
                                    size,

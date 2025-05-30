@@ -187,8 +187,8 @@
                     <strong>Simulation Parameters:</strong>
                     <div style="margin-top: 12px;">
                         <label style="display: flex; align-items: center; gap: 8px; margin: 8px 0;">
-                            <input type="checkbox" id="pepperVerticalFilter" name="pepperVerticalFilter">
-                            <span>Pepper Vertical Filter</span>
+                            <input type="checkbox" id="medianClipSpeckleFilter" name="medianClipSpeckleFilter">
+                            <span>Median Clip Speckle Filter</span>
                         </label>
                         <label style="display: flex; align-items: center; gap: 8px; margin: 8px 0;">
                             <input type="checkbox" id="enableCudaTiming" name="enableCudaTiming" checked>
@@ -408,7 +408,7 @@
                     const params = await response.json();
 
                     // Update checkboxes with current values
-                    document.getElementById('pepperVerticalFilter').checked = params.pepper_vertical_filter;
+                    document.getElementById('medianClipSpeckleFilter').checked = params.median_clip_filter;
                     document.getElementById('enableCudaTiming').checked = params.enable_cuda_timing;
                     document.getElementById('writeDebugImages').checked = params.write_debug_images;
                 }
@@ -549,8 +549,8 @@
                 changeProbeType(e.target.value);
             });
 
-            document.getElementById('pepperVerticalFilter').addEventListener('change', (e) => {
-                updateSimParams('pepper_vertical_filter', e.target.checked);
+            document.getElementById('medianClipSpeckleFilter').addEventListener('change', (e) => {
+                updateSimParams('median_clip_filter', e.target.checked);
             });
 
             document.getElementById('enableCudaTiming').addEventListener('change', (e) => {
