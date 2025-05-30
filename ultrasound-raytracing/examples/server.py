@@ -170,7 +170,6 @@ def get_sim_params():
     """Get current simulation parameters"""
     return {
         "pepper_vertical_filter": sim_params.pepper_vertical_filter,
-        "conv_psf": sim_params.conv_psf,
         "enable_cuda_timing": sim_params.enable_cuda_timing,
         "write_debug_images": sim_params.write_debug_images
     }
@@ -185,9 +184,6 @@ def set_sim_params():
         if "pepper_vertical_filter" in params:
             sim_params.pepper_vertical_filter = bool(params["pepper_vertical_filter"])
 
-        if "conv_psf" in params:
-            sim_params.conv_psf = bool(params["conv_psf"])
-
         if "enable_cuda_timing" in params:
             sim_params.enable_cuda_timing = bool(params["enable_cuda_timing"])
 
@@ -198,7 +194,6 @@ def set_sim_params():
             "status": "success",
             "params": {
                 "pepper_vertical_filter": sim_params.pepper_vertical_filter,
-                "conv_psf": sim_params.conv_psf,
                 "enable_cuda_timing": sim_params.enable_cuda_timing,
                 "write_debug_images": sim_params.write_debug_images
             }

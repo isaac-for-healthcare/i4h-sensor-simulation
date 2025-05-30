@@ -191,10 +191,6 @@
                             <span>Pepper Vertical Filter</span>
                         </label>
                         <label style="display: flex; align-items: center; gap: 8px; margin: 8px 0;">
-                            <input type="checkbox" id="convPsf" name="convPsf" checked>
-                            <span>PSF Convolution</span>
-                        </label>
-                        <label style="display: flex; align-items: center; gap: 8px; margin: 8px 0;">
                             <input type="checkbox" id="enableCudaTiming" name="enableCudaTiming" checked>
                             <span>CUDA Timing</span>
                         </label>
@@ -413,7 +409,6 @@
 
                     // Update checkboxes with current values
                     document.getElementById('pepperVerticalFilter').checked = params.pepper_vertical_filter;
-                    document.getElementById('convPsf').checked = params.conv_psf;
                     document.getElementById('enableCudaTiming').checked = params.enable_cuda_timing;
                     document.getElementById('writeDebugImages').checked = params.write_debug_images;
                 }
@@ -556,10 +551,6 @@
 
             document.getElementById('pepperVerticalFilter').addEventListener('change', (e) => {
                 updateSimParams('pepper_vertical_filter', e.target.checked);
-            });
-
-            document.getElementById('convPsf').addEventListener('change', (e) => {
-                updateSimParams('conv_psf', e.target.checked);
             });
 
             document.getElementById('enableCudaTiming').addEventListener('change', (e) => {
