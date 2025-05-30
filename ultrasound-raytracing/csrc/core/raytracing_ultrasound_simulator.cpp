@@ -387,6 +387,9 @@ RaytracingUltrasoundSimulator::SimResult RaytracingUltrasoundSimulator::simulate
   }
 
   // 4. Median clip filter for speckle noise reduction
+  // Speckle noise is a type of salt-and-pepper noise, where the noise is randomly distributed
+  // across the image. The median filter is a good way to reduce speckle noise.
+  // https://en.wikipedia.org/wiki/Salt-and-pepper_noise
   if (sim_params.median_clip_filter) {
     {
       CudaTiming cuda_timing(
