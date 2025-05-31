@@ -218,7 +218,7 @@ lcov --remove coverage.info '/usr/*' '/tmp/*' '*/_deps/*' '*/third_party/*' --ou
 Then generate an HTML report:
 
 ```bash
-genhtml coverage.info --output-directory coverage-report --synthesize-missing --ignore-errors source
+genhtml coverage.cleaned.info --output-directory coverage-report --synthesize-missing --ignore-errors source
 ```
 
 ### Pre-commit Hooks
