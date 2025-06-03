@@ -132,6 +132,7 @@ sim_params.conv_psf = True
 sim_params.buffer_size = 4096
 sim_params.t_far = 180.0
 sim_params.enable_cuda_timing = True
+sim_params.median_clip_filter = False
 
 
 @app.route("/")
@@ -162,6 +163,43 @@ def get_initial_pose():
     # Convert the pose to a list for JSON serialization
     pose_list = current_pose.position.tolist() + current_pose.rotation.tolist()
     return {"pose": pose_list, "probe_type": active_probe}
+
+
+@app.route("/get_sim_params", methods=["GET"])
+def get_sim_params():
+    """Get current simulation parameters"""
+    return {
+        "median_clip_filter": sim_params.median_clip_filter,
+        "enable_cuda_timing": sim_params.enable_cuda_timing,
+        "write_debug_images": sim_params.write_debug_images
+    }
+
+
+@app.route("/set_sim_params", methods=["POST"])
+def set_sim_params():
+    """Update simulation parameters"""
+    try:
+        params = request.json
+
+        if "median_clip_filter" in params:
+            sim_params.median_clip_filter = bool(params["median_clip_filter"])
+
+        if "enable_cuda_timing" in params:
+            sim_params.enable_cuda_timing = bool(params["enable_cuda_timing"])
+
+        if "write_debug_images" in params:
+            sim_params.write_debug_images = bool(params["write_debug_images"])
+
+        return {
+            "status": "success",
+            "params": {
+                "median_clip_filter": sim_params.median_clip_filter,
+                "enable_cuda_timing": sim_params.enable_cuda_timing,
+                "write_debug_images": sim_params.write_debug_images
+            }
+        }
+    except Exception as e:
+        return {"status": "error", "message": str(e)}, 400
 
 
 @app.route("/simulate", methods=["POST"])

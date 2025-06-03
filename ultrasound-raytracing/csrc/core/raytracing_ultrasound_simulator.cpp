@@ -386,7 +386,31 @@ RaytracingUltrasoundSimulator::SimResult RaytracingUltrasoundSimulator::simulate
     write_image(d_scanlines.get(), plane_size, "debug_images/4_log_compression.png");
   }
 
-  // 4. Scan conversion - based on probe type
+  // 4. Median clip filter for speckle noise reduction
+  // Speckle noise is a type of salt-and-pepper noise, where the noise is randomly distributed
+  // across the image. The median filter is a good way to reduce speckle noise.
+  // https://en.wikipedia.org/wiki/Salt-and-pepper_noise
+  if (sim_params.median_clip_filter) {
+    {
+      CudaTiming cuda_timing(
+          sim_params.enable_cuda_timing, "Median clip filter", sim_params.stream);
+
+      // Create temporary buffer for filter output
+      auto d_filtered = std::make_unique<CudaMemory>(d_scanlines->get_size(), sim_params.stream);
+
+      // Apply median clip filter with 5x1 kernel, dMin=-60, dMax=0 (clamping)
+      cuda_algorithms_->median_clip_filter(
+          d_scanlines.get(), plane_size, d_filtered.get(), 5, -60.0f, 0.0f, sim_params.stream);
+
+      // Replace original with filtered data
+      d_scanlines = std::move(d_filtered);
+    }
+    if (sim_params.write_debug_images) {
+      write_image(d_scanlines.get(), plane_size, "debug_images/5_median_clip.png");
+    }
+  }
+
+  // 5. Scan conversion - based on probe type
   std::unique_ptr<CudaMemory> b_mode;
   {
     CudaTiming cuda_timing(sim_params.enable_cuda_timing, "Scan conversion", sim_params.stream);
