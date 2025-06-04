@@ -27,7 +27,7 @@ namespace raysim {
 
 class World;
 class Materials;
-class UltrasoundProbe;
+class BaseProbe;
 class CUDAAlgorithms;
 
 class RaytracingUltrasoundSimulator {
@@ -43,12 +43,13 @@ class RaytracingUltrasoundSimulator {
 
   /// Simulation parameters
   struct SimParams {
-    float t_far = 180.f;          // Maximum ray distance [mm]
-    uint32_t buffer_size = 4096;  // Samples per line
-    uint32_t max_depth = 15;      // Maximum reflection depth
-    float min_intensity = 1e-3f;  // Minimum intensity threshold
-    bool use_scattering = true;   // Enable scattering simulation
-    bool conv_psf = false;        // Convolve the raw hits with the PSF
+    float t_far = 180.f;              // Maximum ray distance [mm]
+    uint32_t buffer_size = 4096;      // Samples per line
+    uint32_t max_depth = 15;          // Maximum reflection depth
+    float min_intensity = 1e-3f;      // Minimum intensity threshold
+    bool use_scattering = true;       // Enable scattering simulation
+    bool conv_psf = false;            // Convolve the raw hits with the PSF
+    bool median_clip_filter = false;  // Enable median clip filter for speckle reduction
     uint2 b_mode_size = make_uint2(500, 500);
     cudaStream_t stream = cudaStreamPerThread;  // CUDA stream
     bool enable_cuda_timing = false;            // Print timing of CUDA operations
@@ -64,12 +65,12 @@ class RaytracingUltrasoundSimulator {
   /**
    * Generate a single B-mode ultrasound frame
    *
-   * @param probe UltrasoundProbe object
+   * @param probe BaseProbe object
    * @param sim_params Simulation parameters
    *
    * @returns Dictionary containing simulation results
    */
-  SimResult simulate(const UltrasoundProbe* probe, const SimParams& sim_params);
+  SimResult simulate(const BaseProbe* probe, const SimParams& sim_params);
 
   /**
    * Get the minimum x value of the simulated region
@@ -138,7 +139,7 @@ class RaytracingUltrasoundSimulator {
 
   std::unique_ptr<CudaMemory> tgc_curve_;
 
-  void update_psfs(const UltrasoundProbe* probe, cudaStream_t stream);
+  void update_psfs(const BaseProbe* probe, cudaStream_t stream);
 };
 
 }  // namespace raysim

@@ -23,9 +23,9 @@
 
 #include <spdlog/spdlog.h>
 
+#include "raysim/core/curvilinear_probe.hpp"
 #include "raysim/core/material.hpp"
 #include "raysim/core/raytracing_ultrasound_simulator.hpp"
-#include "raysim/core/ultrasound_probe.hpp"
 #include "raysim/core/world.hpp"
 #include "raysim/core/write_image.hpp"
 
@@ -67,7 +67,7 @@ int main(int argc, char* argv[]) {
 
     raysim::RaytracingUltrasoundSimulator simulator(&world, &materials);
 
-    raysim::UltrasoundProbe probe;
+    raysim::CurvilinearProbe probe;
     probe.set_num_el_samples(1);
 
     // Place probe above the center of the scene pointing down
@@ -80,19 +80,17 @@ int main(int argc, char* argv[]) {
     }
 
     // Create output directory
-    const std::filesystem::path output_dir("ultrasound_sweep");
+    const std::filesystem::path output_dir("liver_sweep");
     std::filesystem::create_directory(output_dir);
 
     // Sweep from left to right
     uint32_t N_frames = 100;
-    float3 start_rot = probe.get_pose().rotation_;
-    float3 end_rot = start_rot;
-    // start_rot.z -= 10.f / 360.f * 2 * M_PI;
-    // end_rot.z += 10.f / 360.f * 2 * M_PI;
-    float3 start_pos = probe.get_pose().position_;
-    float3 end_pos = start_pos;
-    start_pos.z -= (aabb_max.z - aabb_min.z) / 4.f;
-    end_pos.z += (aabb_max.z - aabb_min.z) / 4.f;
+    float3 start_rot = make_float3(-M_PI_2, M_PI, 0.f);
+    float3 end_rot = start_rot;  // Fixed rotation throughout sweep
+
+    float3 start_pos = make_float3(-30.f, -104.f, -30.f);
+    float3 end_pos = make_float3(-30.f, -104.f, 110.f);
+
     printf("start_pos: %f, %f, %f\n", start_pos.x, start_pos.y, start_pos.z);
     printf("end_pos: %f, %f, %f\n", end_pos.x, end_pos.y, end_pos.z);
     auto start = std::chrono::steady_clock::now();
@@ -103,11 +101,7 @@ int main(int argc, char* argv[]) {
       pos.x += (end_pos.x - start_pos.x) / N_frames * frame;
       pos.y += (end_pos.y - start_pos.y) / N_frames * frame;
       pos.z += (end_pos.z - start_pos.z) / N_frames * frame;
-      float3 rot = start_rot;
-      rot.x += (end_rot.x - start_rot.x) / N_frames * frame;
-      rot.y += (end_rot.y - start_rot.y) / N_frames * frame;
-      rot.z += (end_rot.z - start_rot.z) / N_frames * frame;
-      probe.set_pose(raysim::Pose(pos, rot));
+      probe.set_pose(raysim::Pose(pos, start_rot));  // Use fixed rotation
       spdlog::info("Current position: ({}, {}, {})", pos.x, pos.y, pos.z);
 
       // Generate frame
@@ -120,10 +114,10 @@ int main(int argc, char* argv[]) {
       if (result.b_mode) {
         // Write frame
         auto min_max = make_float2(-60.f, 0.f);
-        write_image(result.b_mode.get(),
-                    sim_params.b_mode_size,
-                    output_dir / fmt::format("frame_{0:03}.png", frame),
-                    &min_max);
+        raysim::write_image(result.b_mode.get(),
+                            sim_params.b_mode_size,
+                            output_dir / fmt::format("frame_{0:03}.png", frame),
+                            &min_max);
       }
     }
 
@@ -134,7 +128,6 @@ int main(int argc, char* argv[]) {
                  N_frames,
                  elapsed.count(),
                  static_cast<float>(N_frames) / (static_cast<float>(elapsed.count()) / 1000.F));
-
   } catch (std::exception& e) {
     spdlog::error("Failed with exception '{}'", e.what());
     return EXIT_FAILURE;

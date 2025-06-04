@@ -23,16 +23,83 @@
 
 namespace raysim {
 
-// 3D pose with position and orientation
+/**
+ * Convert degrees to radians
+ *
+ * @param degrees Angle in degrees
+ * @return Angle in radians
+ */
+constexpr float deg2rad(float degrees) {
+  return degrees * (M_PI / 180.0f);
+}
+
+/**
+ * Convert radians to degrees
+ *
+ * @param radians Angle in radians
+ * @return Angle in degrees
+ */
+constexpr float rad2deg(float radians) {
+  return radians * (180.0f / M_PI);
+}
+
+/**
+ * Represents a 3D pose with position and orientation.
+ * Handles coordinate transformations between local and world space.
+ *
+ * Note: position_, rotation_, and rotation_matrix_ are public to allow direct
+ * access by GPU/OptiX code for performance reasons. In CPU code, prefer using
+ * the transformation methods local_to_world_point() and local_to_world_direction().
+ */
 class Pose {
  public:
-  // Constructor declaration
+  /**
+   * Default constructor initializes to identity pose at origin
+   */
+  Pose()
+      : position_(make_float3(0.f, 0.f, 0.f)),
+        rotation_(make_float3(0.f, 0.f, 0.f)),
+        rotation_matrix_(make_identity()) {}
+
+  /**
+   * Construct a pose from position and rotation
+   *
+   * @param position Position vector [x, y, z] in world coordinates (mm)
+   * @param rotation Rotation vector [rx, ry, rz] in radians
+   */
   Pose(float3 position, float3 rotation);
 
-  float3 position_;  // [x, y, z]
-  float3 rotation_;  // [rx, ry, rz] in radians
+  // Core data members - public for direct GPU access
+  float3 position_;          // [x, y, z] in world coordinates (mm)
+  float3 rotation_;          // [rx, ry, rz] in radians
+  float33 rotation_matrix_;  // Cached rotation matrix for efficient transforms
 
-  float33 rotation_matrix_;
+  /**
+   * Transform a point from local to world coordinates.
+   * Applies both rotation and translation.
+   *
+   * For CPU code, prefer this over direct matrix operations.
+   *
+   * @param local_point Point in local coordinates
+   * @return Point in world coordinates
+   */
+  float3 local_to_world_point(const float3& local_point) const {
+    float3 rotated = rotation_matrix_ * local_point;
+    return make_float3(rotated.x + position_.x, rotated.y + position_.y, rotated.z + position_.z);
+  }
+
+  /**
+   * Transform a direction vector from local to world coordinates.
+   * Only applies rotation, not translation.
+   *
+   * For CPU code, prefer this over direct matrix operations.
+   *
+   * @param local_dir Direction vector in local coordinates
+   * @return Direction vector in world coordinates
+   */
+  float3 local_to_world_direction(const float3& local_dir) const {
+    return rotation_matrix_ * local_dir;
+  }
 };
 
 }  // namespace raysim

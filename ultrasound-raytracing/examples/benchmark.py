@@ -30,25 +30,31 @@ def get_gpu_info():
     """Get GPU information using nvidia-smi."""
     try:
         # First check if nvidia-smi is available
-        subprocess.run(['which', 'nvidia-smi'], check=True, capture_output=True)
+        subprocess.run(["which", "nvidia-smi"], check=True, capture_output=True)
 
         # Get detailed GPU info
-        nvidia_smi = subprocess.check_output([
-            'nvidia-smi',
-            '--query-gpu=gpu_name,memory.total,driver_version',
-            '--format=csv,nounits,noheader'
-        ]).decode().strip()
+        nvidia_smi = (
+            subprocess.check_output(
+                [
+                    "nvidia-smi",
+                    "--query-gpu=gpu_name,memory.total,driver_version",
+                    "--format=csv,nounits,noheader",
+                ]
+            )
+            .decode()
+            .strip()
+        )
 
         # Take only the first line if multiple GPUs
-        first_gpu = nvidia_smi.split('\n')[0]
+        first_gpu = nvidia_smi.split("\n")[0]
 
         # Split only on the last two commas since GPU name might contain commas
-        parts = first_gpu.split(',')
+        parts = first_gpu.split(",")
         if len(parts) < 3:
             return "GPU information incomplete (unexpected nvidia-smi output format)"
 
         # Reconstruct GPU name from all parts except last two
-        gpu_name = ','.join(parts[:-2]).strip()
+        gpu_name = ",".join(parts[:-2]).strip()
         memory = parts[-2].strip()
         driver = parts[-1].strip()
 
@@ -72,10 +78,10 @@ def get_gpu_info():
 def get_cpu_info():
     """Get CPU information."""
     try:
-        with open('/proc/cpuinfo') as f:
+        with open("/proc/cpuinfo") as f:
             cpu_info = f.read()
-        model_name = re.search(r'model name\s+:\s+(.*)', cpu_info).group(1)
-        cpu_cores = len(re.findall(r'processor\s+:', cpu_info))
+        model_name = re.search(r"model name\s+:\s+(.*)", cpu_info).group(1)
+        cpu_cores = len(re.findall(r"processor\s+:", cpu_info))
         return f"{model_name} ({cpu_cores} cores)"
     except Exception as e:
         return f"CPU information unavailable: {e}"
@@ -84,7 +90,7 @@ def get_cpu_info():
 def read_previous_fps(results_file):
     """Read the average FPS from a previous benchmark results file."""
     try:
-        with open(results_file, 'r') as f:
+        with open(results_file, "r") as f:
             content = f.read()
             # Extract average FPS using regular expression
             match = re.search(r"Average FPS: (\d+\.\d+)", content)
@@ -109,9 +115,11 @@ def main():
     # Create probe with initial pose
     initial_pose = rs.Pose(
         np.array([40.0, -110.0, -300.0], dtype=np.float32),  # position (x, y, z)
-        np.array([np.deg2rad(-84.0), np.deg2rad(22.0), np.deg2rad(0.0)], dtype=np.float32)   # rotation (x, y, z
+        np.array(
+            [np.deg2rad(-84.0), np.deg2rad(22.0), np.deg2rad(0.0)], dtype=np.float32
+        ),  # rotation (x, y, z
     )
-    probe = rs.UltrasoundProbe(initial_pose, num_elements=256)
+    probe = rs.CurvilinearProbe(initial_pose, num_elements_x=256)
 
     # Create simulator
     simulator = rs.RaytracingUltrasoundSimulator(world, materials)
@@ -121,8 +129,13 @@ def main():
     sim_params.conv_psf = True
     sim_params.buffer_size = 4096
     sim_params.t_far = 180.0
-    sim_params.enable_cuda_timing = False  # Set to True to enable CUDA profiling of processings steps
-    sim_params.b_mode_size = (500, 500,)
+    sim_params.enable_cuda_timing = (
+        False  # Set to True to enable CUDA profiling of processings steps
+    )
+    sim_params.b_mode_size = (
+        500,
+        500,
+    )
 
     # Setup benchmark parameters
     N_frames = 200
@@ -136,12 +149,14 @@ def main():
 
     for i in tqdm(range(N_frames), desc="Simulating frames"):
         # Calculate z position with a smooth oscillation to simulate realistic movement
-        z = z_start + (z_range/2) * np.sin(i * 0.1)
+        z = z_start + (z_range / 2) * np.sin(i * 0.1)
 
         # Create probe with updated pose
         position = np.array([40.0, -110.0, z], dtype=np.float32)
-        rotation = np.array([np.deg2rad(-84.0), np.deg2rad(22.0), np.deg2rad(0.0)], dtype=np.float32)
-        probe = rs.UltrasoundProbe(rs.Pose(position=position, rotation=rotation))
+        rotation = np.array(
+            [np.deg2rad(-84.0), np.deg2rad(22.0), np.deg2rad(0.0)], dtype=np.float32
+        )
+        probe = rs.CurvilinearProbe(rs.Pose(position=position, rotation=rotation))
 
         # Time the simulation
         start_time = time.time()
@@ -160,7 +175,7 @@ def main():
     max_fps = 1.0 / np.min(frame_times)
 
     # Create benchmark results report string (used for both console and file output)
-    timestamp = time.strftime('%Y-%m-%d %H:%M:%S')
+    timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
     results_report = f"""Benchmark Results:
         Total frames: {N_frames}
         Average frame time: {avg_frame_time:.4f} seconds
@@ -192,7 +207,9 @@ def main():
         print(f"Previous best: {previous_fps:.2f} FPS, New best: {avg_fps:.2f} FPS")
     else:
         if previous_fps > 0:
-            print(f"Results not saved. Previous best ({previous_fps:.2f} FPS) outperforms current result ({avg_fps:.2f} FPS)")
+            print(
+                f"Results not saved. Previous best ({previous_fps:.2f} FPS) outperforms current result ({avg_fps:.2f} FPS)"
+            )
         else:
             print("No previous results found. Creating new benchmark file.")
             with open(results_file, "w") as f:
