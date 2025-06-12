@@ -121,6 +121,23 @@ class CUDAAlgorithms {
   void hilbert_row(CudaMemory* buffer, uint2 size, cudaStream_t stream);
 
   /**
+   * Apply median clip filter (median filter with clamping).
+   *
+   * Applies a vertical median filter and clamps the center pixel to be within
+   * a range of [median-d_min, median+d_max].
+   *
+   * @param source [in] source buffer data
+   * @param size [in] buffer size
+   * @param dst [out] destination buffer data
+   * @param filter_size [in] size of the vertical filter kernel (must be odd and <= 11)
+   * @param d_min [in] minimum distance from median (lower bound)
+   * @param d_max [in] maximum distance from median (upper bound)
+   * @param stream [in] CUDA stream
+   */
+  void median_clip_filter(CudaMemory* source, uint2 size, CudaMemory* dst, uint32_t filter_size,
+                          float d_min, float d_max, cudaStream_t stream);
+
+  /**
    * Convert curvilinear scan data to Cartesian coordinates for display
    *
    * @param scan_lines 2D array where each row is a scan line (shape: n_angles x n_depths)
@@ -172,6 +189,7 @@ class CUDAAlgorithms {
   const CudaLauncher mean_planes_launcher_;
   const CudaLauncher log_compression_launcher_;
   const CudaLauncher mul_rows_launcher_;
+  const CudaLauncher median_clip_launcher_;
   const CudaLauncher scan_convert_curvilinear_launcher_;
   const CudaLauncher scan_convert_linear_launcher_;
   const CudaLauncher scan_convert_phased_launcher_;
