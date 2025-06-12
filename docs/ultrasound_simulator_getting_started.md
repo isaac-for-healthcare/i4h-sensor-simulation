@@ -1011,8 +1011,8 @@ min_val = -60.0
 max_val = 0.0
 normalized_image = np.clip((image - min_val) / (max_val - min_val), 0, 1)
 
-min_x = simulator.get_min_x() * 2
-max_x = simulator.get_max_x() * 2
+min_x = simulator.get_min_x()
+max_x = simulator.get_max_x()
 min_z = simulator.get_min_z()
 max_z = simulator.get_max_z()
 
@@ -1021,7 +1021,7 @@ plt.imshow(
     normalized_image,
     cmap='gray',
     extent=[min_x, max_x, max_z, min_z],
-    aspect='auto'
+    aspect='equal'
 )
 plt.title("Liver Anatomy in Water Bath\nCurvilinear Probe - 3.5 MHz", fontsize=14)
 plt.xlabel("Width (mm)")
