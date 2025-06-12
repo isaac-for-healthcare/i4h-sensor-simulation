@@ -14,7 +14,7 @@ Ultrasound imaging relies on high-frequency sound waves (typically 1-20 MHz) pro
 - **Reflection and Refraction**: At interfaces between tissues with different acoustic impedances, waves are partially reflected and refracted
 - **Scattering**: Small tissue structure that are smaller than the wavelength of the transmitted pulse scatter ultrasound energy in multiple directions. When scattered signals return to the transducer, they create the characteristic speckle pattern
 
-see further definitions in [Helpful Definitions](#8-helpful-definitions)
+see further definitions in [Helpful Definitions](#6-helpful-definitions)
 
 #### Point Spread Function
 
