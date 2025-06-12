@@ -738,4 +738,329 @@ This chapter demonstrated how scan parameters control image appearance and quali
 
 ---
 
-Next: Chapter 4 will explore different probe types (`LinearArrayProbe`, `CurvilinearProbe`, `PhasedArrayProbe`) and their imaging characteristics.
+## Chapter 4: Probe Types and Imaging Geometry
+
+**Goal**: Understand how different probe types create different imaging patterns and field geometries
+
+So far we've used linear array probes, which create rectangular images with parallel beams. But ultrasound systems use different probe types for different clinical applications. Let's explore the three main probe types and see how they create different imaging geometries.
+
+### Understanding Probe Types
+
+The simulator supports three main probe types, each optimized for different clinical scenarios:
+
+| Probe Type | Field Shape | Best For | Beam Pattern |
+|------------|-------------|----------|--------------|
+| **Linear Array** | Rectangular | Superficial structures, vascular | Parallel beams |
+| **Curvilinear** | Sector (curved) | Abdominal imaging | Diverging beams from curved surface |
+| **Phased Array** | Sector (straight) | Cardiac, intercostal | Electronically steered (diverging) beams from a small flat surface |
+
+### Experiment: Probe Type Comparison
+
+Let's create the same phantom with all three probe types to see their different imaging characteristics:
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+import raysim.cuda as rs
+
+# Create a test phantom with multiple spheres
+materials = rs.Materials()
+world = rs.World("liver")
+
+# Add spheres at different positions to show field geometry
+sphere_positions = [
+    [-20, 0, 60],   # Left
+    [0, 0, 60],     # Center
+    [20, 0, 60],    # Right
+    [0, 0, 100],    # Deep center
+]
+
+for i, pos in enumerate(sphere_positions):
+    material_id = materials.get_index("water")
+    sphere = rs.Sphere(
+        np.array(pos, dtype=np.float32),
+        8,  # 8mm radius
+        material_id
+    )
+    world.add(sphere)
+
+# Create simulator once
+simulator = rs.RaytracingUltrasoundSimulator(world, materials)
+
+# Configure simulation parameters
+sim_params = rs.SimParams()
+sim_params.conv_psf = True
+sim_params.b_mode_size = (1500, 1500)
+sim_params.t_far = 150.0
+sim_params.buffer_size = 4096
+
+# Create three different probes
+linear_probe = rs.LinearArrayProbe(
+    rs.Pose(position=[0., 0., 0.], rotation=[0., 0., 0.]),
+    frequency=5.0,
+    width=50.0,  # 50mm width
+    num_elements_x=128
+)
+
+curvilinear_probe = rs.CurvilinearProbe(
+    rs.Pose(position=[0., 0., 0.], rotation=[0., 0., 0.]),
+    frequency=3.5,
+    radius=60.0,  # 60mm radius of curvature
+    sector_angle=60.0,  # 60 degree sector
+    num_elements_x=128
+)
+
+phased_probe = rs.PhasedArrayProbe(
+    rs.Pose(position=[0., 0., 0.], rotation=[0., 0., 0.]),
+    frequency=2.5,
+    width=20.0,  # 20mm footprint
+    sector_angle=90.0,  # 90 degree sector
+    num_elements_x=64
+)
+
+probes = [linear_probe, curvilinear_probe, phased_probe]
+probe_names = ['Linear Array', 'Curvilinear', 'Phased Array']
+descriptions = [
+    'Rectangular field, parallel beams',
+    'Curved sector field, wide coverage',
+    'Sector field from small footprint'
+]
+
+# Create comparison plot
+fig, axes = plt.subplots(1, 3, figsize=(18, 6))
+
+for i, (probe, probe_name, description) in enumerate(zip(probes, probe_names, descriptions)):
+    # Run simulation
+    image = simulator.simulate(probe, sim_params)
+
+    # Normalize for display
+    min_val = -60.0
+    max_val = 0.0
+    normalized_image = np.clip((image - min_val) / (max_val - min_val), 0, 1)
+
+    # Get coordinates (note: different probes may have different coordinate systems)
+    min_x = simulator.get_min_x() * 2
+    max_x = simulator.get_max_x() * 2
+    min_z = simulator.get_min_z()
+    max_z = simulator.get_max_z()
+
+    aspect_ratio = 'auto' if probe_name != 'Curvilinear' else 'equal' # Curvilinear probe has a different aspect ratio in it's scan conversion
+
+    # Curvilinear dimensions conditional - swap min/max for proper display
+    if probe_name == 'Curvilinear':
+        max_z, min_z = min_z, max_z
+
+    # Display
+    axes[i].imshow(
+        normalized_image,
+        cmap='gray',
+        extent=[min_x, max_x, max_z, min_z],
+        aspect=aspect_ratio
+    )
+    axes[i].set_title(f"{probe_name}\n{description}")
+    axes[i].set_xlabel("Width (mm)")
+    axes[i].set_ylabel("Depth (mm)")
+
+plt.tight_layout()
+plt.savefig("Getting_Started_Chapter_4_1_Probe_Types.png")
+plt.show()
+```
+
+### Understanding Field Geometry Differences
+
+**Linear Array Characteristics**:
+- **Field Shape**: Rectangular, uniform width
+- **Beam Pattern**: Parallel beams perpendicular to probe face
+- **Resolution**: Consistent lateral resolution at all depths
+- **Coverage**: Limited to probe width, no expansion with depth
+- **Clinical Use**: Vascular, superficial structures, musculoskeletal
+
+**Curvilinear Characteristics**:
+- **Field Shape**: Sector expanding with depth
+- **Beam Pattern**: Diverging beams from curved transducer surface
+- **Resolution**: Good near-field, decreasing lateral resolution with depth
+- **Coverage**: Wide field of view, excellent for large organs
+- **Clinical Use**: Abdominal, obstetric, general imaging
+
+**Phased Array Characteristics**:
+- **Field Shape**: Sector from small footprint
+- **Beam Pattern**: Electronically steered beams
+- **Resolution**: Variable, depends on steering angle
+- **Coverage**: Wide sector from minimal surface contact
+- **Clinical Use**: Cardiac, intercostal windows
+
+### Experiment: Probe Parameter Effects
+
+Let's see how key probe parameters affect the imaging:
+
+```python
+# ... World generation code from 4.1
+# Example: Linear Array Width Comparison
+widths = [30, 50, 70]  # Different probe widths in mm
+
+fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+
+for i, width in enumerate(widths):
+    probe = rs.LinearArrayProbe(
+        rs.Pose(position=[0., 0., 0.], rotation=[0., 0., 0.]),
+        frequency=5.0,
+        width=width,
+        num_elements_x=128
+    )
+
+    image = simulator.simulate(probe, sim_params)
+    normalized_image = np.clip((image + 60.0) / 60.0, 0, 1)
+
+    min_x = simulator.get_min_x() * 2
+    max_x = simulator.get_max_x() * 2
+    min_z = simulator.get_min_z()
+    max_z = simulator.get_max_z()
+
+    axes[i].imshow(normalized_image, cmap='gray',
+                   extent=[min_x, max_x, max_z, min_z], aspect='auto')
+    axes[i].set_title(f"Width: {width}mm")
+    axes[i].set_xlabel("Width (mm)")
+    axes[i].set_ylabel("Depth (mm)")
+
+plt.tight_layout()
+plt.savefig("Getting_Started_Chapter_4_2_Width_Comparison.png")
+plt.show()
+```
+
+### Clinical Applications Guide
+
+**When to Use Linear Arrays**:
+- Superficial structures (< 6cm depth)
+- Vascular imaging (carotid, peripheral vessels)
+- Musculoskeletal applications
+- Small parts (thyroid, breast, testicles)
+- When uniform resolution is needed
+
+**When to Use Curvilinear**:
+- Abdominal imaging (liver, kidneys, gallbladder)
+- Obstetric and gynecologic imaging
+- Deep structures requiring wide field of view
+- General purpose imaging
+
+**When to Use Phased Array**:
+- Cardiac imaging (echocardiography)
+- Intercostal imaging (limited acoustic windows)
+- Pediatric applications (small contact area)
+- When small footprint is essential
+
+This chapter demonstrated how different probe types create fundamentally different imaging geometries. Linear arrays provide uniform rectangular coverage, curvilinear probes offer wide sector views for deep imaging, and phased arrays enable sector imaging from small footprints. The choice of probe type significantly affects field of view, resolution characteristics, and clinical applicability. Probe geometries can be parametriszed to match real-world probes in curvature, sector angle, freqeuency, scan depth and size.
+
+---
+
+## Chapter 5: Building Complex Scenes
+
+**Goal**: Learn to create realistic, complex ultrasound phantoms using meshes and multiple objects
+
+So far we've worked with simple spheres, but real ultrasound imaging involves complex anatomical structures. The simulator can load 3D mesh files to create realistic organ phantoms. Let's build a complex abdominal scene step by step.
+
+### Loading 3D Mesh Objects
+
+> **NOTE:** Be sure to download the mesh assets as described in [README.md](../README.md) before starting with this section.
+
+The simulator can load standard 3D mesh formats (OBJ files) to represent complex anatomical structures:
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+import raysim.cuda as rs
+
+# Create materials and world
+materials = rs.Materials()
+world = rs.World("water")  # Start with water background
+
+# Load a liver mesh
+liver_material_id = materials.get_index("liver")
+liver_mesh = rs.Mesh("mesh/Liver.obj", liver_material_id)
+world.add(liver_mesh)
+
+# Create simulator
+simulator = rs.RaytracingUltrasoundSimulator(world, materials)
+
+# Use curvilinear probe for abdominal imaging
+# IMPORTANT: Position the probe above the liver mesh (similar to real clinical positioning)
+# When using mesh objects, the probe must be positioned correctly relative to the mesh
+pose = rs.Pose(
+    position=[-30., -104., 40.],   # Position above liver
+    rotation=[-np.pi/2, np.pi, 0.]  # Orient probe to face downward into liver
+)
+probe = rs.CurvilinearProbe(
+    pose,
+    frequency=3.5,  # Good for abdominal imaging
+    radius=60.0,
+    sector_angle=70.0,
+    num_elements_x=256
+)
+
+# Configure simulation for detailed imaging
+sim_params = rs.SimParams()
+sim_params.conv_psf = True
+sim_params.b_mode_size = (2000, 2000)  # High resolution
+sim_params.t_far = 200.0  # Deep imaging
+sim_params.buffer_size = 4096
+
+# Run simulation
+image = simulator.simulate(probe, sim_params)
+
+# Display with clinical-style presentation
+min_val = -60.0
+max_val = 0.0
+normalized_image = np.clip((image - min_val) / (max_val - min_val), 0, 1)
+
+min_x = simulator.get_min_x() * 2
+max_x = simulator.get_max_x() * 2
+min_z = simulator.get_min_z()
+max_z = simulator.get_max_z()
+
+plt.figure(figsize=(12, 10))
+plt.imshow(
+    normalized_image,
+    cmap='gray',
+    extent=[min_x, max_x, max_z, min_z],
+    aspect='auto'
+)
+plt.title("Liver Anatomy in Water Bath\nCurvilinear Probe - 3.5 MHz", fontsize=14)
+plt.xlabel("Width (mm)")
+plt.ylabel("Depth (mm)")
+
+
+plt.colorbar(label="Normalized Intensity")
+plt.savefig("Getting_Started_Chapter_5_1_Complex_Scene.png", dpi=150, bbox_inches='tight')
+plt.show()
+```
+
+### Understanding Mesh vs Sphere Objects
+
+The simulator supports two main types of objects:
+
+| Object Type | Best For | Example Usage |
+|-------------|----------|---------------|
+| **Spheres** | Simple phantoms, point targets | Basic testing, learning fundamentals |
+| **Mesh Objects** | Realistic anatomy | Organ simulation, clinical training |
+
+> ⚠️ **Important**: Currently, mesh objects and sphere objects cannot be used together in the same world. Choose one type based on your simulation needs.
+
+---
+
+## Conclusion
+
+Congratulations! You've completed the ultrasound simulator getting started tutorial. You now understand:
+
+### Advanced Examples
+
+For more complex simulations and advanced usage, see these example files:
+
+**Sphere-based Phantoms**:
+- `examples/sphere_sweep.py` - Demonstrates probe positioning and movement with sphere objects
+
+**Mesh-based Phantoms**:
+- `examples/liver_sweep.py` - Displays relative positioning and movement over mesh assets
+- `examples/server.py` - Interactive web-based ultrasound simulator with multiple organ meshes
+
+These examples show more sophisticated techniques including probe movement, multiple organ systems, and interactive interfaces.
+
+Happy simulating!
