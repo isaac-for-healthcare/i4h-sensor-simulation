@@ -18,6 +18,24 @@ Key features:
 
 [Learn more about the Ultrasound Raytracing Simulator](./ultrasound-raytracing/README.md)
 
+## Repository Structure
+
+```
+i4h-sensor-simulation/
+├── docs/                      # Documentation and guides
+├── tools/                     # Development and maintenance tools
+└── ultrasound-raytracing/     # Ultrasound raytracing simulator
+    ├── .devcontainer/         # Development container configuration
+    ├── .vscode/               # VS Code configuration
+    ├── cmake/                 # CMake build configuration
+    ├── csrc/                  # C++/CUDA source code
+    ├── examples/              # Usage examples and demos
+    ├── include/               # C++ header files
+    ├── raysim/                # Python package and bindings
+    ├── third_party/           # External dependencies
+    └── utils/                 # Utility scripts
+```
+
 ## Requirements
 
 - NVIDIA GPU with CUDA support
