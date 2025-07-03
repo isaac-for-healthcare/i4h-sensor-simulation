@@ -130,7 +130,7 @@ Benchmark Results:
 >
 >   - If you experience this issue, try specifying the GPU you want to use by setting the environment variable `export CUDA_VISIBLE_DEVICES=> >.<selected device number>` before building the project.
 >
-7. Run examples
+6. Run examples
 
    **Using uv**
    ```bash
