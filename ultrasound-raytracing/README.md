@@ -128,7 +128,7 @@ Benchmark Results:
 >
 >   - In the [CMake setup file](./cmake/SetupCUDA.cmake), the default value for `CMAKE_CUDA_ARCHITECTURES` is set to `native`. This setting **may >cause compilation failures** on systems with multiple NVIDIA GPUs that have different compute capabilities.
 >
->   - If you experience this issue, try specifying the GPU you want to use by setting the environment variable `export CUDA_VISIBLE_DEVICES=> >.<selected device number>` before building the project.
+>   - If you experience this issue, try specifying the GPU you want to use by setting the environment variable `export CUDA_VISIBLE_DEVICES=<selected device number>` before building the project.
 >
 6. Run examples
 
