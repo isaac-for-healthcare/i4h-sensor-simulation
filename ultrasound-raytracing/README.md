@@ -98,7 +98,7 @@ Benchmark Results:
 
 5. Build the project
 
-> Note: Before bulding, ensure the cuda compiler `nvcc` is installed.
+> Note: Before building, ensure the cuda compiler `nvcc` is installed.
 >
 >  ```bash
 >  $ which nvcc
