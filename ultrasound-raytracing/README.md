@@ -98,6 +98,18 @@ Benchmark Results:
 
 5. Build the project
 
+> Note: Before bulding, ensure the cuda compiler `nvcc` is installed.
+>
+>  ```bash
+>  $ which nvcc
+>  ```
+>
+>  If nvcc is not found, ensure cuda-toolkit is installed and can be found in `$PATH` and `$LD_LIBRARY_PATH` e.g.:
+> ```bash
+> export PATH=/usr/local/cuda/bin/:$PATH
+> export LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH
+> ```
+
    CMake 3.24.0 or higher is required to build the project, you can use `cmake --version` to check your version. If an older version is installed, you need to upgrade it:
 
    ```bash
@@ -112,13 +124,13 @@ Benchmark Results:
    cmake --build build-release -j $(nproc)
    ```
 
-   Note:
-
-   - In the [CMake setup file](./cmake/SetupCUDA.cmake), the default value for `CMAKE_CUDA_ARCHITECTURES` is set to `native`. This setting **may cause compilation failures** on systems with multiple NVIDIA GPUs that have different compute capabilities.
-
-   - If you experience this issue, try specifying the GPU you want to use by setting the environment variable `export CUDA_VISIBLE_DEVICES=<selected device number>` before building the project.
-
-6. Run examples
+>   Note:
+>
+>   - In the [CMake setup file](./cmake/SetupCUDA.cmake), the default value for `CMAKE_CUDA_ARCHITECTURES` is set to `native`. This setting **may >cause compilation failures** on systems with multiple NVIDIA GPUs that have different compute capabilities.
+>
+>   - If you experience this issue, try specifying the GPU you want to use by setting the environment variable `export CUDA_VISIBLE_DEVICES=> >.<selected device number>` before building the project.
+>
+7. Run examples
 
    **Using uv**
    ```bash
