@@ -174,7 +174,7 @@ world.add(sphere)
 simulator = rs.RaytracingUltrasoundSimulator(world, materials)
 
 # Configure probe
-probe = rs.UltrasoundProbe(rs.Pose(position=[0, 0, 0], rotation=[0, np.pi, 0]))
+probe = rs.CuvilinearProbe(rs.Pose(position=[0, 0, 0], rotation=[0, np.pi, 0]))
 
 # Set simulation parameters
 sim_params = rs.SimParams()
@@ -190,6 +190,48 @@ For development, VSCode with the dev container is recommended:
 1. Open project in VSCode with Dev Containers extension
 2. Use command palette (`Ctrl+Shift+P`) to run `CMake: Configure`
 3. Build with `F7` or `Ctrl+Shift+B`
+
+### Integration Testing and Coverage
+
+Integration tests are located in the `test` directory at the project root and are run through the Python API, exercising the C++/CUDA backend. Coverage for C++/CUDA can be collected by building with coverage flags.
+
+**To run integration tests:**
+
+- **Build with Coverage Tooling:**
+  ```bash
+  cmake -DCMAKE_BUILD_TYPE=Coverage -B build-coverage
+  cmake --build build-coverage -j $(nproc)
+
+  ```
+
+- **Test and Generate Coverage in Pytest:**
+  ```bash
+  pytest test
+  ```
+
+**To collect C++/CUDA coverage:**
+
+> Note: For the following steps, the python environment must match the build environment. Specifically, when building in a .devcontainer, the following steps must also be run within the .devcontainer
+
+Install `lcov` using system apt:
+
+After running tests, use `lcov` to collect coverage data from the build directory. CUDA code may cause line mismatch errors, so add `--ignore-errors mismatch`:
+
+```bash
+lcov --capture --directory build-coverage --output-file coverage.info --ignore-errors mismatch --ignore-errors source
+```
+
+Clean up the report to remove system and temporary files:
+
+```bash
+lcov --remove coverage.info '/usr/*' '/tmp/*' '*/_deps/*' '*/third_party/*' --output-file coverage.cleaned.info
+```
+
+Then generate an HTML report:
+
+```bash
+genhtml coverage.cleaned.info --output-directory coverage-report --synthesize-missing --ignore-errors source
+```
 
 ### Pre-commit Hooks
 
