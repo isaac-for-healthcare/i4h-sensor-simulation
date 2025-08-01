@@ -164,7 +164,7 @@ When rays intersect with objects in the scene, several physical phenomena are si
     - \(f\) is the centre frequency in **MHz** (passed from the probe settings)
     - \(d\) is the propagation distance in **cm**
   - Note the same symbol \(\alpha\) is used throughout the guide and in the CUDA kernel to denote attenuation; earlier drafts used the symbol \(\mu\).  This change removes that ambiguity.
-  - Typical values of \(\alpha\) for biological tissues are drawn from the IT’IS Foundation tissue–property database [[6]](#ref-itis-db]).
+  - Typical values of \(\alpha\) for biological tissues are drawn from the IT’IS Foundation tissue–property database [[6]](#ref-itis-db).
 
 
 - **Scattering**: Backscattering from tissues based on material properties
@@ -364,7 +364,8 @@ Have a look at our [Quick Start Guide](../ultrasound-raytracing/README.md) to ru
 
 [5] Prince, J. L., & Links, J. M. (2015) - "Medical Imaging Signals and Systems"
 
-[6] <a id="ref-itis-db"></a> IT’IS Foundation. *Tissue Properties Database*, v5.3, 2024. <https://itis.swiss/virtual-population/tissue-properties/database/>
+<a id="ref-itis-db"></a>[6] IT’IS Foundation. *Tissue Properties Database*, v5.3, 2024.
+https://itis.swiss/virtual-population/tissue-properties/database/
 
 ## 6. Helpful Definitions
 
