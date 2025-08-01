@@ -38,7 +38,7 @@ world = rs.World("water")
 # Step 3: Add a simple sphere (currently required for simulator to work)
 material_id = materials.get_index("water")  # High contrast material
 sphere = rs.Sphere(
-    np.array([0, 0, 100], dtype=np.float32),  # Center: 50mm in front of probe
+    np.array([0, 0, 100], dtype=np.float32),  # Center: 100mm in front of probe
     20,                                       # Radius: 20mm
     material_id                               # Material ID
 )
@@ -494,7 +494,7 @@ One of the most important advantages of using a speckled background like liver i
 
 **What You Can Observe**:
 1. **Rectangular field shape**: Linear arrays create rectangular imaging regions (unlike sector probes)
-2. **Acoustic Shadowing**: Our ray model displays how refraction and frequency dependent attenuation can lead to shadowing artifacts below the spheres. Their pronounced apperacne is characteristic of deterministic ray-tracying ultrasound simulators.
+2. **Acoustic Shadowing**: Our ray model displays how refraction and frequency dependent attenuation can lead to shadowing artifacts below the spheres. Their pronounced appearance is characteristic of deterministic ray-tracying ultrasound simulators.
 3. **Penetration depth**: How far the ultrasound effectively travels (set by `t_far`)
 4. **Image boundaries**: Clear distinction between "inside the beam" and "outside the beam"
 
@@ -513,7 +513,7 @@ Now that you understand materials, let's explore how different scan parameters a
 The `SimParams` object controls how the ultrasound simulation runs:
 
 - **`t_far`**: Maximum scan depth (time-of-flight limit in mm)
-- **`buffer_size`**: Memory allocation for echo data
+- **`buffer_size`**: Memory allocation for radio frequency (RF)
 - **`b_mode_size`**: Output image dimensions (width, height)
 - **`conv_psf`**: Point Spread Function convolution (should always be `True` for realistic images; only disable for debugging)
 - **Frequency**: Probe frequency (penetration vs resolution trade-off)

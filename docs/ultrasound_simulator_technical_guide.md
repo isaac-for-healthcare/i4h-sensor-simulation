@@ -90,19 +90,19 @@ The simulation starts by generating rays from the face of the ultrasound transdu
 - **Curvilinear Probe**:
   - **Physical Layout**: Elements are arranged along a convex curved surface with a fixed radius
   - **Implemented Beam Pattern**: Rays originate from points along the curved surface with diverging directions forming a sector image
-  - **Implementation**: [`csrc/cuda/optix_trace.cu:275-293`]
+  - **Implementation**: [`csrc/cuda/optix_trace.cu` – see `generate_curvilinear_probe_ray_local()`]
   - **Mathematical Model**: Each ray starts at position `(R*sin(θ), y, R*(cos(θ)-1))` with direction normal to the curved surface
 
 - **Linear Array Probe**:
   - **Physical Layout**: Elements are arranged in a straight line with uniform spacing
   - **Implemented Beam Pattern**: Rays originate in parallel from points along the straight line, creating a rectangular image
-  - **Implementation**: [`csrc/cuda/optix_trace.cu:296-312`]
+  - **Implementation**: [`csrc/cuda/optix_trace.cu` – see `generate_linear_array_probe_ray_local()`]
   - **Mathematical Model**: Each ray starts at position `(x, y, 0)` along the linear array with direction `(0, 0, 1)`
 
 - **Phased Array Probe**:
   - **Physical Layout**: Elements are arranged in a small, straight line array
   - **Implemented Beam Pattern**: Rays originate from approximately the same point but with different angular directions, creating a sector image
-  - **Implementation**: [`csrc/cuda/optix_trace.cu:315-339`]
+  - **Implementation**: [`csrc/cuda/optix_trace.cu` – see `generate_phased_array_probe_ray_local()`]
   - **Mathematical Model**: All rays start at `(0, y, 0)` with directions based on steering angle `(sin(θ), 0, cos(θ))`
 
 #### Elevational Ray Modeling
@@ -115,7 +115,7 @@ In addition to the primary lateral scanning plane, our simulator models the elev
   - These parameters are set when creating the probe object, for example: `rs.CurvilinearProbe(pose, num_el_samples=10, elevational_height=7.0)`
 
 - **OptiX Launch Configuration**:
-  - The `optixLaunch` call in `raytracing_ultrasound_simulator.cpp:284` sets the launch dimensions using:
+  - The `optixLaunch` call in `raytracing_ultrasound_simulator.cpp` (inside `RaytracingUltrasoundSimulator::simulate`) sets the launch dimensions using:
     ```cpp
     optixLaunch(pipeline_.get(),
                 stream,
@@ -128,7 +128,7 @@ In addition to the primary lateral scanning plane, our simulator models the elev
     ```
 
 - **Ray Generation Implementation**:
-  - For all probe types, elevational sampling is handled in a common code path: [`csrc/cuda/optix_trace.cu:342-346`]
+  - For all probe types, elevational sampling is handled in a common code path: [`csrc/cuda/optix_trace.cu` – see `__raygen__rg()`]
   - The position along the elevational axis is calculated as:
     ```cpp
     const float d_y = (static_cast<float>(idx.y) / static_cast<float>(dim.y)) - 0.5f;
@@ -139,8 +139,8 @@ In addition to the primary lateral scanning plane, our simulator models the elev
 
 - **Post-Processing of Elevational Data**:
   - When `num_el_samples > 1`, the resulting data from multiple elevational planes is:
-    1. Convolved with an elevational PSF: [`csrc/core/raytracing_ultrasound_simulator.cpp:303-304`] following [1].
-    2. Averaged across all elevational planes to produce a 2D image: [`csrc/core/raytracing_ultrasound_simulator.cpp:306-311`]
+    1. Convolved with an elevational PSF: [`csrc/core/raytracing_ultrasound_simulator.cpp` – PSF convolution step in `RaytracingUltrasoundSimulator::simulate()`] following [1].
+    2. Averaged across all elevational planes to produce a 2D image: [`csrc/core/raytracing_ultrasound_simulator.cpp` – plane-averaging step in `RaytracingUltrasoundSimulator::simulate()`]
   - This models the elevation extent of 2D ultrasound transducer
 
 ### 3.2 Ray-Object Interaction
@@ -148,22 +148,27 @@ In addition to the primary lateral scanning plane, our simulator models the elev
 When rays intersect with objects in the scene, several physical phenomena are simulated based on acoustic principles:
 
 - **Reflection and Refraction**: Using acoustic impedance differences and Snell's law
-  - Implementation: [`csrc/cuda/optix_trace.cu:171-203`]
+  - Implementation: [`csrc/cuda/optix_trace.cu` – see `calculate_specular_intensity()`]
   - Physics principle: At tissue interfaces, ultrasound waves are partially reflected and refracted
   - Mathematical model:
     - Reflection coefficient: `R = ((Z₂*cos(θ) - Z₁)/(Z₂*cos(θ) + Z₁))²` where Z₁, Z₂ are acoustic impedances
     - Snell's law: `sin(θ₁)/sin(θ₂) = c₁/c₂` where c₁, c₂ are speeds of sound
 
-- **Attenuation**: Frequency dependent attenuation of ultrasound energy using Beer-Lambert law
-  - Implementation: [`csrc/cuda/optix_trace.cu:56-65`]
-  - Physics principle: Ultrasound energy decreases exponentially with distance traveled through tissue
-  - Mathematical model: `I = I₀ * 10^(-αfd/20)` where:
-    - α is attenuation coefficient in dB/(cm⋅MHz)
-    - f is frequency in MHz
-    - d is distance in cm
+- **Attenuation**: Frequency-dependent attenuation is applied according to the Beer–Lambert law
+  - Implementation: [`csrc/cuda/optix_trace.cu` – see `get_intensity_at_distance()`]
+  - Physics principle: As ultrasound travels through tissue its **intensity** decays exponentially with path length due to absorption and scattering.
+  - Mathematical model (linear scale):
+    \[I(d)=I_0\,10^{-\alpha\,f\,d/20}\tag{1}\]
+    where
+    - \(\alpha\) is the *specific attenuation coefficient* (units **dB cm⁻¹ MHz⁻¹**)
+    - \(f\) is the centre frequency in **MHz** (passed from the probe settings)
+    - \(d\) is the propagation distance in **cm**
+  - Note the same symbol \(\alpha\) is used throughout the guide and in the CUDA kernel to denote attenuation; earlier drafts used the symbol \(\mu\).  This change removes that ambiguity.
+  - Typical values of \(\alpha\) for biological tissues are drawn from the IT’IS Foundation tissue–property database [[6]](#ref-itis-db]).
+
 
 - **Scattering**: Backscattering from tissues based on material properties
-  - Implementation: [`csrc/cuda/optix_trace.cu:40-49`]
+  - Implementation: [`csrc/cuda/optix_trace.cu` – see `get_scattering_value()`]
   - Physics principle: Sub-wavelength scattering leads to partially coherent signals along the transducer. This creates the characteristic speckle in b-mode images
   - Mathematical model: Scattering intensity proportional to `scatter_value * material->sigma_`
 
@@ -173,7 +178,7 @@ When rays intersect with objects in the scene, several physical phenomena are si
 
 During ray tracing, the simulator writes reflection and scattering amplitudes directly into scanlines before any post-processing occurs:
 
-1. **Volumetric Scattering** [`csrc/cuda/optix_trace.cu:56-88`]:
+1. **Volumetric Scattering** [`csrc/cuda/optix_trace.cu` – see `sample_intensities()`]:
    - As rays travel through tissue, each ray samples the medium at discrete steps
    - For each sample point:
      - Retrieves a scattering value from a 3D texture: `get_scattering_value(pos, material)`
@@ -181,7 +186,7 @@ During ray tracing, the simulator writes reflection and scattering amplitudes di
      - Applies distance-dependent attenuation: `get_intensity_at_distance(distance, material->attenuation_)`
      - Adds contribution to appropriate depth in scanline: `intensities[step] += scattering_value * intensity * attenuation`
 
-2. **Specular Reflections** [`csrc/cuda/optix_trace.cu:434-505`]:
+2. **Specular Reflections** [`csrc/cuda/optix_trace.cu` – see `closest_hit()`]:
    - When a ray encounters a tissue interface:
      - Calculates reflection coefficient based on acoustic impedance: `R = ((Z₂*cos(θ) - Z₁)/(Z₂*cos(θ) + Z₁))²`
      - Computes specular reflection intensity based on material specularity and geometric factors
@@ -200,31 +205,31 @@ The resulting scanline data represents maximum resolution RF signals that would 
 After ray-tracing has populated the scanlines with raw reflection data, the data undergoes a series of transformations that mirror the signal processing chain in clinical ultrasound systems:
 
 1. **PSF Convolution**: Simulating Transducer Resolution Limits
-   - Implementation: [`csrc/core/raytracing_ultrasound_simulator.cpp:290-315`]
+   - Implementation: [`csrc/core/raytracing_ultrasound_simulator.cpp` – PSF convolution in `RaytracingUltrasoundSimulator::simulate()`]
    - Real transducers have finite bandwidth and aperture size, limiting their ability to resolve small structures
    - We model this by convolving raw data with a Gaussian-cosine kernel: the Gaussian component represents the latteral beam width, while the cosine modulation simulates the transmitted pulse waveform
    - This 3D convolution operates in axial, lateral, and elevational dimensions, modeling the limited resolution of real transducers
 
 2. **Time Gain Compensation**: Apmplifying over propagation distance
-   - Implementation: [`csrc/core/raytracing_ultrasound_simulator.cpp:318-332`]
+   - Implementation: [`csrc/core/raytracing_ultrasound_simulator.cpp` – Time-Gain-Compensation in `RaytracingUltrasoundSimulator::simulate()`]
    - Deeper tissues naturally return weaker echoes due to attenuation
    - The TGC applies a depth-dependent amplification using a piecewise linear curve
    - This allows for constant structure brightness as is with the TGC controls on clinical machines
 
 3. **Envelope Detection**: Extracting the Signal Amplitude
-   - Implementation: [`csrc/core/raytracing_ultrasound_simulator.cpp:335-340`]
+   - Implementation: [`csrc/core/raytracing_ultrasound_simulator.cpp` – Envelope detection in `RaytracingUltrasoundSimulator::simulate()`]
    - The [Hilbert transform](https://en.wikipedia.org/wiki/Hilbert_transform) converts oscillating RF signals into [analytic representation](https://en.wikipedia.org/wiki/Analytic_signal)
    - Taking the absolute value of the analytic signal allows for the extraction of the signal envelope
    - This process reveals the reflection strength at each tissue interface
 
 4. **Log Compression**: Managing Wide Dynamic Range
-   - Implementation: [`csrc/core/raytracing_ultrasound_simulator.cpp:343-350`]
+   - Implementation: [`csrc/core/raytracing_ultrasound_simulator.cpp` – Log compression in `RaytracingUltrasoundSimulator::simulate()`]
    - Ultrasound signals span a dynamic range too wide for displays (often 60-100 dB)
    - Logarithmic compression (20*log10) maps this range to displayable levels
    - This enhances subtle tissue details while preventing strong reflectors from overwhelming the image and brings the image into a representation the can be more easily perceived by the human eye.
 
 5. **Scan Conversion**: Creating the 2D Display Image
-   - Implementation: [`csrc/core/raytracing_ultrasound_simulator.cpp:353-380`]
+   - Implementation: [`csrc/core/raytracing_ultrasound_simulator.cpp` – Scan conversion in `RaytracingUltrasoundSimulator::simulate()`]
    - Transforms data from acquisition geometry (scan lines) to display geometry (pixels)
    - Each probe type requires specific mapping:
      - Curvilinear: Polar to rectangular conversion with increasing scanline separation at depth
@@ -264,7 +269,7 @@ Materials in the simulator are defined through the `Material` class [`csrc/core/
 
 #### Material Registry and Management
 
-The simulator includes a `Materials` class that serves as a registry for predefined tissue types. The implementation [`csrc/core/material.cpp:40-55`] initializes a collection of common tissue types (water, blood, fat, liver, muscle, bone) with their respective acoustic properties.
+The simulator includes a `Materials` class that serves as a registry for predefined tissue types. The implementation [`csrc/core/material.cpp` – see `initialize_common_tissues()`] initializes a collection of common tissue types (water, blood, fat, liver, muscle, bone) with their respective acoustic properties.
 
 Each material is stored with a name identifier and automatically uploaded to GPU memory for efficient access during ray tracing. The `get_index()` method allows retrieval of material indices by name when setting up simulations.
 
@@ -272,28 +277,28 @@ Each material is stored with a name identifier and automatically uploaded to GPU
 
 The simulator supports two primary geometry types that can be assigned materials:
 
-1. **Primitive Shapes** (e.g., Spheres): Created programmatically with material indices via the `Sphere` class [`csrc/core/hitable.cpp:36-54`]. The constructor takes a position, radius, and material index as parameters.
+1. **Primitive Shapes** (e.g., Spheres): Created programmatically with material indices via the `Sphere` class [`csrc/core/hitable.cpp` – see `Sphere::Sphere()`]. The constructor takes a position, radius, and material index as parameters.
 
-2. **Mesh Objects**: Loaded from standard 3D file formats (OBJ, STL, etc.) using the Assimp library [`csrc/core/hitable.cpp:82-140`]. The `Mesh` class constructor takes a file path and material index, handling the loading and preparation of the mesh for simulation.
+2. **Mesh Objects**: Loaded from standard 3D file formats (OBJ, STL, etc.) using the Assimp library [`csrc/core/hitable.cpp` – see `Mesh::Mesh()`]. The `Mesh` class constructor takes a file path and material index, handling the loading and preparation of the mesh for simulation.
 
-When objects are added to the world through the `World::add()` method [`csrc/core/world.cpp:47-57`], they are associated with their assigned material index, which is later used during ray tracing to access the appropriate acoustic properties.
+When objects are added to the world through the `World::add()` method [`csrc/core/world.cpp` – see `World::add()`], they are associated with their assigned material index, which is later used during ray tracing to access the appropriate acoustic properties.
 
 #### Integration with OptiX Ray Tracing
 
 During the build process, each object in the scene is converted into OptiX-compatible geometry with material assignments:
 
-1. **Scene Building**: The `World::build()` method [`csrc/core/world.cpp:59-74`] prepares the scene for ray tracing:
+1. **Scene Building**: The `World::build()` method [`csrc/core/world.cpp` – see `World::build()`] prepares the scene for ray tracing:
    - Geometric data (vertices, indices) is uploaded to GPU memory
    - An acceleration structure is created for efficient ray-object intersection
    - Each object's material index is included in its `HitGroupData`
 
-2. **Material Data Access**: During ray tracing, material properties are accessed directly through a pointer lookup in the ray tracing kernel [`csrc/cuda/optix_trace.cu:386-387`].
+2. **Material Data Access**: During ray tracing, material properties are accessed directly through a pointer lookup in the ray tracing kernel [`csrc/cuda/optix_trace.cu` – see `__miss__ms()`].
 
 3. **Material Property Usage**: Throughout the ray tracing kernel:
-   - Impedance and speed of sound determine reflection and refraction behavior [`csrc/cuda/optix_trace.cu:180-193`]
-   - Attenuation controls how quickly ray intensity decreases with distance [`csrc/cuda/optix_trace.cu:66-73`]
-   - Scattering parameters influence the speckle pattern [`csrc/cuda/optix_trace.cu:43-50`]
-   - Specularity affects the appearance of interfaces [`csrc/cuda/optix_trace.cu:229-248`]
+   - Impedance and speed of sound determine reflection and refraction behavior [`csrc/cuda/optix_trace.cu` – see `calculate_reflection_coefficient()`]
+   - Attenuation controls how quickly ray intensity decreases with distance [`csrc/cuda/optix_trace.cu` – see `get_intensity_at_distance()`]
+   - Scattering parameters influence the speckle pattern [`csrc/cuda/optix_trace.cu` – see `get_scattering_value()`]
+   - Specularity affects the appearance of interfaces [`csrc/cuda/optix_trace.cu` – see `calculate_specular_intensity()`]
 
 This design allows the ray tracer to model complex acoustic interactions between multiple tissue types in a physically accurate way, while maintaining high performance through GPU acceleration.
 
@@ -301,18 +306,18 @@ This design allows the ray tracer to model complex acoustic interactions between
 
 To create realistic tissue textures, the simulator uses a dual-channel 3D texture that efficiently models sub-wavelength scattering. This approach creates the complex speckle patterns characteristic of ultrasound images without modeling individual scatterers.
 
-**Texture Generation and Structure** [`csrc/core/world.cpp:30-44`]:
+**Texture Generation and Structure** [`csrc/core/world.cpp` – see `generate_scattering_texture()`]:
 - A 256³ voxel texture with two channels is generated:
   - **Channel 0**: Uniform distribution [0,1] - controls scattering density
   - **Channel 1**: Normal distribution N(0,1) - controls scattering amplitude
 
-**Spatial Efficiency** [`csrc/core/world.cpp:51`]:
+**Spatial Efficiency** [`csrc/core/world.cpp` – see `generate_scattering_texture()`]:
 - The texture uses `cudaAddressModeWrap` to repeat seamlessly in all dimensions
 - A single 256³ texture represents an infinite volume with no boundary artifacts
 - Hardware-accelerated trilinear filtering improves performance and quality
 - The pattern repeats every 50mm (default resolution), but repetition remains visually undetectable due to random distributions, material variations, and PSF convolution
 
-**Material-Texture Interaction** [`csrc/cuda/optix_trace.cu:43-51`]:
+**Material-Texture Interaction** [`csrc/cuda/optix_trace.cu` – see `get_scattering_value()`]:
 - During ray traversal, positions are converted to texture coordinates: `pos /= resolution_mm`
 - The texture is sampled: `scatter_val = tex3D<float2>(params.scattering_texture, pos.x, pos.y, pos.z)`
 - Material parameters control how texture values affect scattering:
@@ -324,13 +329,13 @@ To create realistic tissue textures, the simulator uses a dual-channel 3D textur
   - `sigma_` scales the intensity from Channel 1 (amplitude)
   - Example: Liver (`mu0_=0.7`, `sigma_=0.3`) scatters at 70% of locations with moderate intensity, while fat (`mu0_=1.0`, `sigma_=1.0`) scatters everywhere with higher intensity
 
-**Integration into Scanlines** [`csrc/cuda/optix_trace.cu:80-101`]:
+**Integration into Scanlines** [`csrc/cuda/optix_trace.cu` – see `sample_intensities()`]:
 - Scattering values accumulate into the scanlines during ray traversal:
   ```
   intensities[step] += get_scattering_value(pos, material) * intensity *
                        get_intensity_at_distance(distance, material->attenuation_);
   ```
-- This produces spatially consistent scattering where the same world position yields the same base texture values
+- This produces spatially consistent scattering where the same world position yields the same base texture values leading to spatial coherence
 - Different materials at the same position produce different scattering responses due to their unique parameters
 - The scattering values are affected by distance-dependent attenuation
 
@@ -349,11 +354,17 @@ Have a look at our [Quick Start Guide](../ultrasound-raytracing/README.md) to ru
 
 ## 5. References
 
-1. Bürger et al. (2013) - "Real-time GPU-based ultrasound simulation using deformable mesh models"
-2. Mattausch & Goksel (2016) - "Monte-Carlo Ray-Tracing for Realistic Ultrasound Training Simulation"
-3. Law et al. (2016) - "Real-time simulation of B-mode ultrasound images for medical training"
-4. Szabo, T. L. (2004) - "Diagnostic Ultrasound Imaging: Inside Out"
-5. Prince, J. L., & Links, J. M. (2015) - "Medical Imaging Signals and Systems"
+[1] Bürger et al. (2013) - "Real-time GPU-based ultrasound simulation using deformable mesh models"
+
+[2] Mattausch & Goksel (2016) - "Monte-Carlo Ray-Tracing for Realistic Ultrasound Training Simulation"
+
+[3] Law et al. (2016) - "Real-time simulation of B-mode ultrasound images for medical training"
+
+[4] Szabo, T. L. (2004) - "Diagnostic Ultrasound Imaging: Inside Out"
+
+[5] Prince, J. L., & Links, J. M. (2015) - "Medical Imaging Signals and Systems"
+
+[6] <a id="ref-itis-db"></a> IT’IS Foundation. *Tissue Properties Database*, v5.3, 2024. <https://itis.swiss/virtual-population/tissue-properties/database/>
 
 ## 6. Helpful Definitions
 
