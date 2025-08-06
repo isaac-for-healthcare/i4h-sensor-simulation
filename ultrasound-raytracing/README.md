@@ -80,6 +80,8 @@ Benchmark Results:
    cp -r ~/.cache/i4h-assets/<sha256_hash>/Props/ABDPhantom/Organs mesh
    ```
 
+   As an advanced user, you can alse bring your own patient ([see tutorial](https://github.com/isaac-for-healthcare/i4h-workflows/tree/main/tutorials/assets/bring_your_own_patient)).
+
 4. Install Python dependencies and create virtual environment:
 
    **Option A: Using uv**
@@ -128,7 +130,7 @@ Benchmark Results:
 >
 >   - In the [CMake setup file](./cmake/SetupCUDA.cmake), the default value for `CMAKE_CUDA_ARCHITECTURES` is set to `native`. This setting **may >cause compilation failures** on systems with multiple NVIDIA GPUs that have different compute capabilities.
 >
->   - If you experience this issue, try specifying the GPU you want to use by setting the environment variable `export CUDA_VISIBLE_DEVICES=> >.<selected device number>` before building the project.
+>   - If you experience this issue, try specifying the GPU you want to use by setting the environment variable `export CUDA_VISIBLE_DEVICES=<selected device number>` before building the project.
 >
 6. Run examples
 
@@ -155,48 +157,10 @@ Benchmark Results:
    ./build-release/examples/cpp/ray_sim_example
    ```
 
-## Basic Usage
 
-```python
-import raysim.cuda as rs
-import numpy as np
+## Start Simulating
 
-# Create materials
-materials = rs.Materials()
+For a comprehensive guide on using the simulator, understanding its features, and exploring advanced topics, please refer to our documentation:
 
-# Create world and add objects
-world = rs.World("water")
-material_idx = materials.get_index("fat")
-sphere = rs.Sphere([0, 0, -145], 40, material_idx)
-world.add(sphere)
-
-# Create simulator
-simulator = rs.RaytracingUltrasoundSimulator(world, materials)
-
-# Configure probe
-probe = rs.UltrasoundProbe(rs.Pose(position=[0, 0, 0], rotation=[0, np.pi, 0]))
-
-# Set simulation parameters
-sim_params = rs.SimParams()
-sim_params.t_far = 180.0
-
-# Run simulation
-b_mode_image = simulator.simulate(probe, sim_params)
-```
-
-## Development
-
-For development, VSCode with the dev container is recommended:
-1. Open project in VSCode with Dev Containers extension
-2. Use command palette (`Ctrl+Shift+P`) to run `CMake: Configure`
-3. Build with `F7` or `Ctrl+Shift+B`
-
-### Pre-commit Hooks
-
-```bash
-# For uv users
-uv pip install -e ".[dev]" && pre-commit install
-
-# For conda users
-pip install -e ".[dev]" && pre-commit install
-```
+- **[Getting Started Guide](../../docs/ultrasound_simulator_getting_started.md)**: A step-by-step tutorial for beginners.
+- **[Technical Guide](../../docs/ultrasound_simulator_technical_guide.md)**: An in-depth look at the physics and implementation details.
