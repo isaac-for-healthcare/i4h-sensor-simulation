@@ -80,6 +80,8 @@ Benchmark Results:
    cp -r ~/.cache/i4h-assets/<sha256_hash>/Props/ABDPhantom/Organs mesh
    ```
 
+   As an advanced user, you can alse bring your own patient ([see tutorial](https://github.com/isaac-for-healthcare/i4h-workflows/tree/main/tutorials/assets/bring_your_own_patient)).
+
 4. Install Python dependencies and create virtual environment:
 
    **Option A: Using uv**
