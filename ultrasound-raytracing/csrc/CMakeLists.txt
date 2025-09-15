@@ -56,6 +56,14 @@ FetchContent_Declare(
     URL https://github.com/NVIDIA/optix-toolkit/archive/refs/tags/v1.0.0.tar.gz
     )
 
+# OptiX headers (optix-dev)
+FetchContent_Declare(
+    optixdev
+    GIT_REPOSITORY https://github.com/NVIDIA/optix-dev.git
+    GIT_TAG v8.1.0
+    GIT_PROGRESS TRUE
+)
+
 set(mathdx_VERSION 25.01)
 FetchContent_Declare(
     mathdx
@@ -66,7 +74,11 @@ FetchContent_Declare(
 # enable CMP0077 to allow overwriting option() statements in FetchContent sub-projects
 cmake_policy(SET CMP0077 NEW)
 
-FetchContent_MakeAvailable(spdlog stb assimp mathdx)
+FetchContent_MakeAvailable(spdlog stb assimp mathdx optixdev)
+
+# Interface library providing the OptiX SDK headers
+add_library(optix_sdk INTERFACE)
+target_include_directories(optix_sdk INTERFACE ${optixdev_SOURCE_DIR}/include)
 
 # we don't want to include the OptixToolkit CMake file
 FetchContent_GetProperties(optix-toolkit)
