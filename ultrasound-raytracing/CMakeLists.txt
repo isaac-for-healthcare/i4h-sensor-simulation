@@ -28,8 +28,6 @@ include(SetupCUDA)
 option(BUILD_PYTHON_BINDINGS "Build Python bindings" ON)
 option(BUILD_EXAMPLES "Build C++ examples" ON)
 
-add_subdirectory(third_party ${CMAKE_CURRENT_BINARY_DIR}/thirdparty)
-
 # Add core C++ libraries
 add_subdirectory(csrc)
 

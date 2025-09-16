@@ -32,7 +32,11 @@ Benchmark Results:
 - [CMake 3.24+](https://cmake.org/)
 - [NVIDIA OptiX SDK 8.1](https://developer.nvidia.com/designworks/optix/downloads/legacy)
 
-## Installation
+## Docker Installation
+
+Instructions to build and run the examples in a docker environment can be found in the [`docs/docker_build`](docs/docker_build.md).
+
+## Bare-Metal Installation
 
 1. Clone this repository:
    ```bash
@@ -40,60 +44,35 @@ Benchmark Results:
    cd i4h-sensor-simulation/ultrasound-raytracing
    ```
 
-2. Download and set up OptiX SDK 8.1:
-   - Download OptiX SDK 8.1 from the [NVIDIA Developer website](https://developer.nvidia.com/designworks/optix/downloads/legacy)
-   - Extract the downloaded OptiX SDK archive
-   - Place the extracted directory inside the `ultrasound-raytracing/third_party/optix` directory, maintaining the following structure:
-     ```
-     ultrasound-raytracing/third_party/
-     └── optix
-         └── NVIDIA-OptiX-SDK-8.1.0-<platform>  # Name may vary based on the platform
-             ├── include
-             │   └── internal
-             └── SDK
-                 ├── cuda
-                 └── sutil
-     ```
+2. The required OptiX header files are fetched automatically by CMake from the
+   open-source [optix-dev](https://github.com/NVIDIA/optix-dev) repository during the
+   configure step.  All you need is a recent NVIDIA driver (OptiX is part of the
+   driver) and CUDA ≥ 12.6 which are already listed in the requirements section.
 
-   Please note that the downloaded file is a shell script, you need to make it executable and run it before moving it to the `ultrasound-raytracing/third_party/optix` directory:
-
-     ```bash
-     chmod +x <path_to_downloaded_file>/NVIDIA-OptiX-SDK-8.1.0-linux64-x86_64-35015278.sh
-     ./<path_to_downloaded_file>/NVIDIA-OptiX-SDK-8.1.0-linux64-x86_64-35015278.sh
-     ```
-
-3. Download mesh data:
-   - The mesh data is a part of the Isaac for Healthcare asset package. You can download it by installing the asset helper tool:
-   ```bash
-   pip install git+ssh://git@github.com/isaac-for-healthcare/i4h-asset-catalog.git
-   ```
-
-   - Then you can download and extract the data to `~/.cache/i4h-assets/`
-   ```bash
-   i4h-asset-retrieve
-   ```
-
-   - The mesh data will be extracted to `~/.cache/i4h-assets/<sha256_hash>/Props/ABDPhantom/Organs`
-   - You can copy the `Organs` folder to the `mesh` directory
-
-   ```bash
-   cp -r ~/.cache/i4h-assets/<sha256_hash>/Props/ABDPhantom/Organs mesh
-   ```
-
-4. Install Python dependencies and create virtual environment:
+3. Install Python dependencies and create virtual environment:
 
    **Option A: Using uv**
    ```bash
    uv sync && source .venv/bin/activate
+   pip install git+https://github.com/isaac-for-healthcare/i4h-asset-catalog.git
    ```
 
    **Option B: Using conda**
    ```bash
    # Create environment and install dependencies
    conda create -n ultrasound python=3.10 libstdcxx-ng -c conda-forge -y
-
    conda activate ultrasound
    pip install -e .
+   pip install git+https://github.com/isaac-for-healthcare/i4h-asset-catalog.git
+   ```
+
+4. Download mesh data:
+   ```bash
+   cd ultrasound-raytracing  # ensure you're in the correct directory
+   # Download mesh data (~527MB)
+   i4h-asset-retrieve --download-dir assets --sub-path Props/ABDPhantom/Organs --version 0.2.0
+   # Note: The hash below is specific to version 0.2.0
+   ln -s assets/8c0bf782eab2f44f1cc82da60eb10f6be8f941406d291b7fbfbdb53c05b3d149/Props/ABDPhantom/Organs mesh
    ```
 
 5. Build the project
@@ -128,7 +107,7 @@ Benchmark Results:
 >
 >   - In the [CMake setup file](./cmake/SetupCUDA.cmake), the default value for `CMAKE_CUDA_ARCHITECTURES` is set to `native`. This setting **may >cause compilation failures** on systems with multiple NVIDIA GPUs that have different compute capabilities.
 >
->   - If you experience this issue, try specifying the GPU you want to use by setting the environment variable `export CUDA_VISIBLE_DEVICES=> >.<selected device number>` before building the project.
+>   - If you experience this issue, try specifying the GPU you want to use by setting the environment variable `export CUDA_VISIBLE_DEVICES=<selected device number>` before building the project.
 >
 6. Run examples
 
@@ -155,48 +134,10 @@ Benchmark Results:
    ./build-release/examples/cpp/ray_sim_example
    ```
 
-## Basic Usage
 
-```python
-import raysim.cuda as rs
-import numpy as np
+## Start Simulating
 
-# Create materials
-materials = rs.Materials()
+For a comprehensive guide on using the simulator, understanding its features, and exploring advanced topics, please refer to our documentation:
 
-# Create world and add objects
-world = rs.World("water")
-material_idx = materials.get_index("fat")
-sphere = rs.Sphere([0, 0, -145], 40, material_idx)
-world.add(sphere)
-
-# Create simulator
-simulator = rs.RaytracingUltrasoundSimulator(world, materials)
-
-# Configure probe
-probe = rs.UltrasoundProbe(rs.Pose(position=[0, 0, 0], rotation=[0, np.pi, 0]))
-
-# Set simulation parameters
-sim_params = rs.SimParams()
-sim_params.t_far = 180.0
-
-# Run simulation
-b_mode_image = simulator.simulate(probe, sim_params)
-```
-
-## Development
-
-For development, VSCode with the dev container is recommended:
-1. Open project in VSCode with Dev Containers extension
-2. Use command palette (`Ctrl+Shift+P`) to run `CMake: Configure`
-3. Build with `F7` or `Ctrl+Shift+B`
-
-### Pre-commit Hooks
-
-```bash
-# For uv users
-uv pip install -e ".[dev]" && pre-commit install
-
-# For conda users
-pip install -e ".[dev]" && pre-commit install
-```
+- **[Getting Started Guide](../../docs/ultrasound_simulator_getting_started.md)**: A step-by-step tutorial for beginners.
+- **[Technical Guide](../../docs/ultrasound_simulator_technical_guide.md)**: An in-depth look at the physics and implementation details.
