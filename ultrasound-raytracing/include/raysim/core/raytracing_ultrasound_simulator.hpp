@@ -54,6 +54,7 @@ class RaytracingUltrasoundSimulator {
     cudaStream_t stream = cudaStreamPerThread;  // CUDA stream
     bool enable_cuda_timing = false;            // Print timing of CUDA operations
     bool write_debug_images = false;            // Write debug images to `debug_images` directory
+    float contact_epsilon = 0.0f;               // Maximum distance for element activation [mm]
   };
 
   /// Simulation results

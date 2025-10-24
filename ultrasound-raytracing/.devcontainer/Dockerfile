@@ -41,11 +41,12 @@ RUN apt-get update \
         gdb="15.0.50.20240403-*" \
         git="1:2.43.0-*" \
         python3.12-dev="3.12.3-*" \
+        python3.12-venv="3.12.3-*" \
+        python3-pip \
     && rm -rf /var/lib/apt/lists/*
 
-# link /usr/bin/python3.12 to python3
-RUN ln -s /usr/bin/python3.12 /usr/bin/python3 \
-    && ln -s /usr/bin/python3.12 /usr/bin/python
+# Ensure `python` invokes Python 3.12 (python3 already provided by the base image)
+RUN ln -s /usr/bin/python3.12 /usr/bin/python
 
 # Set the default user
 USER $USERNAME

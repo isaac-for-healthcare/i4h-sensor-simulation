@@ -31,7 +31,7 @@ template <typename T>
 class Nullable {
  public:
   Nullable(T value = 0) : value_(value) {}
-  Nullable(nullptr_t) : value_(0) {}
+  Nullable(std::nullptr_t) : value_(0) {}
   operator T() const { return value_; };
   explicit operator bool() { return value_ != 0; }
 

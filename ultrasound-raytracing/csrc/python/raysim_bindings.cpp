@@ -408,6 +408,9 @@ Elements steer beams electronically to create a sector image from a small footpr
       .def_readwrite("write_debug_images",
                      &raysim::RaytracingUltrasoundSimulator::SimParams::write_debug_images,
                      "Enable debug image output")
+      .def_readwrite("contact_epsilon",
+                     &raysim::RaytracingUltrasoundSimulator::SimParams::contact_epsilon,
+                     "Maximum distance for element activation [mm]")
       .def_property(
           "b_mode_size",
           [](raysim::RaytracingUltrasoundSimulator::SimParams& self) {

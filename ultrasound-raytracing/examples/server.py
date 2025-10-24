@@ -171,7 +171,8 @@ def get_sim_params():
     return {
         "median_clip_filter": sim_params.median_clip_filter,
         "enable_cuda_timing": sim_params.enable_cuda_timing,
-        "write_debug_images": sim_params.write_debug_images
+        "write_debug_images": sim_params.write_debug_images,
+        "contact_epsilon": sim_params.contact_epsilon
     }
 
 
@@ -190,12 +191,16 @@ def set_sim_params():
         if "write_debug_images" in params:
             sim_params.write_debug_images = bool(params["write_debug_images"])
 
+        if "contact_epsilon" in params:
+            sim_params.contact_epsilon = float(params["contact_epsilon"])
+
         return {
             "status": "success",
             "params": {
                 "median_clip_filter": sim_params.median_clip_filter,
                 "enable_cuda_timing": sim_params.enable_cuda_timing,
-                "write_debug_images": sim_params.write_debug_images
+                "write_debug_images": sim_params.write_debug_images,
+                "contact_epsilon": sim_params.contact_epsilon
             }
         }
     except Exception as e:
