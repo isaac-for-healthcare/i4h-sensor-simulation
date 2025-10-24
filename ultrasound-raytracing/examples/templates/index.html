@@ -198,6 +198,12 @@
                             <input type="checkbox" id="writeDebugImages" name="writeDebugImages">
                             <span>Write Debug Images</span>
                         </label>
+                        <div style="margin-top: 12px;">
+                            <label for="contactEpsilon" style="display: flex; align-items: center; gap: 8px; margin: 8px 0;">
+                                <span>Contact Epsilon (mm):</span>
+                                <input type="number" id="contactEpsilon" name="contactEpsilon (mm)" step="0.1" style="width: 60px;">
+                            </label>
+                        </div>
                     </div>
                 </div>
 
@@ -411,6 +417,7 @@
                     document.getElementById('medianClipSpeckleFilter').checked = params.median_clip_filter;
                     document.getElementById('enableCudaTiming').checked = params.enable_cuda_timing;
                     document.getElementById('writeDebugImages').checked = params.write_debug_images;
+                    document.getElementById('contactEpsilon').value = params.contact_epsilon;
                 }
             } catch (error) {
                 console.error('Error fetching simulation parameters:', error);
@@ -559,6 +566,10 @@
 
             document.getElementById('writeDebugImages').addEventListener('change', (e) => {
                 updateSimParams('write_debug_images', e.target.checked);
+            });
+
+            document.getElementById('contactEpsilon').addEventListener('change', (e) => {
+                updateSimParams('contact_epsilon', parseFloat(e.target.value));
             });
 
             // Fetch available probe types
