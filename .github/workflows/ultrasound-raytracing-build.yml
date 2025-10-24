@@ -1,0 +1,35 @@
+name: Build Ultrasound Raytracing
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: nvidia/cuda:12.6.3-devel-ubuntu24.04
+    steps:
+      - name: Install dependencies
+        run: |
+          export DEBIAN_FRONTEND=noninteractive
+          apt-get update
+          apt-get install --no-install-recommends -y \
+            build-essential \
+            cmake=3.28.3-* \
+            git=1:2.43.0-* \
+            python3.12-dev=3.12.3-*
+          rm -rf /var/lib/apt/lists/*
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Configure CMake
+        working-directory: ultrasound-raytracing
+        run: >
+          cmake -S . -B build
+          -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_CUDA_ARCHITECTURES=80
+          -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF
+      - name: Build
+        working-directory: ultrasound-raytracing
+        run: cmake --build build --parallel 1

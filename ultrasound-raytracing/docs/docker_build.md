@@ -21,13 +21,7 @@ docker build \
 
 ---
 ## 2 · Download mesh data (done once)
-
-```bash
-cd ultrasound-raytracing  # ensure you're in the correct directory
-# Download and link the mesh data (~527MB)
-i4h-asset-retrieve --download-dir assets --sub-path Props/ABDPhantom/Organs --version 0.2.0
-# Note: The hash below is specific to version 0.2.0
-ln -s assets/8c0bf782eab2f44f1cc82da60eb10f6be8f941406d291b7fbfbdb53c05b3d149/Props/ABDPhantom/Organs mesh
+Follow the steps described in [ultrasound-raytracing README](../README.md) to install the mesh assets within the project environment.
 ```
 
 > The mesh data will be available inside the container through the volume mount.
@@ -36,27 +30,27 @@ ln -s assets/8c0bf782eab2f44f1cc82da60eb10f6be8f941406d291b7fbfbdb53c05b3d149/Pr
 ## 3 · Start a container and set up the project (done after every `git pull`)
 
 ```bash
-docker run -it --rm --gpus all --runtime=nvidia --network host \
+cd ultrasound-raytracing # ensure you are in the sensor directory
+
+docker run -it --rm --gpus all --network host \
   -e NVIDIA_DRIVER_CAPABILITIES=all \
   -v "$(pwd)":/raysim  \
   --workdir /raysim      \
   raysim
-
-# INSIDE the container – copy/paste:
-sudo apt-get update && sudo apt-get install -y python3.12-venv
-python3 -m venv .venv && \
-source .venv/bin/activate && \
-pip install -e . && \
-pip install git+https://github.com/isaac-for-healthcare/i4h-asset-catalog.git
-
+```
+Inside the container, create a virtual environment and install the Python dependencies:
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -e .
+```
+With the virtual environment active, build the native extension:
+```bash
 cmake -S . -B build -DPYTHON_EXECUTABLE=$PWD/.venv/bin/python \
       -DCMAKE_BUILD_TYPE=Release && \
 cmake --build build -j$(nproc)
 ```
 
-This creates a local virtual-env, installs all Python dependencies, and
-builds the CUDA/OptiX binary.  You only need to repeat these few lines
-when the source tree changes.
 
 ---
 ## 4 · Run an example

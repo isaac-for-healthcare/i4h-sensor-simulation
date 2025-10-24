@@ -373,6 +373,11 @@ extern "C" __global__ void __miss__ms() {
   const uint3 idx = optixGetLaunchIndex();
   const Payload ray = get_payload();
 
+  // In contact check mode (epsilon > 0), if the initial ray (depth 0) misses all geometry,
+  // terminate its path immediately. This blacks out elements that are not pointing towards the
+  // phantom.
+  if (params.contact_epsilon > 0.f && ray.depth == 0) { return; }
+
   // no hits, just do scattering up to t_far
   sample_intensities(
       optixGetWorldRayOrigin(),
@@ -393,6 +398,12 @@ static __device__ void closest_hit() {
   const float t = optixGetRayTmax();
 
   const Payload ray = get_payload();
+
+  // In contact check mode (epsilon > 0), if the initial ray (depth 0) hits geometry
+  // but the hit distance `t` is greater than the allowed epsilon, terminate the path.
+  // This blacks out elements that are too far from the phantom to be considered in contact.
+  if (params.contact_epsilon > 0.f && ray.depth == 0 && t > params.contact_epsilon) { return; }
+
   const uint32_t current_material_id = ray.current_material_id;
   const Material* current_material = &params.materials[current_material_id];
   const uint3 idx = optixGetLaunchIndex();

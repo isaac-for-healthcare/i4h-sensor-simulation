@@ -37,6 +37,7 @@ struct Params {
   cudaTextureObject_t scattering_texture;
   OptixTraversableHandle handle;
   float source_frequency;
+  float contact_epsilon;
 };
 
 struct RayGenData {
