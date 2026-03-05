@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<!--
+SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+SPDX-License-Identifier: Apache-2.0
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ultrasound Simulation — REST API</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --surface: #f5f5f5;
+    --surface-alt: #eaeaea;
+    --border: #d0d0d0;
+    --accent: #4caf50;
+    --accent-dim: #388e3c;
+    --text: #1a1a1a;
+    --text-dim: #666;
+    --success: #4caf50;
+    --warn: #ff9800;
+    --error: #e53935;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    display: flex;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  /* -------- Sidebar -------- */
+  .sidebar {
+    width: 340px;
+    min-width: 340px;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    padding: 16px;
+    gap: 12px;
+    overflow-y: auto;
+  }
+  .sidebar::-webkit-scrollbar { width: 6px; }
+  .sidebar::-webkit-scrollbar-track { background: transparent; }
+  .sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  .sidebar h1 {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+  .sidebar h1::before { content: "◉"; font-size: 12px; }
+
+  .panel {
+    background: var(--surface-alt);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+  }
+  .panel h2 {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--text-dim);
+    margin-bottom: 10px;
+  }
+
+  /* Probe selector buttons */
+  .probe-selector { display: flex; gap: 4px; }
+  .probe-btn {
+    flex: 1;
+    padding: 7px 8px;
+    font-size: 12px;
+    font-weight: 600;
+    background: #fff;
+    color: var(--text-dim);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .probe-btn:hover { border-color: var(--accent); color: var(--text); }
+  .probe-btn.active {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+  }
+
+  /* Sliders */
+  .slider-group { margin-bottom: 6px; }
+  .slider-group label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-bottom: 2px;
+  }
+  .slider-group label span { color: var(--text); font-variant-numeric: tabular-nums; min-width: 55px; text-align: right; }
+  .slider-group input[type=range] {
+    width: 100%;
+    accent-color: var(--accent);
+    height: 4px;
+  }
+
+  /* Checkbox / toggle */
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    margin-bottom: 6px;
+    color: var(--text-dim);
+  }
+  .toggle-row input[type=checkbox] { accent-color: var(--accent); }
+
+  /* Buttons */
+  button.primary {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    padding: 10px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 700;
+    font-size: 13px;
+    width: 100%;
+    transition: opacity 0.15s;
+  }
+  button.primary:hover { opacity: 0.85; }
+  button.primary:disabled { opacity: 0.35; cursor: not-allowed; }
+
+  /* Stats grid */
+  .stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 3px 8px;
+    font-size: 12px;
+  }
+  .stats dt { color: var(--text-dim); }
+  .stats dd { text-align: right; font-variant-numeric: tabular-nums; }
+
+  /* Keyboard hints */
+  .key-hints {
+    font-size: 11px;
+    line-height: 1.9;
+    color: var(--text-dim);
+  }
+  kbd {
+    background: #e8e8e8;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 1px 5px;
+    font-size: 11px;
+    font-family: inherit;
+    color: var(--text);
+  }
+
+  /* -------- Main view -------- */
+  .main {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #1a1a1a;
+    position: relative;
+    outline: none;
+  }
+  #simImage {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    image-rendering: auto;
+    background: #1a1a1a;
+  }
+  .overlay {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    color: var(--text-dim);
+    font-size: 14px;
+    pointer-events: none;
+    text-align: center;
+    line-height: 1.6;
+  }
+  .spinner {
+    position: absolute;
+    top: 16px; right: 16px;
+    width: 20px; height: 20px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    display: none;
+  }
+  .spinner.active { display: block; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Toast notification */
+  .toast {
+    position: fixed;
+    bottom: 24px; right: 24px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-size: 13px;
+    color: var(--text);
+    opacity: 0;
+    transform: translateY(12px);
+    transition: all 0.3s;
+    pointer-events: none;
+    z-index: 100;
+  }
+  .toast.show { opacity: 1; transform: translateY(0); }
+  .toast.error { border-color: var(--error); color: var(--error); }
+</style>
+</head>
+<body>
+
+<!-- ======================= SIDEBAR ======================= -->
+<aside class="sidebar">
+  <h1>Ultrasound Sim</h1>
+
+  <!-- Probe type -->
+  <div class="panel">
+    <h2>Probe Type</h2>
+    <div class="probe-selector" id="probeSelector">
+      <button class="probe-btn active" data-probe="curvilinear">Curvilinear</button>
+      <button class="probe-btn" data-probe="linear">Linear</button>
+      <button class="probe-btn" data-probe="phased">Phased</button>
+    </div>
+  </div>
+
+  <!-- Pose -->
+  <div class="panel">
+    <h2>Probe Pose</h2>
+    <div class="slider-group">
+      <label>X position <span id="valX">-14.0</span></label>
+      <input type="range" id="sliderX" min="-100" max="100" step="0.5" value="-14">
+    </div>
+    <div class="slider-group">
+      <label>Y position <span id="valY">-122.0</span></label>
+      <input type="range" id="sliderY" min="-200" max="0" step="0.5" value="-122">
+    </div>
+    <div class="slider-group">
+      <label>Z position <span id="valZ">72.0</span></label>
+      <input type="range" id="sliderZ" min="-100" max="200" step="0.5" value="72">
+    </div>
+    <div class="slider-group">
+      <label>Roll (°) <span id="valRx">-90.0</span></label>
+      <input type="range" id="sliderRx" min="-180" max="180" step="1" value="-90">
+    </div>
+    <div class="slider-group">
+      <label>Pitch (°) <span id="valRy">180.0</span></label>
+      <input type="range" id="sliderRy" min="-180" max="180" step="1" value="180">
+    </div>
+    <div class="slider-group">
+      <label>Yaw (°) <span id="valRz">0.0</span></label>
+      <input type="range" id="sliderRz" min="-180" max="180" step="1" value="0">
+    </div>
+  </div>
+
+  <!-- Simulation parameters -->
+  <div class="panel">
+    <h2>Simulation Parameters</h2>
+    <div class="slider-group">
+      <label>Max depth — t_far (mm) <span id="valTfar">180</span></label>
+      <input type="range" id="sliderTfar" min="50" max="300" step="5" value="180">
+    </div>
+    <div class="slider-group">
+      <label>Buffer size <span id="valBuffer">4096</span></label>
+      <input type="range" id="sliderBuffer" min="512" max="8192" step="512" value="4096">
+    </div>
+    <div class="slider-group">
+      <label>Image height <span id="valH">512</span></label>
+      <input type="range" id="sliderH" min="128" max="1024" step="64" value="512">
+    </div>
+    <div class="slider-group">
+      <label>Image width <span id="valW">512</span></label>
+      <input type="range" id="sliderW" min="128" max="1024" step="64" value="512">
+    </div>
+    <div class="slider-group">
+      <label>Dynamic range min (dB) <span id="valDrMin">-60</span></label>
+      <input type="range" id="sliderDrMin" min="-100" max="0" step="5" value="-60">
+    </div>
+    <div class="slider-group">
+      <label>Dynamic range max (dB) <span id="valDrMax">0</span></label>
+      <input type="range" id="sliderDrMax" min="-40" max="20" step="5" value="0">
+    </div>
+    <div class="toggle-row">
+      <input type="checkbox" id="chkPsf" checked>
+      <label for="chkPsf">PSF convolution</label>
+    </div>
+    <div class="toggle-row">
+      <input type="checkbox" id="chkMedian">
+      <label for="chkMedian">Median-clip filter</label>
+    </div>
+  </div>
+
+  <!-- Simulate button -->
+  <button class="primary" id="btnSimulate">Simulate</button>
+
+  <!-- Auto-simulate -->
+  <div class="panel">
+    <div class="toggle-row">
+      <input type="checkbox" id="chkAuto">
+      <label for="chkAuto">Auto-simulate on change</label>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="panel">
+    <h2>Last Result</h2>
+    <dl class="stats">
+      <dt>Probe</dt>       <dd id="statProbe">—</dd>
+      <dt>Image size</dt>  <dd id="statSize">—</dd>
+      <dt>Sim time</dt>    <dd id="statTime">—</dd>
+      <dt>Round-trip</dt>  <dd id="statRtt">—</dd>
+    </dl>
+  </div>
+
+  <!-- Keyboard shortcuts -->
+  <div class="panel">
+    <h2>Keyboard</h2>
+    <div class="key-hints">
+      <kbd>W</kbd><kbd>S</kbd> Y axis &nbsp;
+      <kbd>A</kbd><kbd>D</kbd> X axis<br>
+      <kbd>Q</kbd><kbd>E</kbd> Z axis &nbsp;
+      <kbd>↑</kbd><kbd>↓</kbd> Pitch<br>
+      <kbd>←</kbd><kbd>→</kbd> Yaw &nbsp;&nbsp;
+      <kbd>[</kbd><kbd>]</kbd> Roll<br>
+      <kbd>Enter</kbd> Simulate &nbsp;
+      <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> Probe type
+    </div>
+  </div>
+</aside>
+
+<!-- ======================= MAIN VIEW ======================= -->
+<main class="main" id="viewport" tabindex="0">
+  <img id="simImage" alt="B-mode ultrasound">
+  <div class="overlay" id="overlay">Press <strong>Simulate</strong> or hit <kbd>Enter</kbd></div>
+  <div class="spinner" id="spinner"></div>
+</main>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── Configuration ──────────────────────────────────────────
+const API = '';  // same origin — set to e.g. 'http://localhost:8000' if served separately
+const MOVE_STEP = 2.0;   // mm per keypress
+const ROT_STEP  = 2.0;   // degrees per keypress
+
+// ─── State ──────────────────────────────────────────────────
+let probeType = 'curvilinear';
+let inflight  = false;   // request lock
+let pendingSimulate = false;  // queued re-simulate after current finishes
+
+// ─── DOM refs ───────────────────────────────────────────────
+const $img       = document.getElementById('simImage');
+const $overlay   = document.getElementById('overlay');
+const $spinner   = document.getElementById('spinner');
+const $btn       = document.getElementById('btnSimulate');
+const $toast     = document.getElementById('toast');
+const $viewport  = document.getElementById('viewport');
+
+// Slider refs
+const sliders = {
+  x:  document.getElementById('sliderX'),
+  y:  document.getElementById('sliderY'),
+  z:  document.getElementById('sliderZ'),
+  rx: document.getElementById('sliderRx'),
+  ry: document.getElementById('sliderRy'),
+  rz: document.getElementById('sliderRz'),
+};
+const simSliders = {
+  tFar:   document.getElementById('sliderTfar'),
+  buffer: document.getElementById('sliderBuffer'),
+  h:      document.getElementById('sliderH'),
+  w:      document.getElementById('sliderW'),
+  drMin:  document.getElementById('sliderDrMin'),
+  drMax:  document.getElementById('sliderDrMax'),
+};
+
+// ─── Helpers ────────────────────────────────────────────────
+function deg2rad(d) { return d * Math.PI / 180; }
+function rad2deg(r) { return r * 180 / Math.PI; }
+
+function toast(msg, isError = false) {
+  $toast.textContent = msg;
+  $toast.className = 'toast show' + (isError ? ' error' : '');
+  clearTimeout(toast._tid);
+  toast._tid = setTimeout(() => { $toast.className = 'toast'; }, 3000);
+}
+
+function updateSliderLabels() {
+  document.getElementById('valX').textContent  = parseFloat(sliders.x.value).toFixed(1);
+  document.getElementById('valY').textContent  = parseFloat(sliders.y.value).toFixed(1);
+  document.getElementById('valZ').textContent  = parseFloat(sliders.z.value).toFixed(1);
+  document.getElementById('valRx').textContent = parseFloat(sliders.rx.value).toFixed(1);
+  document.getElementById('valRy').textContent = parseFloat(sliders.ry.value).toFixed(1);
+  document.getElementById('valRz').textContent = parseFloat(sliders.rz.value).toFixed(1);
+  document.getElementById('valTfar').textContent   = simSliders.tFar.value;
+  document.getElementById('valBuffer').textContent = simSliders.buffer.value;
+  document.getElementById('valH').textContent      = simSliders.h.value;
+  document.getElementById('valW').textContent      = simSliders.w.value;
+  document.getElementById('valDrMin').textContent  = simSliders.drMin.value;
+  document.getElementById('valDrMax').textContent  = simSliders.drMax.value;
+}
+
+function setProbe(type) {
+  probeType = type;
+  document.querySelectorAll('.probe-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.probe === type);
+  });
+  autoSimulate();
+}
+
+function buildRequestBody() {
+  return {
+    probe_type: probeType,
+    pose: {
+      position: [parseFloat(sliders.x.value), parseFloat(sliders.y.value), parseFloat(sliders.z.value)],
+      rotation: [deg2rad(parseFloat(sliders.rx.value)), deg2rad(parseFloat(sliders.ry.value)), deg2rad(parseFloat(sliders.rz.value))],
+    },
+    sim_params: {
+      conv_psf:           document.getElementById('chkPsf').checked,
+      buffer_size:        parseInt(simSliders.buffer.value),
+      t_far:              parseFloat(simSliders.tFar.value),
+      median_clip_filter: document.getElementById('chkMedian').checked,
+      b_mode_size:        [parseInt(simSliders.h.value), parseInt(simSliders.w.value)],
+      dynamic_range_min:  parseFloat(simSliders.drMin.value),
+      dynamic_range_max:  parseFloat(simSliders.drMax.value),
+    },
+  };
+}
+
+// ─── Simulate ───────────────────────────────────────────────
+async function simulate() {
+  if (inflight) {
+    pendingSimulate = true;  // queue one more run after current finishes
+    return;
+  }
+  inflight = true;
+  pendingSimulate = false;
+  $btn.disabled = true;
+  $spinner.classList.add('active');
+
+  const body = buildRequestBody();
+  const t0 = performance.now();
+
+  try {
+    const resp = await fetch(`${API}/api/v1/simulate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({ detail: resp.statusText }));
+      throw new Error(err.detail || resp.statusText);
+    }
+
+    const blob = await resp.blob();
+    const url  = URL.createObjectURL(blob);
+
+    // Revoke previous object URL
+    if ($img._prevUrl) URL.revokeObjectURL($img._prevUrl);
+    $img._prevUrl = url;
+    $img.src = url;
+    $overlay.style.display = 'none';
+
+    // Update stats from headers
+    const rtt = (performance.now() - t0).toFixed(0);
+    document.getElementById('statProbe').textContent = resp.headers.get('X-Probe-Type') || probeType;
+    document.getElementById('statSize').textContent  =
+      `${resp.headers.get('X-Image-Width') || '?'}×${resp.headers.get('X-Image-Height') || '?'}`;
+    document.getElementById('statTime').textContent  = `${resp.headers.get('X-Sim-Time-Ms') || '?'} ms`;
+    document.getElementById('statRtt').textContent   = `${rtt} ms`;
+
+  } catch (err) {
+    console.error('Simulation error:', err);
+    toast(err.message, true);
+  } finally {
+    inflight = false;
+    $btn.disabled = false;
+    $spinner.classList.remove('active');
+    // If another simulate was queued while this one ran, kick it off
+    if (pendingSimulate) simulate();
+  }
+}
+
+function autoSimulate() {
+  if (document.getElementById('chkAuto').checked) simulate();
+}
+
+// ─── Event wiring ───────────────────────────────────────────
+
+// Probe buttons
+document.getElementById('probeSelector').addEventListener('click', e => {
+  const btn = e.target.closest('.probe-btn');
+  if (btn) setProbe(btn.dataset.probe);
+});
+
+// All sliders  →  update labels + auto
+[...Object.values(sliders), ...Object.values(simSliders)].forEach(el => {
+  el.addEventListener('input', () => { updateSliderLabels(); autoSimulate(); });
+});
+
+// Checkboxes  →  auto
+document.getElementById('chkPsf').addEventListener('change', autoSimulate);
+document.getElementById('chkMedian').addEventListener('change', autoSimulate);
+
+// Simulate button
+$btn.addEventListener('click', simulate);
+
+// Keyboard shortcuts (on viewport and globally)
+function handleKey(e) {
+  // Skip if user is typing in an input
+  if (e.target.tagName === 'INPUT' && e.target.type !== 'range') return;
+
+  let handled = true;
+  switch (e.key) {
+    // Position
+    case 'a': sliders.x.value = parseFloat(sliders.x.value) - MOVE_STEP; break;
+    case 'd': sliders.x.value = parseFloat(sliders.x.value) + MOVE_STEP; break;
+    case 'w': sliders.y.value = parseFloat(sliders.y.value) + MOVE_STEP; break;
+    case 's': sliders.y.value = parseFloat(sliders.y.value) - MOVE_STEP; break;
+    case 'q': sliders.z.value = parseFloat(sliders.z.value) - MOVE_STEP; break;
+    case 'e': sliders.z.value = parseFloat(sliders.z.value) + MOVE_STEP; break;
+    // Rotation
+    case 'ArrowUp':    sliders.ry.value = parseFloat(sliders.ry.value) + ROT_STEP; break;
+    case 'ArrowDown':  sliders.ry.value = parseFloat(sliders.ry.value) - ROT_STEP; break;
+    case 'ArrowLeft':  sliders.rz.value = parseFloat(sliders.rz.value) - ROT_STEP; break;
+    case 'ArrowRight': sliders.rz.value = parseFloat(sliders.rz.value) + ROT_STEP; break;
+    case '[': sliders.rx.value = parseFloat(sliders.rx.value) - ROT_STEP; break;
+    case ']': sliders.rx.value = parseFloat(sliders.rx.value) + ROT_STEP; break;
+    // Probe type
+    case '1': setProbe('curvilinear'); break;
+    case '2': setProbe('linear'); break;
+    case '3': setProbe('phased'); break;
+    // Simulate
+    case 'Enter': simulate(); break;
+    default: handled = false;
+  }
+  if (handled) {
+    e.preventDefault();
+    updateSliderLabels();
+    autoSimulate();
+  }
+}
+
+document.addEventListener('keydown', handleKey);
+
+// Focus viewport on load for keyboard input
+$viewport.focus();
+
+// Initialize labels
+updateSliderLabels();
+
+// ─── Load probe types from API on startup ───────────────────
+(async function init() {
+  try {
+    const resp = await fetch(`${API}/api/v1/health`);
+    if (resp.ok) {
+      const data = await resp.json();
+      if (data.status === 'ok') toast('Server connected');
+      else toast('Server degraded: ' + data.status, true);
+    }
+  } catch {
+    toast('Server unreachable — start rest_api_server.py', true);
+  }
+})();
+</script>
+</body>
+</html>

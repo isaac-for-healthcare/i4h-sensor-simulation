@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<!--
+SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+SPDX-License-Identifier: Apache-2.0
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ultrasound Simulation — WebRTC</title>
+<style>
+  :root {
+    --bg: #0a0a0a;
+    --surface: #1a1a2e;
+    --border: #333;
+    --accent: #00d4ff;
+    --text: #e0e0e0;
+    --text-dim: #888;
+    --success: #4caf50;
+    --warn: #ff9800;
+    --error: #f44336;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    display: flex;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  /* ---------- Sidebar ---------- */
+  .sidebar {
+    width: 320px;
+    min-width: 320px;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    padding: 16px;
+    gap: 16px;
+    overflow-y: auto;
+  }
+  .sidebar h1 {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .sidebar h1::before {
+    content: "◉";
+    font-size: 12px;
+  }
+
+  .panel {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+  }
+  .panel h2 {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-dim);
+    margin-bottom: 10px;
+  }
+
+  /* Connection panel */
+  .status-dot {
+    display: inline-block;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    margin-right: 6px;
+  }
+  .status-dot.connected { background: var(--success); }
+  .status-dot.connecting { background: var(--warn); }
+  .status-dot.disconnected { background: var(--error); }
+
+  button {
+    background: var(--accent);
+    color: #000;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 13px;
+    transition: opacity 0.2s;
+    width: 100%;
+  }
+  button:hover { opacity: 0.85; }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  button.danger { background: var(--error); color: #fff; }
+
+  /* Probe selector */
+  .probe-selector {
+    display: flex;
+    gap: 4px;
+  }
+  .probe-btn {
+    flex: 1;
+    padding: 6px 8px;
+    font-size: 11px;
+    background: rgba(255,255,255,0.06);
+    color: var(--text-dim);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  .probe-btn.active {
+    background: var(--accent);
+    color: #000;
+    border-color: var(--accent);
+  }
+
+  /* Sliders */
+  .slider-group { margin-bottom: 8px; }
+  .slider-group label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-bottom: 2px;
+  }
+  .slider-group input[type=range] {
+    width: 100%;
+    accent-color: var(--accent);
+  }
+
+  /* Stats */
+  .stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+    font-size: 12px;
+  }
+  .stats dt { color: var(--text-dim); }
+  .stats dd { text-align: right; font-variant-numeric: tabular-nums; }
+
+  /* Keyboard hints */
+  .key-hints {
+    font-size: 11px;
+    line-height: 1.8;
+    color: var(--text-dim);
+  }
+  kbd {
+    background: rgba(255,255,255,0.08);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 1px 5px;
+    font-size: 11px;
+    font-family: inherit;
+  }
+
+  /* ---------- Main view ---------- */
+  .main {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #000;
+    position: relative;
+  }
+  video {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    background: #000;
+  }
+  .overlay-msg {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    color: var(--text-dim);
+    font-size: 14px;
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+
+<!-- Sidebar controls -->
+<aside class="sidebar">
+  <h1>Ultrasound Sim</h1>
+
+  <!-- Connection -->
+  <div class="panel">
+    <h2>Connection</h2>
+    <p style="font-size:13px; margin-bottom:8px;">
+      <span class="status-dot disconnected" id="statusDot"></span>
+      <span id="statusText">Disconnected</span>
+    </p>
+    <button id="btnConnect" onclick="connect()">Connect</button>
+    <button id="btnDisconnect" class="danger" onclick="disconnect()" style="display:none; margin-top:6px;">Disconnect</button>
+  </div>
+
+  <!-- Probe type -->
+  <div class="panel">
+    <h2>Probe Type</h2>
+    <div class="probe-selector">
+      <button class="probe-btn active" data-probe="curvilinear" onclick="setProbe('curvilinear')">Curvilinear</button>
+      <button class="probe-btn" data-probe="linear" onclick="setProbe('linear')">Linear</button>
+      <button class="probe-btn" data-probe="phased" onclick="setProbe('phased')">Phased</button>
+    </div>
+  </div>
+
+  <!-- Pose control -->
+  <div class="panel">
+    <h2>Probe Pose</h2>
+    <div class="slider-group">
+      <label>X position <span id="valX">-14.0</span></label>
+      <input type="range" id="sliderX" min="-100" max="100" step="0.5" value="-14" oninput="onPoseSlider()">
+    </div>
+    <div class="slider-group">
+      <label>Y position <span id="valY">-122.0</span></label>
+      <input type="range" id="sliderY" min="-200" max="0" step="0.5" value="-122" oninput="onPoseSlider()">
+    </div>
+    <div class="slider-group">
+      <label>Z position <span id="valZ">72.0</span></label>
+      <input type="range" id="sliderZ" min="-100" max="200" step="0.5" value="72" oninput="onPoseSlider()">
+    </div>
+    <div class="slider-group">
+      <label>Roll (°) <span id="valRx">-90.0</span></label>
+      <input type="range" id="sliderRx" min="-180" max="180" step="1" value="-90" oninput="onPoseSlider()">
+    </div>
+    <div class="slider-group">
+      <label>Pitch (°) <span id="valRy">180.0</span></label>
+      <input type="range" id="sliderRy" min="-180" max="180" step="1" value="180" oninput="onPoseSlider()">
+    </div>
+    <div class="slider-group">
+      <label>Yaw (°) <span id="valRz">0.0</span></label>
+      <input type="range" id="sliderRz" min="-180" max="180" step="1" value="0" oninput="onPoseSlider()">
+    </div>
+  </div>
+
+  <!-- Sim parameters -->
+  <div class="panel">
+    <h2>Simulation</h2>
+    <div class="slider-group">
+      <label>Max depth (mm) <span id="valTfar">180</span></label>
+      <input type="range" id="sliderTfar" min="50" max="300" step="5" value="180" oninput="onSimParam()">
+    </div>
+    <div class="slider-group">
+      <label>Target FPS <span id="valFps">30</span></label>
+      <input type="range" id="sliderFps" min="5" max="60" step="1" value="30" oninput="onSimParam()">
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="panel">
+    <h2>Statistics</h2>
+    <dl class="stats">
+      <dt>FPS</dt><dd id="statFps">—</dd>
+      <dt>Resolution</dt><dd id="statRes">—</dd>
+      <dt>Latency</dt><dd id="statLat">—</dd>
+      <dt>Connection</dt><dd id="statConn">—</dd>
+    </dl>
+  </div>
+
+  <!-- Keyboard shortcuts -->
+  <div class="panel">
+    <h2>Keyboard</h2>
+    <div class="key-hints">
+      <kbd>W</kbd><kbd>S</kbd> Y axis &nbsp;
+      <kbd>A</kbd><kbd>D</kbd> X axis<br>
+      <kbd>Q</kbd><kbd>E</kbd> Z axis &nbsp;
+      <kbd>↑</kbd><kbd>↓</kbd> Pitch<br>
+      <kbd>←</kbd><kbd>→</kbd> Yaw &nbsp;
+      <kbd>[</kbd><kbd>]</kbd> Roll
+    </div>
+  </div>
+</aside>
+
+<!-- Video display -->
+<main class="main" id="videoContainer" tabindex="0">
+  <video id="video" autoplay playsinline muted></video>
+  <div class="overlay-msg" id="overlayMsg">Press Connect to start streaming</div>
+</main>
+
+<script>
+// ── State ──
+let pc = null;
+let dc = null;  // data channel
+let frameCount = 0;
+let lastFpsTime = performance.now();
+const MOVE_STEP = 2.0;   // mm per keypress
+const ROT_STEP  = 2.0;   // degrees per keypress
+
+// ── Connection management ──
+async function connect() {
+  const btn = document.getElementById('btnConnect');
+  btn.disabled = true;
+  setStatus('connecting');
+
+  try {
+    pc = new RTCPeerConnection({
+      iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+    });
+
+    // Declare that we want to receive server-pushed video
+    pc.addTransceiver('video', { direction: 'recvonly' });
+
+    // Create data channel for controls
+    dc = pc.createDataChannel('control', { ordered: true });
+    dc.onopen = () => {
+      console.log('Data channel open');
+      // Request initial pose
+      dc.send(JSON.stringify({ action: 'get_pose' }));
+    };
+    dc.onmessage = (evt) => handleServerMessage(JSON.parse(evt.data));
+
+    // Handle incoming video track
+    pc.ontrack = (evt) => {
+      const video = document.getElementById('video');
+      video.srcObject = evt.streams[0];
+      document.getElementById('overlayMsg').style.display = 'none';
+      // Start FPS counter
+      video.requestVideoFrameCallback(onVideoFrame);
+    };
+
+    pc.onconnectionstatechange = () => {
+      console.log('Connection state:', pc.connectionState);
+      if (pc.connectionState === 'connected') {
+        setStatus('connected');
+      } else if (['failed', 'closed', 'disconnected'].includes(pc.connectionState)) {
+        setStatus('disconnected');
+      }
+    };
+
+    // Create offer
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+
+    // Wait for ICE gathering
+    await new Promise((resolve) => {
+      if (pc.iceGatheringState === 'complete') {
+        resolve();
+      } else {
+        pc.onicegatheringstatechange = () => {
+          if (pc.iceGatheringState === 'complete') resolve();
+        };
+      }
+    });
+
+    // Send offer to server
+    const resp = await fetch('/offer', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sdp: pc.localDescription.sdp,
+        type: pc.localDescription.type,
+      }),
+    });
+    const answer = await resp.json();
+    await pc.setRemoteDescription(new RTCSessionDescription(answer));
+
+    document.getElementById('btnConnect').style.display = 'none';
+    document.getElementById('btnDisconnect').style.display = 'block';
+
+  } catch (err) {
+    console.error('Connection failed:', err);
+    setStatus('disconnected');
+    btn.disabled = false;
+  }
+}
+
+async function disconnect() {
+  if (dc) { dc.close(); dc = null; }
+  if (pc) { pc.close(); pc = null; }
+  const video = document.getElementById('video');
+  video.srcObject = null;
+  document.getElementById('overlayMsg').style.display = 'block';
+  document.getElementById('overlayMsg').textContent = 'Disconnected';
+  setStatus('disconnected');
+  document.getElementById('btnConnect').style.display = 'block';
+  document.getElementById('btnConnect').disabled = false;
+  document.getElementById('btnDisconnect').style.display = 'none';
+}
+
+function setStatus(state) {
+  const dot = document.getElementById('statusDot');
+  const txt = document.getElementById('statusText');
+  dot.className = 'status-dot ' + state;
+  txt.textContent = state.charAt(0).toUpperCase() + state.slice(1);
+  document.getElementById('statConn').textContent = state;
+}
+
+// ── Server messages ──
+function handleServerMessage(msg) {
+  if (msg.event === 'pose') {
+    updateSliders(msg.pose);
+  } else if (msg.event === 'probe_changed') {
+    highlightProbeBtn(msg.probe_type);
+  }
+}
+
+// ── Pose controls ──
+function onPoseSlider() {
+  const x  = parseFloat(document.getElementById('sliderX').value);
+  const y  = parseFloat(document.getElementById('sliderY').value);
+  const z  = parseFloat(document.getElementById('sliderZ').value);
+  const rx = parseFloat(document.getElementById('sliderRx').value);
+  const ry = parseFloat(document.getElementById('sliderRy').value);
+  const rz = parseFloat(document.getElementById('sliderRz').value);
+
+  document.getElementById('valX').textContent  = x.toFixed(1);
+  document.getElementById('valY').textContent  = y.toFixed(1);
+  document.getElementById('valZ').textContent  = z.toFixed(1);
+  document.getElementById('valRx').textContent = rx.toFixed(1);
+  document.getElementById('valRy').textContent = ry.toFixed(1);
+  document.getElementById('valRz').textContent = rz.toFixed(1);
+
+  sendPose(x, y, z, rx, ry, rz);
+}
+
+function sendPose(x, y, z, rxDeg, ryDeg, rzDeg) {
+  if (!dc || dc.readyState !== 'open') return;
+  const deg2rad = Math.PI / 180;
+  dc.send(JSON.stringify({
+    action: 'set_pose',
+    pose: [x, y, z, rxDeg * deg2rad, ryDeg * deg2rad, rzDeg * deg2rad],
+  }));
+}
+
+function updateSliders(pose) {
+  const rad2deg = 180 / Math.PI;
+  document.getElementById('sliderX').value = pose[0];
+  document.getElementById('sliderY').value = pose[1];
+  document.getElementById('sliderZ').value = pose[2];
+  document.getElementById('sliderRx').value = (pose[3] * rad2deg).toFixed(1);
+  document.getElementById('sliderRy').value = (pose[4] * rad2deg).toFixed(1);
+  document.getElementById('sliderRz').value = (pose[5] * rad2deg).toFixed(1);
+  onPoseSlider(); // update display labels
+}
+
+// ── Probe selection ──
+function setProbe(type) {
+  if (!dc || dc.readyState !== 'open') return;
+  dc.send(JSON.stringify({ action: 'set_probe_type', probe_type: type }));
+  highlightProbeBtn(type);
+}
+
+function highlightProbeBtn(type) {
+  document.querySelectorAll('.probe-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.probe === type);
+  });
+}
+
+// ── Sim parameters ──
+function onSimParam() {
+  const tfar = parseFloat(document.getElementById('sliderTfar').value);
+  const fps  = parseInt(document.getElementById('sliderFps').value);
+  document.getElementById('valTfar').textContent = tfar;
+  document.getElementById('valFps').textContent  = fps;
+
+  if (!dc || dc.readyState !== 'open') return;
+  dc.send(JSON.stringify({
+    action: 'set_sim_params',
+    params: { t_far: tfar, target_fps: fps },
+  }));
+}
+
+// ── FPS counter (requestVideoFrameCallback) ──
+function onVideoFrame(now, metadata) {
+  frameCount++;
+  const elapsed = now - lastFpsTime;
+  if (elapsed >= 1000) {
+    const fps = (frameCount * 1000 / elapsed).toFixed(1);
+    document.getElementById('statFps').textContent = fps;
+    frameCount = 0;
+    lastFpsTime = now;
+  }
+
+  // Resolution
+  const video = document.getElementById('video');
+  if (video.videoWidth) {
+    document.getElementById('statRes').textContent = `${video.videoWidth}×${video.videoHeight}`;
+  }
+
+  video.requestVideoFrameCallback(onVideoFrame);
+}
+
+// ── Keyboard controls ──
+document.addEventListener('keydown', (e) => {
+  if (!dc || dc.readyState !== 'open') return;
+  let delta = [0,0,0,0,0,0];
+  const deg2rad = Math.PI / 180;
+
+  switch(e.key) {
+    case 'a': case 'A': delta[0] = -MOVE_STEP; break;
+    case 'd': case 'D': delta[0] =  MOVE_STEP; break;
+    case 'w': case 'W': delta[1] = -MOVE_STEP; break;
+    case 's': case 'S': delta[1] =  MOVE_STEP; break;
+    case 'q': case 'Q': delta[2] = -MOVE_STEP; break;
+    case 'e': case 'E': delta[2] =  MOVE_STEP; break;
+    case 'ArrowUp':    delta[3] = -ROT_STEP * deg2rad; break;
+    case 'ArrowDown':  delta[3] =  ROT_STEP * deg2rad; break;
+    case 'ArrowLeft':  delta[4] = -ROT_STEP * deg2rad; break;
+    case 'ArrowRight': delta[4] =  ROT_STEP * deg2rad; break;
+    case '[':          delta[5] = -ROT_STEP * deg2rad; break;
+    case ']':          delta[5] =  ROT_STEP * deg2rad; break;
+    default: return;
+  }
+  e.preventDefault();
+  dc.send(JSON.stringify({ action: 'set_pose_delta', delta: delta }));
+
+  // Update sliders from server after delta
+  dc.send(JSON.stringify({ action: 'get_pose' }));
+});
+
+// Focus the video container for keyboard events
+document.getElementById('videoContainer').focus();
+</script>
+</body>
+</html>
