@@ -62,7 +62,7 @@ In our simulator, we model ultrasound propagation using deterministic ray tracin
 Ray-based models have inherent limitations in capturing certain wave phenomena:
 
 | Wave Phenomenon | Ray Limitation | Solution |
-|-----------------|----------------|--------------|
+| --------------- | -------------- | --------- |
 | Diffraction | Not directly modeled by rays | PSF convolution in post-processing |
 | Interference | Not captured by individual rays | Not modeled (PSF convolution) |
 | Phase information | Rays typically don't carry phase | Not modeled (amplitude-only simulation) |
@@ -116,6 +116,7 @@ In addition to the primary lateral scanning plane, our simulator models the elev
 
 - **OptiX Launch Configuration**:
   - The `optixLaunch` call in `raytracing_ultrasound_simulator.cpp` (inside `RaytracingUltrasoundSimulator::simulate`) sets the launch dimensions using:
+
     ```cpp
     optixLaunch(pipeline_.get(),
                 stream,
@@ -130,11 +131,13 @@ In addition to the primary lateral scanning plane, our simulator models the elev
 - **Ray Generation Implementation**:
   - For all probe types, elevational sampling is handled in a common code path: [`csrc/cuda/optix_trace.cu` – see `__raygen__rg()`]
   - The position along the elevational axis is calculated as:
+
     ```cpp
     const float d_y = (static_cast<float>(idx.y) / static_cast<float>(dim.y)) - 0.5f;
     const float elevation = ray_gen_data->elevational_height * d_y;
     origin.y = elevation;
     ```
+
   - This distributes rays evenly across the elevational height of the transducer
 
 - **Post-Processing of Elevational Data**:
@@ -164,8 +167,7 @@ When rays intersect with objects in the scene, several physical phenomena are si
     - \(f\) is the centre frequency in **MHz** (passed from the probe settings)
     - \(d\) is the propagation distance in **cm**
   - Note the same symbol \(\alpha\) is used throughout the guide and in the CUDA kernel to denote attenuation; earlier drafts used the symbol \(\mu\).  This change removes that ambiguity.
-  - Typical values of \(\alpha\) for biological tissues are drawn from the IT’IS Foundation tissue–property database [[6]](#ref-itis-db).
-
+  - Typical values of \(\alpha\) for biological tissues are drawn from the IT’IS Foundation tissue–property database [[6]](#6-itis-foundation).
 
 - **Scattering**: Backscattering from tissues based on material properties
   - Implementation: [`csrc/cuda/optix_trace.cu` – see `get_scattering_value()`]
@@ -307,39 +309,48 @@ This design allows the ray tracer to model complex acoustic interactions between
 To create realistic tissue textures, the simulator uses a dual-channel 3D texture that efficiently models sub-wavelength scattering. This approach creates the complex speckle patterns characteristic of ultrasound images without modeling individual scatterers.
 
 **Texture Generation and Structure** [`csrc/core/world.cpp` – see `generate_scattering_texture()`]:
+
 - A 256³ voxel texture with two channels is generated:
   - **Channel 0**: Uniform distribution [0,1] - controls scattering density
   - **Channel 1**: Normal distribution N(0,1) - controls scattering amplitude
 
 **Spatial Efficiency** [`csrc/core/world.cpp` – see `generate_scattering_texture()`]:
+
 - The texture uses `cudaAddressModeWrap` to repeat seamlessly in all dimensions
 - A single 256³ texture represents an infinite volume with no boundary artifacts
 - Hardware-accelerated trilinear filtering improves performance and quality
 - The pattern repeats every 50mm (default resolution), but repetition remains visually undetectable due to random distributions, material variations, and PSF convolution
 
 **Material-Texture Interaction** [`csrc/cuda/optix_trace.cu` – see `get_scattering_value()`]:
+
 - During ray traversal, positions are converted to texture coordinates: `pos /= resolution_mm`
 - The texture is sampled: `scatter_val = tex3D<float2>(params.scattering_texture, pos.x, pos.y, pos.z)`
 - Material parameters control how texture values affect scattering:
   - `mu0_` acts as a threshold against Channel 0 (density):
-    ```
+
+    ```text
     if (scatter_val.x <= material->mu0_) { return scatter_val.y * material->sigma_; }
     return 0.f;
     ```
+
   - `sigma_` scales the intensity from Channel 1 (amplitude)
   - Example: Liver (`mu0_=0.7`, `sigma_=0.3`) scatters at 70% of locations with moderate intensity, while fat (`mu0_=1.0`, `sigma_=1.0`) scatters everywhere with higher intensity
 
 **Integration into Scanlines** [`csrc/cuda/optix_trace.cu` – see `sample_intensities()`]:
+
 - Scattering values accumulate into the scanlines during ray traversal:
-  ```
+
+  ```text
   intensities[step] += get_scattering_value(pos, material) * intensity *
                        get_intensity_at_distance(distance, material->attenuation_);
   ```
+
 - This produces spatially consistent scattering where the same world position yields the same base texture values leading to spatial coherence
 - Different materials at the same position produce different scattering responses due to their unique parameters
 - The scattering values are affected by distance-dependent attenuation
 
 This volumetric scattering approach achieves three key goals:
+
 1. **Tissue-Specific Textures**: Each tissue type has its characteristic speckle pattern
 2. **Computational Efficiency**: A small texture simulates an infinite volume
 3. **Physical Realism**: Speckle emerges naturally from the simulation physics rather than being artificially added
@@ -350,7 +361,7 @@ The tissue modeling system's integration with the OptiX ray-tracing pipeline ena
 
 Mesh assets used as input to the simulation can be created by hand, or derived from segmentation masks from medical imaging modalities like MRI, CT or ultrasound.
 You can generate your own assets from CT or MRI using MONAI by following [this tutorial](https://github.com/Project-MONAI/tutorials/blob/main/modules/omniverse/omniverse_integration.ipynb), though this is not required to get started with the simulator.
-Have a look at our [Quick Start Guide](../ultrasound-raytracing/README.md) to run simulation with pre-generated assets.
+Have a look at our [Quick Start Guide](../README.md) to run simulation with pre-generated assets.
 
 ## 5. References
 
@@ -364,8 +375,9 @@ Have a look at our [Quick Start Guide](../ultrasound-raytracing/README.md) to ru
 
 [5] Prince, J. L., & Links, J. M. (2015) - "Medical Imaging Signals and Systems"
 
-<a id="ref-itis-db"></a>[6] IT’IS Foundation. *Tissue Properties Database*, v5.3, 2024.
-https://itis.swiss/virtual-population/tissue-properties/database/
+### [6] IT’IS Foundation
+
+*Tissue Properties Database*, v5.3, 2024. [Tissue Properties Database](https://itis.swiss/virtual-population/tissue-properties/database/).
 
 ## 6. Helpful Definitions
 

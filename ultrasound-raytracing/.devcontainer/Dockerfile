@@ -13,6 +13,41 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# ============================================================================
+# Stage 1: Download datasets using i4h-asset-catalog (requires Isaac Sim)
+# Using Ubuntu 22.04 which has Python 3.11 available
+# ============================================================================
+FROM ubuntu:22.04 AS dataset-downloader
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV PIP_NO_CACHE_DIR=off
+ENV ACCEPT_EULA=Y
+
+# Install minimal dependencies for downloading (Python 3.11 required for Isaac Sim)
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        python3.11 \
+        python3.11-venv \
+        python3-pip \
+        git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create working directory for downloads
+WORKDIR /downloads
+
+# Create venv and install i4h-asset-catalog with Isaac Sim (only in this stage)
+RUN python3.11 -m venv /downloads/.venv && \
+    /downloads/.venv/bin/pip install git+https://github.com/isaac-for-healthcare/i4h-asset-catalog.git
+
+# Download mesh data using the venv (auto-accept EULA)
+RUN echo "Yes" | /downloads/.venv/bin/i4h-asset-retrieve --download-dir assets --sub-path Props/ABDPhantom/Organs --version 0.2.0
+
+# Create the mesh symlink
+RUN ln -s assets/8c0bf782eab2f44f1cc82da60eb10f6be8f941406d291b7fbfbdb53c05b3d149/Props/ABDPhantom/Organs mesh
+
+# ============================================================================
+# Stage 2: Final runtime image (no Isaac Sim dependency)
+# ============================================================================
 FROM nvidia/cuda:12.6.3-devel-ubuntu24.04
 
 # Disable pip cache to avoid creating a cache directory with root permissions in the user's home directory.
@@ -45,8 +80,36 @@ RUN apt-get update \
         python3-pip \
     && rm -rf /var/lib/apt/lists/*
 
+# OptiX runtime is provided by the NVIDIA driver (via --gpus all)
+# Headers are fetched automatically by CMake from optix-dev repository
+# Add NVIDIA library paths to LD_LIBRARY_PATH for OptiX runtime
+ENV LD_LIBRARY_PATH=/usr/local/nvidia/lib64:/usr/local/nvidia/lib:${LD_LIBRARY_PATH}
+
 # Ensure `python` invokes Python 3.12 (python3 already provided by the base image)
 RUN ln -s /usr/bin/python3.12 /usr/bin/python
 
-# Set the default user
+# Switch to the user for building
 USER $USERNAME
+
+# Set working directory in user's home
+WORKDIR /home/$USERNAME/workspace
+
+# Copy the project files
+COPY --chown=$USERNAME:$USERNAME . /home/$USERNAME/workspace/
+
+# Create virtual environment in user's home
+RUN python -m venv /home/$USERNAME/.venv
+
+# Install Python dependencies including optional dependencies for server.py
+# Set CUDA architectures for the build via CMAKE_ARGS
+RUN CMAKE_ARGS="-DCMAKE_CUDA_ARCHITECTURES=80" \
+    /home/$USERNAME/.venv/bin/python -m pip install -e ".[all]"
+
+# Copy downloaded mesh data from the dataset-downloader stage
+COPY --from=dataset-downloader --chown=$USERNAME:$USERNAME /downloads/mesh /home/$USERNAME/workspace/mesh
+
+# Add venv to PATH so python commands use it by default
+ENV PATH="/home/$USERNAME/.venv/bin:$PATH"
+
+# Expose port for the web server
+EXPOSE 8000

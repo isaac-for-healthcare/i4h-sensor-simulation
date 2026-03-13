@@ -1,0 +1,50 @@
+// For format details, see https://aka.ms/vscode-remote/devcontainer.json or
+// https://code.visualstudio.com/docs/remote/devcontainerjson-reference
+{
+    "name": "FluoroSim",
+    "build": {
+        "dockerfile": "Dockerfile",
+        "args": {
+            "BUILDKIT_INLINE_CACHE": "1" // Enable Docker BuildKit cache
+        }
+    },
+    "runArgs": [
+        "--runtime=nvidia",
+        "--net=host",
+        "--cap-add=SYS_PTRACE",
+        "--security-opt=seccomp=unconfined"
+    ],
+    "containerEnv": {
+        "DISPLAY": "${localEnv:DISPLAY}",
+        "NVIDIA_DRIVER_CAPABILITIES": "all"
+    },
+    "mounts": [
+        "source=/tmp/.X11-unix,target=/tmp/.X11-unix,type=bind,consistency=cached"
+    ],
+    "workspaceMount": "source=${localWorkspaceFolder},target=/workspace/fluorosim,type=bind,consistency=cached",
+    "workspaceFolder": "/workspace/fluorosim",
+    // Configure tool-specific properties.
+    "customizations": {
+        // Configure properties specific to VS Code.
+        "vscode": {
+            // Set *default* container specific settings.json values on container create.
+            "settings": {
+                "terminal.integrated.defaultProfile.linux": "bash",
+                "terminal.integrated.profiles.linux": { "bash": { "path": "/bin/bash" } }
+            },
+            // Add the IDs of extensions you want installed when the container is created.
+            "extensions": [
+                "ms-python.python",
+                "ms-python.vscode-pylance",
+                "ms-python.isort",
+                "ms-python.black-formatter",
+                "ms-python.debugpy",
+                "shardulm94.trailing-spaces",
+                "stkb.rewrap",
+                "shd101wyy.markdown-preview-enhanced"
+            ]
+        }
+    },
+    // Comment out this line to run as root instead.
+    "remoteUser": "fluorosim"
+}

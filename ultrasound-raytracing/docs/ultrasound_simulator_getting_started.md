@@ -8,11 +8,11 @@ This comprehensive tutorial will guide you through the ultrasound raytracing sim
 
 Before starting the tutorial, you need to properly build and install the ultrasound raytracing simulator.
 
-> 📖 **Complete Installation Guide**: For detailed installation instructions including OptiX setup and mesh data, see the [main README](../ultrasound-raytracing/README.md)
+> 📖 **Complete Installation Guide**: For detailed installation instructions including OptiX setup and mesh data, see the [main README](../README.md)
 
 ---
 
-## Chapter 1: Hello, Ultrasound!
+## Chapter 1: Hello, Ultrasound
 
 **Goal**: Get your first ultrasound simulation running in under 5 minutes
 
@@ -20,7 +20,7 @@ Let's start with the simplest working ultrasound simulation - a single sphere in
 
 > ⚠️ **Note**: The simulator requires at least one object in the world to function properly. Empty worlds cause OptiX acceleration structure errors.
 
-### The Code
+### The Code (Sphere in Water)
 
 ```python
 import numpy as np
@@ -96,7 +96,7 @@ print(f"Value range: {image.min():.2f} to {image.max():.2f}")
 print(f"Sphere material: water (same as background - geometric interface)")
 ```
 
-### Expected Output
+### Expected Output (Sphere in Water)
 
 You should see a bright, curved echo in the image! This might seem surprising since both the sphere and background are water (same material), but the sphere appears as a bright arc because:
 
@@ -130,6 +130,7 @@ Let's break down the simulation pipeline:
 ### Understanding the Coordinate System
 
 The ultrasound coordinate system follows these conventions:
+
 - **X-axis (Lateral)**: Left-right across the probe face
 - **Y-axis (Elevational)**: Slice thickness direction (perpendicular to image plane)
 - **Z-axis (Axial)**: Depth direction, positive Z points away from the probe
@@ -141,7 +142,7 @@ The ultrasound coordinate system follows these conventions:
 Ultrasound frequency is a critical parameter that affects image quality:
 
 | Frequency | Penetration | Resolution | Clinical Use |
-|-----------|-------------|------------|--------------|
+| --------- | ----------- | ---------- | ------------- |
 | 2-3 MHz | Excellent | Low | Deep abdominal imaging |
 | 3-5 MHz | Good | Medium | General abdominal, cardiac |
 | 5-7 MHz | Medium | Good | Superficial structures |
@@ -158,16 +159,19 @@ Ultrasound images use **decibel (dB) scaling** for display because:
 3. **Clinical Standard**: All clinical ultrasound systems use dB compression
 
 **dB Conversion Formula**:
+
 ```python
 image_db = 20 * log10(intensity / reference)
 ```
 
 **Typical Display Range**:
+
 - **0 dB**: Maximum intensity (brightest)
 - **-60 dB**: Minimum displayed intensity (darkest)
 - **Below -60 dB**: Noise floor (appears black)
 
 This creates the characteristic ultrasound appearance where:
+
 - Strong reflectors appear bright (near 0 dB)
 - Weak echoes appear gray (-20 to -40 dB)
 - No echoes appear dark (below -60 dB)
@@ -192,7 +196,7 @@ This chapter introduced the basic simulation pipeline: World → Objects → Pro
 
 Now that you've seen a water sphere in liver background, let's explore how different tissue types appear in ultrasound. We'll create a row of spheres with different materials to see their varying echo patterns.
 
-### The Code
+### The Code (Material Comparison)
 
 Building on Chapter 1, we'll replace the single sphere with multiple spheres of different materials:
 
@@ -293,7 +297,7 @@ for material in materials_to_test:
     print(f"  - {material}: {'Very bright' if material == 'bone' else 'Bright' if material in ['muscle'] else 'Medium' if material in ['liver', 'fat'] else 'Dark'}")
 ```
 
-### Expected Output
+### Expected Output (Material Comparison)
 
 You should now see **five different spheres** across the image, each with different echo intensities! From left to right, you'll notice:
 
@@ -308,24 +312,30 @@ You should now see **five different spheres** across the image, each with differ
 The key changes are:
 
 **Multiple Materials**:
+
 ```python
 materials_to_test = ["water", "fat", "liver", "muscle", "bone"]
 ```
+
 We test a spectrum of tissue types from lowest to highest acoustic impedance.
 
 **Spatial Arrangement**:
+
 ```python
 positions = [[-24, 0, 60], [-12, 0, 60], [0, 0, 60], [12, 0, 60], [24, 0, 60]]
 ```
+
 We arrange the spheres in a row at 60mm depth, spaced 12mm apart laterally (center-to-center), with 5mm radius so they have 2mm clearance between them and all fit within the probe's 60mm field of view.
 
 **Loop Creation**:
+
 ```python
 for material_name, pos in zip(materials_to_test, positions):
     material_id = materials.get_index(material_name)
     sphere = rs.Sphere(np.array(pos, dtype=np.float32), 15, material_id)
     world.add(sphere)
 ```
+
 This efficiently creates multiple objects with different properties.
 
 ### Understanding Material Properties
@@ -333,7 +343,7 @@ This efficiently creates multiple objects with different properties.
 The echo brightness depends on **acoustic impedance contrast**:
 
 | Material | Acoustic Impedance | Echo Appearance | Clinical Use |
-|----------|-------------------|------------------|--------------|
+| -------- | ----------------- | --------------- | ------------ |
 | Water | 1.48 MRayl | Dark (minimal reflection) | Cysts, fluid collections |
 | Fat | 1.38 MRayl | Dark-medium | Subcutaneous tissue |
 | Liver | ~1.65 MRayl | Medium with speckle | Organ parenchyma |
@@ -464,6 +474,7 @@ This comparison reveals important ultrasound principles:
 **Contrast Dependency**: Echo visibility depends on the **impedance difference** between object and background, not absolute impedance values. A liver sphere is less visible in liver background but very visible in water background.
 
 **Clinical Terminology**:
+
 - **Hyperechoic**: Brighter than surrounding tissue (e.g., bone in any background)
 - **Hypoechoic**: Darker than surrounding tissue (e.g., water sphere in liver background)
 - **Isoechoic**: Same brightness as surrounding tissue (e.g., liver sphere in liver background)
@@ -472,6 +483,7 @@ This comparison reveals important ultrasound principles:
 ### Full Field of View Visualization
 
 The liver background also demonstrates the full field of view with realistic tissue texture. Notice how the liver background shows:
+
 - **Speckle pattern**: Characteristic grainy texture from microscopic scatterers
 - **Depth-dependent attenuation**: Gradual signal loss with depth
 - **Realistic tissue appearance**: More clinically representative than water background
@@ -481,18 +493,21 @@ The liver background also demonstrates the full field of view with realistic tis
 One of the most important advantages of using a speckled background like liver is that it **reveals the full extent of the scan-converted image**. Here's why this matters:
 
 **Water Background Limitations**:
+
 - Uniform black appearance makes it impossible to see image boundaries from the black image frame
 - You can't tell where the actual ultrasound field of view ends
 - The rectangular image extent is hidden
 - Difficult to understand the probe's actual coverage area
 
 **Liver Background Advantages**:
+
 - **Visible field boundaries**: The speckle pattern clearly shows where the ultrasound beam reaches
 - **Scan conversion geometry**: You can see the actual shape of the linear array's rectangular field of view
 - **Depth penetration limits**: Speckle fades with depth, showing realistic beam attenuation
 - **Lateral beam edges**: The sides of the image show where the probe's width ends
 
 **What You Can Observe**:
+
 1. **Rectangular field shape**: Linear arrays create rectangular imaging regions (unlike sector probes)
 2. **Acoustic Shadowing**: Our ray model displays how refraction and frequency dependent attenuation can lead to shadowing artifacts below the spheres. Their pronounced appearance is characteristic of deterministic ray-tracying ultrasound simulators.
 3. **Penetration depth**: How far the ultrasound effectively travels (set by `t_far`)
@@ -623,9 +638,9 @@ The Point Spread Function (PSF) convolution is an essential part of ultrasound s
 > 📖 **Learn More**: For detailed explanation of PSF physics and implementation, see [Technical Guide - Point Spread Function](ultrasound_simulator_technical_guide.md#11-basic-ultrasound-physics)
 
 **Try this**: Take any previous simulation and change `sim_params.conv_psf = False` to see the dramatic difference. You'll notice:
+
 - **PSF OFF**: Sharp, geometric boundaries with unrealistic appearance and streaking artifacts from undersampled envelope detection.
 - **PSF ON**: Realistic ultrasound axial and lateral resolution.
-
 
 ### Experiment 4: Frequency Effects
 
@@ -727,6 +742,7 @@ Defines the spatial pixel resolution (grid size) of the resulting output image.
 A debugging parameter to turn of the PSF convolution operation. Not recommended for simulation use.
 
 **Frequency**:
+
 - **Low (1-3 MHz)**: Deep penetration, poor resolution, abdominal imaging
 - **Medium (3-7 MHz)**: Balanced, general purpose imaging
 - **High (7-15 MHz)**: Superficial structures, excellent resolution
@@ -749,7 +765,7 @@ So far we've used linear array probes, which create rectangular images with para
 The simulator supports three main probe types, each optimized for different clinical scenarios:
 
 | Probe Type | Field Shape | Best For | Beam Pattern |
-|------------|-------------|----------|--------------|
+| ---------- | ----------- | -------- | ------------- |
 | **Linear Array** | Rectangular | Superficial structures, vascular | Parallel beams |
 | **Curvilinear** | Sector (curved) | Abdominal imaging | Diverging beams from curved surface |
 | **Phased Array** | Sector (straight) | Cardiac, intercostal | Electronically steered (diverging) beams from a small flat surface |
@@ -869,6 +885,7 @@ plt.show()
 ### Understanding Field Geometry Differences
 
 **Linear Array Characteristics**:
+
 - **Field Shape**: Rectangular, uniform width
 - **Beam Pattern**: Parallel beams perpendicular to probe face
 - **Resolution**: Consistent lateral resolution at all depths
@@ -876,6 +893,7 @@ plt.show()
 - **Clinical Use**: Vascular, superficial structures, musculoskeletal
 
 **Curvilinear Characteristics**:
+
 - **Field Shape**: Sector expanding with depth
 - **Beam Pattern**: Diverging beams from curved transducer surface
 - **Resolution**: Good near-field, decreasing lateral resolution with depth
@@ -883,6 +901,7 @@ plt.show()
 - **Clinical Use**: Abdominal, obstetric, general imaging
 
 **Phased Array Characteristics**:
+
 - **Field Shape**: Sector from small footprint
 - **Beam Pattern**: Electronically steered beams
 - **Resolution**: Variable, depends on steering angle
@@ -930,6 +949,7 @@ plt.show()
 ### Clinical Applications Guide
 
 **When to Use Linear Arrays**:
+
 - Superficial structures (< 6cm depth)
 - Vascular imaging (carotid, peripheral vessels)
 - Musculoskeletal applications
@@ -937,12 +957,14 @@ plt.show()
 - When uniform resolution is needed
 
 **When to Use Curvilinear**:
+
 - Abdominal imaging (liver, kidneys, gallbladder)
 - Obstetric and gynecologic imaging
 - Deep structures requiring wide field of view
 - General purpose imaging
 
 **When to Use Phased Array**:
+
 - Cardiac imaging (echocardiography)
 - Intercostal imaging (limited acoustic windows)
 - Pediatric applications (small contact area)
@@ -1038,7 +1060,7 @@ plt.show()
 The simulator supports two main types of objects:
 
 | Object Type | Best For | Example Usage |
-|-------------|----------|---------------|
+| ----------- | -------- | -------------- |
 | **Spheres** | Simple phantoms, point targets | Basic testing, learning fundamentals |
 | **Mesh Objects** | Realistic anatomy | Organ simulation, clinical training |
 
@@ -1055,9 +1077,11 @@ Congratulations! You've completed the ultrasound simulator getting started tutor
 For more complex simulations and advanced usage, see these example files:
 
 **Sphere-based Phantoms**:
+
 - `examples/sphere_sweep.py` - Demonstrates probe positioning and movement with sphere objects
 
 **Mesh-based Phantoms**:
+
 - `examples/liver_sweep.py` - Displays relative positioning and movement over mesh assets
 - `examples/server.py` - Interactive web-based ultrasound simulator with multiple organ meshes
 

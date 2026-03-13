@@ -1,0 +1,48 @@
+{
+  "application": {
+    "name": "Ultrasound Raytracing Simulator",
+    "description": "GPU-accelerated raytracing ultrasound simulator using NVIDIA OptiX",
+    "authors": [
+      {
+        "name": "Isaac for Healthcare Team",
+        "affiliation": "NVIDIA"
+      }
+    ],
+    "language": "Python",
+    "dockerfile": "ultrasound-raytracing/docker/Dockerfile",
+    "default_mode": "server",
+    "modes": {
+      "server": {
+        "description": "Launch the interactive web server for real-time ultrasound probe simulation (port 8000)",
+        "run": {
+          "command": "python <holohub_app_source>/examples/server.py",
+          "workdir": "holohub_app_source",
+          "env": {"ULTRASOUND_MESH_DIR": "/opt/ultrasound-mesh"}
+        }
+      },
+      "sphere_sweep": {
+        "description": "Run a sphere-sweep demo that renders B-mode images of synthetic spheres",
+        "run": {
+          "command": "python <holohub_app_source>/examples/sphere_sweep.py",
+          "workdir": "holohub_app_source"
+        }
+      },
+      "liver_sweep": {
+        "description": "Run a liver-sweep demo that renders B-mode images of a liver mesh",
+        "run": {
+          "command": "python <holohub_app_source>/examples/liver_sweep.py",
+          "workdir": "holohub_app_source",
+          "env": {"ULTRASOUND_MESH_DIR": "/opt/ultrasound-mesh"}
+        }
+      },
+      "benchmark": {
+        "description": "Run the performance benchmark (200 frames)",
+        "run": {
+          "command": "python <holohub_app_source>/examples/benchmark.py",
+          "workdir": "holohub_app_source",
+          "env": {"ULTRASOUND_MESH_DIR": "/opt/ultrasound-mesh"}
+        }
+      }
+    }
+  }
+}

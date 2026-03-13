@@ -1,15 +1,18 @@
 repos:
+  # ruff
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.4.7
     hooks:
       - id: ruff
         args: [--fix]
+  # isort
   - repo: https://github.com/pycqa/isort
     rev: 6.0.0
     hooks:
       - id: isort
         name: isort (python)
         args: [--check-only]
+  # codespell
   - repo: https://github.com/codespell-project/codespell
     rev: v2.2.6
     hooks:
@@ -17,12 +20,14 @@ repos:
         args: ["--skip=ultrasound/third_party/*", "--write-changes"]
         additional_dependencies:
         - tomli
+  # clang-format
   - repo: https://github.com/pre-commit/mirrors-clang-format
     rev: v19.1.7
     hooks:
     - id: clang-format
       types_or: [c++, c, cuda]
       exclude: '^ultrasound/third_party/.*'
+  # pre-commit hooks
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.4.0
     hooks:
@@ -32,3 +37,10 @@ repos:
       exclude: '^ultrasound/third_party/.*'
     - id: check-yaml
     - id: check-added-large-files
+  # markdownlint
+  - repo: https://github.com/igorshubovych/markdownlint-cli
+    rev: v0.47.0
+    hooks:
+      - id: markdownlint
+        args: [--fix, --config, .markdownlint.yaml]
+        files: ^.*\.md$
