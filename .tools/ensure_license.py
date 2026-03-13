@@ -16,7 +16,7 @@
 import os
 
 # Read the license header from the file
-with open("tools/apache_2_0.txt", "r", encoding="utf-8") as license_file:
+with open(".tools/apache_2_0.txt", "r", encoding="utf-8") as license_file:
     license_lines = [line.strip() for line in license_file.readlines()]
     # Remove empty lines
     license_lines = [line for line in license_lines if line]

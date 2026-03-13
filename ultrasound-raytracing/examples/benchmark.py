@@ -106,10 +106,11 @@ def main():
     # Create materials and world
     materials = rs.Materials()
     world = rs.World("water")
+    mesh_dir = os.environ.get("ULTRASOUND_MESH_DIR", "mesh")
 
     # Add liver mesh to world
     material_idx = materials.get_index("liver")
-    mesh = rs.Mesh("mesh/Liver.obj", material_idx)
+    mesh = rs.Mesh(os.path.join(mesh_dir, "Liver.obj"), material_idx)
     world.add(mesh)
 
     # Create probe with initial pose

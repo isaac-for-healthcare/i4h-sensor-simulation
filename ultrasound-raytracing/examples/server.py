@@ -28,50 +28,55 @@ from PIL import Image
 
 app = Flask(__name__)
 CORS(app)
+mesh_dir = os.environ.get("ULTRASOUND_MESH_DIR", "mesh")
+
+
+def mesh_path(filename):
+    return os.path.join(mesh_dir, filename)
 
 # Create materials and world
 materials = rs.Materials()
 world = rs.World("water")
 
 material_idx = materials.get_index("fat")
-liver_tumor = rs.Mesh("mesh/Tumor1.obj", material_idx)
+liver_tumor = rs.Mesh(mesh_path("Tumor1.obj"), material_idx)
 world.add(liver_tumor)
 material_idx = materials.get_index("water")
-liver_cyst = rs.Mesh("mesh/Tumor2.obj", material_idx)
+liver_cyst = rs.Mesh(mesh_path("Tumor2.obj"), material_idx)
 world.add(liver_cyst)
 # Add liver mesh to world
 material_idx = materials.get_index("liver")
-liver_mesh = rs.Mesh("mesh/Liver.obj", material_idx)
+liver_mesh = rs.Mesh(mesh_path("Liver.obj"), material_idx)
 world.add(liver_mesh)
 material_idx = materials.get_index("fat")
-skin_mesh = rs.Mesh("mesh/Skin.obj", material_idx)
+skin_mesh = rs.Mesh(mesh_path("Skin.obj"), material_idx)
 world.add(skin_mesh)
 material_idx = materials.get_index("bone")
-bone_mesh = rs.Mesh("mesh/Bone.obj", material_idx)
+bone_mesh = rs.Mesh(mesh_path("Bone.obj"), material_idx)
 world.add(bone_mesh)
 material_idx = materials.get_index("water")
-vessels_mesh = rs.Mesh("mesh/Vessels.obj", material_idx)
+vessels_mesh = rs.Mesh(mesh_path("Vessels.obj"), material_idx)
 world.add(vessels_mesh)
 material_idx = materials.get_index("water")
-galbladder_mesh = rs.Mesh("mesh/Gallbladder.obj", material_idx)
+galbladder_mesh = rs.Mesh(mesh_path("Gallbladder.obj"), material_idx)
 world.add(galbladder_mesh)
 material_idx = materials.get_index("liver")
-spleen_mesh = rs.Mesh("mesh/Spleen.obj", material_idx)
+spleen_mesh = rs.Mesh(mesh_path("Spleen.obj"), material_idx)
 world.add(spleen_mesh)
 material_idx = materials.get_index("liver")
-heart_mesh = rs.Mesh("mesh/Heart.obj", material_idx)
+heart_mesh = rs.Mesh(mesh_path("Heart.obj"), material_idx)
 world.add(heart_mesh)
 material_idx = materials.get_index("water")
-stomach_mesh = rs.Mesh("mesh/Stomach.obj", material_idx)
+stomach_mesh = rs.Mesh(mesh_path("Stomach.obj"), material_idx)
 world.add(stomach_mesh)
 material_idx = materials.get_index("liver")
-pancreas_mesh = rs.Mesh("mesh/Pancreas.obj", material_idx)
+pancreas_mesh = rs.Mesh(mesh_path("Pancreas.obj"), material_idx)
 world.add(pancreas_mesh)
 material_idx = materials.get_index("water")
-small_intestine_mesh = rs.Mesh("mesh/Small_bowel.obj", material_idx)
+small_intestine_mesh = rs.Mesh(mesh_path("Small_bowel.obj"), material_idx)
 world.add(small_intestine_mesh)
 material_idx = materials.get_index("water")
-large_intestine_mesh = rs.Mesh("mesh/Colon.obj", material_idx)
+large_intestine_mesh = rs.Mesh(mesh_path("Colon.obj"), material_idx)
 world.add(large_intestine_mesh)
 
 # Initial poses for different probe types
@@ -249,4 +254,4 @@ def simulate():
 
 
 if __name__ == "__main__":
-    app.run(port=8000, debug=True)
+    app.run(host='0.0.0.0', port=8000, debug=True)

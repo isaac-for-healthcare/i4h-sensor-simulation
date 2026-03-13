@@ -1,0 +1,57 @@
+name: Fluoro Simulator CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  fluorosim:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install fluoro-simulator (CPU-only)
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ./fluoro-simulator
+
+      - name: Smoke test (imports + preprocessing + cache IO)
+        run: |
+          python - << 'PY'
+          import tempfile
+          from pathlib import Path
+          import numpy as np
+
+          import fluorosim
+          from fluorosim import VolumePreprocessor, PreprocessedVolume
+
+          # Sanity: importable
+          assert isinstance(fluorosim.__version__, str)
+
+          # Build a tiny synthetic HU volume (Z,Y,X)
+          hu = np.full((8, 16, 16), -900.0, dtype=np.float32)
+          hu[2:6, 4:12, 4:12] = 800.0
+
+          pre = VolumePreprocessor.from_numpy(hu, spacing_zyx_mm=(1.0, 0.5, 0.5))
+          vol = pre.preprocess()
+
+          # Cache round-trip
+          with tempfile.TemporaryDirectory() as td:
+            out = Path(td) / "cache"
+            vol.save(out)
+            vol2 = PreprocessedVolume.load(out)
+            assert vol2.mu_volume.shape == vol.mu_volume.shape
+            assert vol2.metadata.spacing_zyx_mm == vol.metadata.spacing_zyx_mm
+
+          # Bytecode compile (basic syntax check)
+          import compileall
+          assert compileall.compile_dir("fluoro-simulator/fluorosim", quiet=1)
+
+          print("fluorosim CI smoke test: OK")
+          PY

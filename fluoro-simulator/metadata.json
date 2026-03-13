@@ -1,0 +1,45 @@
+{
+  "application": {
+    "name": "Fluoroscopy Simulator",
+    "description": "GPU-accelerated fluoroscopy (X-ray) simulator using differentiable rendering with Slang shaders",
+    "authors": [
+      {
+        "name": "Isaac for Healthcare Team",
+        "affiliation": "NVIDIA"
+      }
+    ],
+    "language": "Python",
+    "dockerfile": "fluoro-simulator/docker/Dockerfile",
+    "default_mode": "preprocess_synthetic",
+    "modes": {
+      "preprocess_synthetic": {
+        "description": "Generate a synthetic phantom and cache it for the demo mode",
+        "run": {
+          "command": "python <holohub_app_source>/examples/preprocess_ct.py --synthetic",
+          "workdir": "holohub_app_source"
+        }
+      },
+      "preprocess_dicom": {
+        "description": "Preprocess downloaded DICOM data and cache for the demo mode",
+        "run": {
+          "command": "python <holohub_app_source>/examples/preprocess_ct.py --dicom <holohub_app_source>/data/excellent/excellent/0",
+          "workdir": "holohub_app_source"
+        }
+      },
+      "download_data": {
+        "description": "Download the Multiphase CT Angiography dataset from Kaggle",
+        "run": {
+          "command": "bash -c 'set -e && kaggle datasets download -d adamhuan/multiphase-ct-anigography-2-datasets -p <holohub_app_source>/data && cd <holohub_app_source>/data && unzip -o multiphase-ct-anigography-2-datasets.zip && rm multiphase-ct-anigography-2-datasets.zip'",
+          "workdir": "holohub_app_source"
+        }
+      },
+      "demo": {
+        "description": "Run C-arm sweep demo using a cached preprocessed volume (run preprocess_synthetic or preprocess_dicom first)",
+        "run": {
+          "command": "python <holohub_app_source>/examples/fluorosim_demo.py",
+          "workdir": "holohub_app_source"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,184 @@
+#!/usr/bin/env bash
+
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# ==============================================================================
+# i4h CLI Wrapper Script - Isaac for Healthcare Sensor Simulation
+# ==============================================================================
+#
+# DESCRIPTION:
+#   This script provides a wrapper for the HoloHub CLI tools by automatically
+#   downloading and managing the required utilities from the nvidia-holoscan/holohub
+#   repository.
+#
+# USAGE:
+#   ./i4h [COMMAND] [OPTIONS]
+#
+# FIRST RUN REQUIREMENTS:
+#   - git (for downloading HoloHub tools)
+#   - Internet connection (for initial download and updates)
+#   - Write permissions in CLI_DIR (default: <script_directory>/tools)
+#
+# RUNTIME REQUIREMENTS:
+#   - python3 (>=3.10 for running the CLI)
+#
+# CONFIGURATION:
+#   CLI_DIR - Directory where HoloHub CLI tools will be installed
+#             Default: <script_directory>/tools
+#             Can be overridden by setting environment variable:
+#             export CLI_DIR="/custom/path"
+#
+#   CLI_PINNED_COMMIT - Git commit hash to pin the HoloHub CLI to.
+#                       If not set, uses the 'main' branch.
+#                       Example:
+#                         CLI_PINNED_COMMIT=abc1234 ./i4h list
+#
+#   CLI_FORCE_UPDATE - Set to "1" to force re-download even if CLI exists
+#                      Example:
+#                        CLI_FORCE_UPDATE=1 ./i4h --help
+#
+# EXAMPLES:
+#   ./i4h list                             # List available simulators
+#   ./i4h run fluoro-simulator --local     # Run fluoroscopy simulator locally
+#   ./i4h run ultrasound-raytracing        # Run ultrasound simulator in container
+#   ./i4h build-container fluoro-simulator  # Build container image
+#   ./i4h env-info                         # List environment variables
+#
+#   # Force update CLI to latest version
+#   CLI_FORCE_UPDATE=1 ./i4h --help
+#
+#   # Pin CLI to specific commit for reproducibility
+#   CLI_PINNED_COMMIT="abc123def456" ./i4h list
+#
+# ==============================================================================
+
+set -e
+set -o pipefail
+
+SCRIPT_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+TMP_HOLOHUB_DIR=""
+CLI_DIR="${CLI_DIR:-${SCRIPT_PATH}/tools}"
+REPO_URL="${CLI_REPO_URL:-https://github.com/nvidia-holoscan/holohub.git}"
+CLI_PINNED_COMMIT="${CLI_PINNED_COMMIT:-}"
+
+cleanup_tmp() {
+    if [[ -n "${TMP_HOLOHUB_DIR}" && -d "${TMP_HOLOHUB_DIR}" ]]; then
+        rm -rf "${TMP_HOLOHUB_DIR}"
+    fi
+}
+
+cleanup_on_error() {
+    local exit_code=$?
+    # Prevent re-entrancy if we exit from within this handler
+    trap - EXIT INT TERM
+    cd "${SCRIPT_PATH}" 2>/dev/null || true
+    cleanup_tmp
+    exit "${exit_code}"
+}
+trap cleanup_on_error EXIT INT TERM
+
+download_cli() {
+    echo "Downloading HoloHub CLI tools to ${CLI_DIR}..."
+    echo "  Repository: ${REPO_URL}"
+    if [[ -n "${CLI_PINNED_COMMIT}" ]]; then
+        echo "  Pinned commit: ${CLI_PINNED_COMMIT}"
+    else
+        echo "  Branch: main"
+    fi
+
+    command -v git >/dev/null || { echo "Error: git is required but not installed" >&2; exit 1; }
+
+    TMP_HOLOHUB_DIR="$(mktemp -d "${SCRIPT_PATH}/.tmp-holohub-XXXXXX")"
+
+    rm -rf "${CLI_DIR}/utilities"
+    rm -rf "${CLI_DIR}/cmake"
+
+    if [[ -n "${CLI_PINNED_COMMIT}" ]]; then
+        git clone --no-checkout --filter=blob:none "${REPO_URL}" "${TMP_HOLOHUB_DIR}/holohub" || \
+            { echo "Error: Failed to clone HoloHub repository" >&2; cleanup_tmp; exit 1; }
+    else
+        git clone --depth 1 --no-checkout --filter=blob:none "${REPO_URL}" "${TMP_HOLOHUB_DIR}/holohub" || \
+            { echo "Error: Failed to clone HoloHub repository" >&2; cleanup_tmp; exit 1; }
+    fi
+
+    cd "${TMP_HOLOHUB_DIR}/holohub" && \
+        [[ "$(git rev-parse --show-toplevel 2>/dev/null)" == "${TMP_HOLOHUB_DIR}/holohub" ]] || \
+        { echo "Error: Failed to access cloned repository" >&2; cleanup_tmp; exit 1; }
+
+    git sparse-checkout init --cone
+    git sparse-checkout set utilities/cli utilities/metadata utilities/testing cmake
+
+    if [[ -n "${CLI_PINNED_COMMIT}" ]]; then
+        git fetch --progress origin "${CLI_PINNED_COMMIT}"
+        git -c advice.detachedHead=false checkout "${CLI_PINNED_COMMIT}"
+    else
+        git checkout main
+    fi
+
+    local COMMIT_HASH
+    COMMIT_HASH=$(git rev-parse HEAD 2>/dev/null)
+
+    mkdir -p "${CLI_DIR}"
+    mv "${TMP_HOLOHUB_DIR}/holohub/utilities" "${CLI_DIR}"
+    mv "${TMP_HOLOHUB_DIR}/holohub/cmake" "${CLI_DIR}"
+
+    cd "${SCRIPT_PATH}"
+    cleanup_tmp
+
+    echo "${COMMIT_HASH}" > "${CLI_DIR}/utilities/cli/.cli_commit_hash"
+    echo "✓ HoloHub CLI downloaded successfully (commit: ${COMMIT_HASH:0:12})"
+}
+
+if [[ "${CLI_FORCE_UPDATE}" == "1" ]] || [[ ! -d "${CLI_DIR}/utilities/cli" ]]; then
+    download_cli || { echo "Error: Failed to download CLI"; exit 1; }
+fi
+
+# ==============================================================================
+# Configure HoloHub environment variables for i4h sensor simulation
+# ==============================================================================
+
+export HOLOHUB_CMD_NAME="${BASH_SOURCE[0]}"
+export HOLOHUB_ROOT="${SCRIPT_PATH}"
+export HOLOHUB_REPO_PREFIX="i4h_sim_build"
+export HOLOHUB_WORKSPACE_NAME="i4h-sim"
+export HOLOHUB_BUILD_PARENT_DIR="${HOLOHUB_ROOT}/build"
+export HOLOHUB_SEARCH_PATH="fluoro-simulator,ultrasound-raytracing"
+export HOLOHUB_DEFAULT_IMAGE_FORMAT="{container_prefix}:main"
+
+# The CLI checks build dirs exist when local builds are skipped.
+# Each docker/Dockerfile sets ENV HOLOHUB_ALWAYS_BUILD=false so CMake is
+# skipped inside the container; the dirs must exist for that check to pass.
+for subproject in ${HOLOHUB_SEARCH_PATH//,/ }; do
+    mkdir -p "${HOLOHUB_BUILD_PARENT_DIR}/${subproject}"
+done
+
+# ==============================================================================
+# Run the CLI
+# ==============================================================================
+
+if [[ -f "${CLI_DIR}/utilities/cli/version_check.py" ]]; then
+    export CLI_PINNED_COMMIT
+    VERSION_CHECK_OUTPUT=$(PYTHONPATH="${PYTHONPATH:+${PYTHONPATH}:}${CLI_DIR}" python3 "${CLI_DIR}/utilities/cli/version_check.py" 2>/dev/null) || true
+fi
+
+CLI_EXIT_CODE=0
+PYTHONPATH="${PYTHONPATH:+${PYTHONPATH}:}${CLI_DIR}" python3 "${CLI_DIR}/utilities/cli/holohub.py" "$@" || CLI_EXIT_CODE=$?
+
+if [[ -n "${VERSION_CHECK_OUTPUT:-}" ]]; then
+    echo "${VERSION_CHECK_OUTPUT}"
+fi
+
+exit ${CLI_EXIT_CODE}
