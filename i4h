@@ -72,7 +72,7 @@ SCRIPT_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TMP_HOLOHUB_DIR=""
 CLI_DIR="${CLI_DIR:-${SCRIPT_PATH}/tools}"
 REPO_URL="${CLI_REPO_URL:-https://github.com/nvidia-holoscan/holohub.git}"
-CLI_PINNED_COMMIT="${CLI_PINNED_COMMIT:-}"
+CLI_PINNED_COMMIT="${CLI_PINNED_COMMIT:-f7e791dac061e01c560d3a2c5b7da82350915b69}"
 
 cleanup_tmp() {
     if [[ -n "${TMP_HOLOHUB_DIR}" && -d "${TMP_HOLOHUB_DIR}" ]]; then
