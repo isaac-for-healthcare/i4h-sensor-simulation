@@ -1,5 +1,9 @@
 # Isaac for Healthcare - Sensor Simulation - Changelog
 
+## Version 0.6.0
+
+- `i4h` CLI minor update to pin CLI to a specific commit for reproducibility
+
 ## Version 0.5.0
 
 - Fluoro simulator API and rendering pipeline
