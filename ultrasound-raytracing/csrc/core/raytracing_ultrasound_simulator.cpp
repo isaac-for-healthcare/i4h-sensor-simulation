@@ -85,6 +85,14 @@ static std::unique_ptr<CudaMemory> create_gaussian_psf(cudaStream_t stream, floa
   return buffer;
 }
 
+/** One-tap PSF for an axis without a fixed spatial sample pitch. */
+static std::unique_ptr<CudaMemory> create_impulse_psf(cudaStream_t stream) {
+  const float impulse = 1.0f;
+  auto buffer = std::make_unique<CudaMemory>(sizeof(float), stream);
+  buffer->upload(&impulse, stream);
+  return buffer;
+}
+
 struct ControlPoint {
   float depth;  // cm
   float amp;    // dB
@@ -230,8 +238,13 @@ void RaytracingUltrasoundSimulator::update_psfs(const BaseProbe* probe, cudaStre
   }
 
   if (!psf_lat_) {
-    psf_lat_ = create_gaussian_psf(
-        stream, probe->get_lateral_resolution(), 1.f / probe->get_element_spacing());
+    const float element_spacing = probe->get_element_spacing();
+    if (std::isfinite(element_spacing) && (element_spacing > 0.0f)) {
+      psf_lat_ =
+          create_gaussian_psf(stream, probe->get_lateral_resolution(), 1.f / element_spacing);
+    } else {
+      psf_lat_ = create_impulse_psf(stream);
+    }
   }
 
   if ((probe->get_num_el_samples() > 1) && !psf_elev_) {
@@ -250,6 +263,10 @@ RaytracingUltrasoundSimulator::SimResult RaytracingUltrasoundSimulator::simulate
     rg_sbt.data.probe_type = static_cast<int>(probe->get_probe_type());
 
     rg_sbt.data.sector_angle = probe->get_sector_angle();
+    rg_sbt.data.start_angle = probe->get_start_angle();
+    rg_sbt.data.transducer_offset_radius = probe->get_transducer_offset_radius();
+    rg_sbt.data.beam_tilt = probe->get_beam_tilt();
+    rg_sbt.data.rotation_direction = static_cast<int>(probe->get_rotation_direction());
     rg_sbt.data.elevational_height =
         probe->get_num_el_samples() ? probe->get_elevational_height() : 0.f;
     rg_sbt.data.radius = probe->get_radius();
@@ -282,6 +299,7 @@ RaytracingUltrasoundSimulator::SimResult RaytracingUltrasoundSimulator::simulate
     params.t_far = sim_params.t_far;
     params.min_intensity = sim_params.min_intensity;
     params.max_depth = sim_params.max_depth;
+    params.use_scattering = sim_params.use_scattering;
     params.materials =
         reinterpret_cast<Material*>(materials_->get_material_data()->get_ptr(sim_params.stream));
     params.background_material_id = materials_->get_index(world_->get_background_material());
@@ -305,6 +323,22 @@ RaytracingUltrasoundSimulator::SimResult RaytracingUltrasoundSimulator::simulate
 
   const uint2 plane_size = make_uint2(sim_params.buffer_size, probe->get_num_elements());
   const uint3 size = make_uint3(plane_size.x, plane_size.y, probe->get_num_el_samples());
+
+  // Retain the pre-processing scanlines only when the metadata API requests them.
+  std::unique_ptr<CudaMemory> raw_rf_data;
+  if (sim_params.return_raw_rf) {
+    raw_rf_data = std::make_unique<CudaMemory>(plane_size.x * plane_size.y * sizeof(float),
+                                               sim_params.stream);
+    if (size.z > 1) {
+      cuda_algorithms_->mean_planes(d_scanlines.get(), size, raw_rf_data.get(), sim_params.stream);
+    } else {
+      CUDA_CHECK(cudaMemcpyAsync(raw_rf_data->get_ptr(sim_params.stream),
+                                 d_scanlines->get_ptr(sim_params.stream),
+                                 raw_rf_data->get_size(),
+                                 cudaMemcpyDeviceToDevice,
+                                 sim_params.stream));
+    }
+  }
 
   if (sim_params.write_debug_images) {
     std::filesystem::create_directory("debug_images");
@@ -347,6 +381,12 @@ RaytracingUltrasoundSimulator::SimResult RaytracingUltrasoundSimulator::simulate
     if (sim_params.write_debug_images) {
       write_image(d_scanlines.get(), plane_size, "debug_images/1_psf.png");
     }
+  } else if (probe->get_num_el_samples() > 1) {
+    // Average the elevation planes before forming the image when PSF convolution is off.
+    auto d_plane = std::make_unique<CudaMemory>(
+        sim_params.buffer_size * probe->get_num_elements() * sizeof(float), sim_params.stream);
+    cuda_algorithms_->mean_planes(d_scanlines.get(), size, d_plane.get(), sim_params.stream);
+    d_scanlines = std::move(d_plane);
   }
 
   // 1.5 Time-Gain-Compensation
@@ -400,8 +440,14 @@ RaytracingUltrasoundSimulator::SimResult RaytracingUltrasoundSimulator::simulate
       auto d_filtered = std::make_unique<CudaMemory>(d_scanlines->get_size(), sim_params.stream);
 
       // Apply median clip filter with 5x1 kernel, dMin=-60, dMax=0 (clamping)
-      cuda_algorithms_->median_clip_filter(
-          d_scanlines.get(), plane_size, d_filtered.get(), 5, -60.0f, 0.0f, sim_params.stream);
+      cuda_algorithms_->median_clip_filter(d_scanlines.get(),
+                                           plane_size,
+                                           d_filtered.get(),
+                                           5,
+                                           -60.0f,
+                                           0.0f,
+                                           sim_params.stream,
+                                           probe->get_probe_type() == ProbeType::PROBE_TYPE_RADIAL);
 
       // Replace original with filtered data
       d_scanlines = std::move(d_filtered);
@@ -443,6 +489,18 @@ RaytracingUltrasoundSimulator::SimResult RaytracingUltrasoundSimulator::simulate
                                                             sim_params.b_mode_size,
                                                             sim_params.stream);
         break;
+      case ProbeType::PROBE_TYPE_RADIAL:
+        b_mode = cuda_algorithms_->scan_convert_radial(d_scanlines.get(),
+                                                       plane_size,
+                                                       probe->get_start_angle(),
+                                                       probe->get_dead_zone_radius(),
+                                                       sim_params.t_far,
+                                                       sim_params.b_mode_size,
+                                                       sim_params.stream,
+                                                       probe->get_rotation_direction());
+        break;
+      default:
+        throw std::runtime_error("Unhandled ultrasound probe type during scan conversion");
     }
   }
 
@@ -466,9 +524,7 @@ RaytracingUltrasoundSimulator::SimResult RaytracingUltrasoundSimulator::simulate
       min_z = 0.f;
       max_z = sim_params.t_far;
       break;
-    case ProbeType::PROBE_TYPE_CURVILINEAR:
-    default:  // Fallback for safety or new types
-    {
+    case ProbeType::PROBE_TYPE_CURVILINEAR: {
       float sector_angle_in_rad = probe->get_sector_angle() * M_PI / 180.0f;  // Use generic getter
       float current_radius = probe->get_radius();                             // Use generic getter
       min_x = (current_radius + sim_params.t_far) * std::sin(-sector_angle_in_rad / 2.0f);
@@ -478,6 +534,14 @@ RaytracingUltrasoundSimulator::SimResult RaytracingUltrasoundSimulator::simulate
                                   // radius is large
       max_z = z_behind_image_origin;
     } break;
+    case ProbeType::PROBE_TYPE_RADIAL:
+      min_x = -sim_params.t_far;
+      max_x = sim_params.t_far;
+      min_z = -sim_params.t_far;
+      max_z = sim_params.t_far;
+      break;
+    default:
+      throw std::runtime_error("Unhandled ultrasound probe type while computing image bounds");
   }
 
   // Update the class member variables
@@ -487,8 +551,10 @@ RaytracingUltrasoundSimulator::SimResult RaytracingUltrasoundSimulator::simulate
   max_z_ = max_z;
 
   SimResult result;
+  result.raw_rf_data = std::move(raw_rf_data);
   result.rf_data = std::move(d_scanlines);
   result.b_mode = std::move(b_mode);
+  result.scanline_timestamps = probe->get_scanline_timestamps();
 
   return result;
 }

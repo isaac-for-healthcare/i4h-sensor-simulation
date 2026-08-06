@@ -21,6 +21,7 @@
 #include <array>
 
 #include "cuda_helper.hpp"
+#include "raysim/core/probe_types.hpp"
 
 namespace raysim {
 
@@ -133,9 +134,10 @@ class CUDAAlgorithms {
    * @param d_min [in] minimum distance from median (lower bound)
    * @param d_max [in] maximum distance from median (upper bound)
    * @param stream [in] CUDA stream
+   * @param wrap_rows [in] wrap row indices for periodic scanline data
    */
   void median_clip_filter(CudaMemory* source, uint2 size, CudaMemory* dst, uint32_t filter_size,
-                          float d_min, float d_max, cudaStream_t stream);
+                          float d_min, float d_max, cudaStream_t stream, bool wrap_rows = false);
 
   /**
    * Convert curvilinear scan data to Cartesian coordinates for display
@@ -181,6 +183,26 @@ class CUDAAlgorithms {
                                                   float sector_angle, float far, uint2 output_size,
                                                   cudaStream_t stream);
 
+  /**
+   * Convert one radial revolution to a centred Cartesian image.
+   *
+   * Interpolation wraps at the angular seam. Pixels inside the central cut-out
+   * or beyond the circular field of view are masked.
+   *
+   * @param scan_lines 2D array where each row is an A-line (shape: n_lines x n_depths)
+   * @param size Size of scan line array
+   * @param start_angle Direction of scanline zero in degrees, measured from +z towards +x
+   * @param dead_zone_radius Radius of the central cut-out in mm
+   * @param far Maximum radial imaging range in mm
+   * @param output_size Width and height of output image in pixels
+   * @param stream [in] CUDA stream
+   * @param rotation_direction Order in which input A-lines were acquired
+   */
+  std::unique_ptr<CudaMemory> scan_convert_radial(
+      CudaMemory* scan_lines, uint2 size, float start_angle, float dead_zone_radius, float far,
+      uint2 output_size, cudaStream_t stream,
+      RadialRotationDirection rotation_direction = RadialRotationDirection::POSITIVE);
+
  private:
   const CudaLauncher normalize_launcher_;
   const CudaLauncher convolve_rows_launcher_;
@@ -193,6 +215,7 @@ class CUDAAlgorithms {
   const CudaLauncher scan_convert_curvilinear_launcher_;
   const CudaLauncher scan_convert_linear_launcher_;
   const CudaLauncher scan_convert_phased_launcher_;
+  const CudaLauncher scan_convert_radial_launcher_;
 
   static const size_t NUM_SUB_STREAMS =
       2;  //< Some algorithms run parallel operations in sub-streams

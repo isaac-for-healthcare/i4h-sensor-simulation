@@ -20,6 +20,7 @@
 #include <cuda/helpers.h>
 #include <sutil/vec_math.h>
 
+#include "raysim/core/radial_geometry.hpp"
 #include "raysim/cuda/optix_trace.hpp"
 
 #include <OptiXToolkit/ShaderUtil/OptixSelfIntersectionAvoidance.h>
@@ -89,6 +90,8 @@ static __device__ float get_intensity_at_distance(float distance, float medium_a
 static __device__ void sample_intensities(float3 origin, float3 dir, float t_ancestors, float t_min,
                                           float t_max, float intensity, const Material* material,
                                           float* intensities) {
+  if (!params.use_scattering) { return; }
+
   // Early out for materials with zero scattering density or coefficient
   if ((material->mu0_ <= 0.f) || (material->sigma_ == 0.f)) { return; }
 
@@ -302,6 +305,23 @@ static __forceinline__ __device__ void generate_phased_array_probe_ray_local(
   out_direction = normalize(out_direction);
 }
 
+static __forceinline__ __device__ void generate_radial_probe_ray_local(
+    const RayGenData* ray_gen_data, uint32_t scanline_index, uint32_t num_scanlines,
+    float3& out_origin, float3& out_direction) {
+  const auto rotation_direction =
+      static_cast<RadialRotationDirection>(ray_gen_data->rotation_direction);
+  out_origin = radial_scanline_origin(scanline_index,
+                                      num_scanlines,
+                                      ray_gen_data->start_angle,
+                                      ray_gen_data->transducer_offset_radius,
+                                      rotation_direction);
+  out_direction = radial_scanline_direction(scanline_index,
+                                            num_scanlines,
+                                            ray_gen_data->start_angle,
+                                            ray_gen_data->beam_tilt,
+                                            rotation_direction);
+}
+
 extern "C" __global__ void __raygen__rg() {
   const uint3 idx = optixGetLaunchIndex();
   const uint3 dim = optixGetLaunchDimensions();
@@ -329,12 +349,17 @@ extern "C" __global__ void __raygen__rg() {
       generate_phased_array_probe_ray_local(ray_gen_data, d_x, origin, direction);
       break;
     }
+
+    case PROBE_TYPE_RADIAL: {
+      generate_radial_probe_ray_local(ray_gen_data, idx.x, dim.x, origin, direction);
+      break;
+    }
   }
 
   // Add elevation in probe's local coordinate system (common for all probes)
-  const float d_y = (static_cast<float>(idx.y) / static_cast<float>(dim.y)) - 0.5f;
+  const float d_y = ((static_cast<float>(idx.y) + 0.5f) / static_cast<float>(dim.y)) - 0.5f;
   const float elevation = ray_gen_data->elevational_height * d_y;
-  origin.y = elevation;
+  origin.y += elevation;
 
   // Transform from probe's local coordinate system to global coordinate system
   origin = ray_gen_data->rotation_matrix * origin;
