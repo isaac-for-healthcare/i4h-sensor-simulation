@@ -21,6 +21,11 @@
 #include <cub/cub.cuh>
 #include <cufftdx/cufftdx.hpp>
 
+#include <cmath>
+#include <stdexcept>
+
+#include "raysim/core/radial_geometry.hpp"
+
 namespace raysim {
 
 static __global__ void normalize_kernel(float* __restrict__ buffer, uint2 size,
@@ -138,7 +143,8 @@ static __global__ void log_compression_kernel(float* __restrict__ buffer, uint2 
 
   const uint32_t offset = index.y * size.x + index.x;
 
-  buffer[offset] = log10f(max(buffer[offset], minimum) / (*quantile)) * mutliplicator;
+  const float normalization = max(*quantile, minimum);
+  buffer[offset] = log10f(max(buffer[offset], minimum) / normalization) * mutliplicator;
 }
 
 static __global__ void mul_rows_kernel(float* __restrict__ buffer, uint2 size,
@@ -153,7 +159,7 @@ static __global__ void mul_rows_kernel(float* __restrict__ buffer, uint2 size,
 
 static __global__ void median_clip_kernel(const float* __restrict__ source, uint2 size,
                                           float* __restrict__ dst, uint32_t filter_size,
-                                          float d_min, float d_max) {
+                                          float d_min, float d_max, bool wrap_rows) {
   const uint2 index =
       make_uint2(blockIdx.x * blockDim.x + threadIdx.x, blockIdx.y * blockDim.y + threadIdx.y);
 
@@ -161,16 +167,21 @@ static __global__ void median_clip_kernel(const float* __restrict__ source, uint
 
   const uint32_t offset = index.y * size.x + index.x;
 
-  // Calculate median filter bounds
   const int half_size = filter_size / 2;
-  const int y_min = max(0, (int)index.y - half_size);
-  const int y_max = min((int)size.y - 1, (int)index.y + half_size);
 
   // Collect values for median calculation
   float values[11];  // Maximum filter size is 11
   int count = 0;
 
-  for (int y = y_min; y <= y_max; ++y) { values[count++] = source[y * size.x + index.x]; }
+  for (int offset_y = -half_size; offset_y <= half_size; ++offset_y) {
+    int y = static_cast<int>(index.y) + offset_y;
+    if (wrap_rows) {
+      y = (y % static_cast<int>(size.y) + static_cast<int>(size.y)) % static_cast<int>(size.y);
+    } else if ((y < 0) || (y >= static_cast<int>(size.y))) {
+      continue;
+    }
+    values[count++] = source[y * size.x + index.x];
+  }
 
   // Simple bubble sort for small arrays (efficient for small filter sizes)
   for (int i = 0; i < count - 1; ++i) {
@@ -440,6 +451,59 @@ static __global__ void scan_convert_phased_kernel(cudaTextureObject_t input, uin
   output[index.y * output_size.x + index.x] = tex2D<float>(input, source_x, source_y);
 }
 
+static __global__ void scan_convert_radial_kernel(const float* __restrict__ input, uint2 input_size,
+                                                  float* __restrict__ output, uint2 output_size,
+                                                  float start_angle, float dead_zone_radius,
+                                                  int rotation_direction, float far) {
+  const uint2 index =
+      make_uint2(blockIdx.x * blockDim.x + threadIdx.x, blockIdx.y * blockDim.y + threadIdx.y);
+
+  if ((index.x >= output_size.x) || (index.y >= output_size.y)) { return; }
+
+  const uint32_t output_offset = index.y * output_size.x + index.x;
+  output[output_offset] = std::numeric_limits<float>::lowest();
+
+  // Fit the circular field of view to the shorter image dimension without stretching it.
+  const float diameter_pixels = static_cast<float>(min(output_size.x - 1, output_size.y - 1));
+  const float pixel_spacing = (2.0f * far) / diameter_pixels;
+  const float center_x = static_cast<float>(output_size.x - 1) * 0.5f;
+  const float center_z = static_cast<float>(output_size.y - 1) * 0.5f;
+  const float x = (static_cast<float>(index.x) - center_x) * pixel_spacing;
+  const float z = (static_cast<float>(index.y) - center_z) * pixel_spacing;
+
+  float depth_coordinate;
+  float scanline_coordinate;
+  if (!radial_scan_coordinates(x,
+                               z,
+                               far,
+                               dead_zone_radius,
+                               start_angle,
+                               depth_coordinate,
+                               scanline_coordinate,
+                               static_cast<RadialRotationDirection>(rotation_direction))) {
+    return;
+  }
+
+  const float depth_index = depth_coordinate * static_cast<float>(input_size.x - 1);
+  const uint32_t depth_0 = static_cast<uint32_t>(floorf(depth_index));
+  const uint32_t depth_1 = min(depth_0 + 1, input_size.x - 1);
+  const float depth_weight = depth_index - static_cast<float>(depth_0);
+
+  const float scanline_index = scanline_coordinate * static_cast<float>(input_size.y);
+  const uint32_t scanline_0 = min(static_cast<uint32_t>(floorf(scanline_index)), input_size.y - 1);
+  const uint32_t scanline_1 = (scanline_0 + 1) % input_size.y;
+  const float scanline_weight = scanline_index - static_cast<float>(scanline_0);
+
+  const float sample_00 = input[scanline_0 * input_size.x + depth_0];
+  const float sample_01 = input[scanline_0 * input_size.x + depth_1];
+  const float sample_10 = input[scanline_1 * input_size.x + depth_0];
+  const float sample_11 = input[scanline_1 * input_size.x + depth_1];
+
+  const float sample_0 = sample_00 + depth_weight * (sample_01 - sample_00);
+  const float sample_1 = sample_10 + depth_weight * (sample_11 - sample_10);
+  output[output_offset] = sample_0 + scanline_weight * (sample_1 - sample_0);
+}
+
 CUDAAlgorithms::CUDAAlgorithms()
     : normalize_launcher_((void*)&normalize_kernel),
       convolve_rows_launcher_((void*)&convolve_rows_kernel),
@@ -451,7 +515,8 @@ CUDAAlgorithms::CUDAAlgorithms()
       median_clip_launcher_((void*)&median_clip_kernel),
       scan_convert_curvilinear_launcher_((void*)&scan_convert_curvilinear_kernel),
       scan_convert_linear_launcher_((void*)&scan_convert_linear_kernel),
-      scan_convert_phased_launcher_((void*)&scan_convert_phased_kernel) {
+      scan_convert_phased_launcher_((void*)&scan_convert_phased_kernel),
+      scan_convert_radial_launcher_((void*)&scan_convert_radial_kernel) {
   CUDA_CHECK(cudaFuncSetAttribute(hilbert_kernel,
                                   cudaFuncAttributeMaxDynamicSharedMemorySize,
                                   HilbertForwardFFT::shared_memory_size));
@@ -602,7 +667,7 @@ void CUDAAlgorithms::hilbert_row(CudaMemory* buffer, uint2 size, cudaStream_t st
 
 void CUDAAlgorithms::median_clip_filter(CudaMemory* source, uint2 size, CudaMemory* dst,
                                         uint32_t filter_size, float d_min, float d_max,
-                                        cudaStream_t stream) {
+                                        cudaStream_t stream, bool wrap_rows) {
   if (filter_size > 11 || filter_size % 2 == 0) {
     throw std::runtime_error("Filter size must be odd and <= 11");
   }
@@ -614,7 +679,8 @@ void CUDAAlgorithms::median_clip_filter(CudaMemory* source, uint2 size, CudaMemo
                                reinterpret_cast<float*>(dst->get_ptr(stream)),
                                filter_size,
                                d_min,
-                               d_max);
+                               d_max,
+                               wrap_rows);
 }
 
 std::unique_ptr<CudaMemory> CUDAAlgorithms::scan_convert_curvilinear(CudaMemory* scan_lines,
@@ -732,6 +798,42 @@ std::unique_ptr<CudaMemory> CUDAAlgorithms::scan_convert_phased(CudaMemory* scan
                                        far);
 
   return std::move(grid_z);
+}
+
+std::unique_ptr<CudaMemory> CUDAAlgorithms::scan_convert_radial(
+    CudaMemory* scan_lines, uint2 input_size, float start_angle, float dead_zone_radius, float far,
+    uint2 output_size, cudaStream_t stream, RadialRotationDirection rotation_direction) {
+  if ((input_size.x < 2) || (input_size.y == 0)) {
+    throw std::invalid_argument("Radial scan conversion requires depth samples and scanlines");
+  }
+  if ((output_size.x < 2) || (output_size.y < 2)) {
+    throw std::invalid_argument("Radial scan conversion output dimensions must be at least 2");
+  }
+  if (!std::isfinite(far) || (far <= 0.0f)) {
+    throw std::invalid_argument("Radial imaging range must be finite and greater than zero");
+  }
+  if (!std::isfinite(dead_zone_radius) || (dead_zone_radius < 0.0f) || (dead_zone_radius >= far)) {
+    throw std::invalid_argument(
+        "Radial dead-zone radius must be finite, non-negative, and smaller than the imaging range");
+  }
+  if ((rotation_direction != RadialRotationDirection::POSITIVE) &&
+      (rotation_direction != RadialRotationDirection::NEGATIVE)) {
+    throw std::invalid_argument("Radial rotation direction must be POSITIVE or NEGATIVE");
+  }
+
+  auto output = std::make_unique<CudaMemory>(output_size.x * output_size.y * sizeof(float), stream);
+  scan_convert_radial_launcher_.launch(output_size,
+                                       stream,
+                                       reinterpret_cast<const float*>(scan_lines->get_ptr(stream)),
+                                       input_size,
+                                       reinterpret_cast<float*>(output->get_ptr(stream)),
+                                       output_size,
+                                       start_angle,
+                                       dead_zone_radius,
+                                       static_cast<int>(rotation_direction),
+                                       far);
+
+  return output;
 }
 
 }  // namespace raysim

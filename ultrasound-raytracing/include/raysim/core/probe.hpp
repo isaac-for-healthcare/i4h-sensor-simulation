@@ -18,6 +18,7 @@
 #ifndef CPP_PROBE_BASE
 #define CPP_PROBE_BASE
 
+#include <limits>
 #include <vector>
 
 #include "raysim/core/pose.hpp"
@@ -247,11 +248,36 @@ class BaseProbe {
    */
   virtual float get_width() const { return width_; }
 
+  /** Direction of the first scanline, in degrees. */
+  virtual float get_start_angle() const { return 0.0f; }
+
+  /** Radius of the central display cut-out, in mm. */
+  virtual float get_dead_zone_radius() const { return 0.0f; }
+
+  /**
+   * Scanline timestamps relative to frame start, in seconds.
+   * Array probes do not model acquisition timing and return zero for every line.
+   */
+  virtual std::vector<float> get_scanline_timestamps() const {
+    return std::vector<float>(num_elements_x_, 0.0f);
+  }
+
   /**
    * Get the specific type of this probe.
    * @return The ProbeType enum value.
    */
   virtual ProbeType get_probe_type() const { return ProbeType::PROBE_TYPE_LINEAR_ARRAY; }
+
+  /** Get the radial offset between the emitter and catheter rotation axis in mm. */
+  virtual float get_transducer_offset_radius() const { return 0.0f; }
+
+  /** Get the signed beam tilt from the transverse plane in degrees. */
+  virtual float get_beam_tilt() const { return 0.0f; }
+
+  /** Direction in which A-lines are acquired about the catheter axis. */
+  virtual RadialRotationDirection get_rotation_direction() const {
+    return RadialRotationDirection::POSITIVE;
+  }
 
  protected:
   /**

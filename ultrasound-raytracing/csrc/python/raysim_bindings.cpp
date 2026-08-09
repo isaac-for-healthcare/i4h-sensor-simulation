@@ -18,6 +18,7 @@
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
+#include <algorithm>
 #include <iostream>
 
 #include <chrono>
@@ -33,6 +34,7 @@
 #include "raysim/core/linear_array_probe.hpp"
 #include "raysim/core/material.hpp"
 #include "raysim/core/phased_array_probe.hpp"
+#include "raysim/core/radial_probe.hpp"
 #include "raysim/core/raytracing_ultrasound_simulator.hpp"
 #include "raysim/core/world.hpp"
 #include "raysim/core/write_image.hpp"
@@ -61,6 +63,29 @@ py::array_t<float> float3_to_numpy(float3 vec) {
   return result;
 }
 
+py::array_t<float> cuda_memory_to_numpy(raysim::CudaMemory& memory,
+                                        const std::vector<ssize_t>& shape, cudaStream_t stream) {
+  size_t num_elements = 1;
+  for (const ssize_t dimension : shape) {
+    if (dimension < 0) { throw std::runtime_error("numpy shape dimensions must be non-negative"); }
+    num_elements *= static_cast<size_t>(dimension);
+  }
+  if (memory.get_size() != num_elements * sizeof(float)) {
+    throw std::runtime_error("CUDA buffer size does not match requested numpy shape");
+  }
+
+  auto array = py::array_t<float>(shape);
+  memory.download(array.mutable_data(), stream);
+  CUDA_CHECK(cudaStreamSynchronize(stream));
+  return array;
+}
+
+py::array_t<float> vector_to_numpy(const std::vector<float>& values) {
+  auto array = py::array_t<float>(values.size());
+  std::copy(values.begin(), values.end(), array.mutable_data());
+  return array;
+}
+
 PYBIND11_MODULE(ray_sim_python, m) {
   m.doc() = R"pbdoc(
         Raytracing-based ultrasound simulator
@@ -73,9 +98,17 @@ PYBIND11_MODULE(ray_sim_python, m) {
             - Materials: Manages acoustic material properties
             - World: Contains the 3D scene geometry
             - Pose: Represents 3D position and orientation
-            - CurvilinearProbe, LinearArrayProbe, PhasedArrayProbe: Define ultrasound probe parameters
+            - CurvilinearProbe, LinearArrayProbe, PhasedArrayProbe, RadialProbe: Define probe parameters
             - RaytracingUltrasoundSimulator: Main simulation engine
     )pbdoc";
+
+  py::enum_<raysim::RadialRotationDirection>(m, "RadialRotationDirection", R"pbdoc(
+Order in which a mechanical radial probe acquires A-lines.
+
+POSITIVE turns from local +z towards +x; NEGATIVE takes the same angles in reverse.
+)pbdoc")
+      .value("NEGATIVE", raysim::RadialRotationDirection::NEGATIVE)
+      .value("POSITIVE", raysim::RadialRotationDirection::POSITIVE);
 
   // Bind Pose class
   py::class_<raysim::Pose>(m, "Pose", R"pbdoc(
@@ -290,7 +323,10 @@ Note: Pose orientation is specified in radians (roll, pitch, yaw).
             self.get_element_direction(element_idx, direction);
             return float3_to_numpy(direction);
           },
-          "Get direction for an element by index");
+          "Get direction for an element by index")
+      .def("get_scanline_timestamps",
+           &raysim::BaseProbe::get_scanline_timestamps,
+           "Get scanline acquisition timestamps relative to frame start [seconds]");
 
   py::class_<raysim::CurvilinearProbe, raysim::BaseProbe>(m, "CurvilinearProbe", R"pbdoc(
 Curvilinear ultrasound probe with elements positioned along a curved surface.
@@ -363,6 +399,96 @@ Elements steer beams electronically to create a sector image from a small footpr
            py::arg("f_num") = 1.0f,
            py::arg("speed_of_sound") = 1.54f,
            py::arg("pulse_duration") = 2.0f);
+
+  py::class_<raysim::RadialProbe, raysim::BaseProbe>(m, "RadialProbe", R"pbdoc(
+Mechanical radial probe for IVUS and radial EBUS.
+
+The catheter lies along local +y. Scanline i is acquired at
+theta_i = theta_0 + s 2 pi i / N; positive angles turn from +z towards +x.
+Pose places the catheter, while emitter offset and beam tilt describe the
+transducer within it.
+)pbdoc")
+      .def(py::init<const raysim::Pose&,
+                    uint32_t,
+                    float,
+                    float,
+                    float,
+                    float,
+                    float,
+                    uint32_t,
+                    float,
+                    float,
+                    float,
+                    float,
+                    float,
+                    raysim::RadialRotationDirection>(),
+           py::arg("pose") = raysim::Pose(),
+           py::arg("num_scanlines") = 256,
+           py::arg("start_angle") = 0.0f,
+           py::arg("dead_zone_radius") = 1.0f,
+           py::arg("rotation_period") = 1.0f / 30.0f,
+           py::arg("frequency") = 20.0f,
+           py::arg("elevational_height") = 0.5f,
+           py::arg("num_el_samples") = 1,
+           py::arg("f_num") = 1.0f,
+           py::arg("speed_of_sound") = 1.54f,
+           py::arg("pulse_duration") = 2.0f,
+           py::arg("transducer_offset_radius") = 0.0f,
+           py::arg("beam_tilt") = 0.0f,
+           py::arg("rotation_direction") = raysim::RadialRotationDirection::POSITIVE)
+      .def("get_num_scanlines",
+           &raysim::RadialProbe::get_num_scanlines,
+           "Get the number of A-lines per revolution")
+      .def("set_num_scanlines",
+           &raysim::RadialProbe::set_num_scanlines,
+           "Set the number of A-lines per revolution")
+      .def("get_start_angle",
+           &raysim::RadialProbe::get_start_angle,
+           "Get the direction of A-line zero [degrees]")
+      .def("set_start_angle",
+           &raysim::RadialProbe::set_start_angle,
+           "Set the direction of A-line zero [degrees]")
+      .def("get_dead_zone_radius",
+           &raysim::RadialProbe::get_dead_zone_radius,
+           "Get the central cut-out radius [mm]")
+      .def("set_dead_zone_radius",
+           &raysim::RadialProbe::set_dead_zone_radius,
+           "Set the central cut-out radius [mm]")
+      .def("get_rotation_period",
+           &raysim::RadialProbe::get_rotation_period,
+           "Get the full-revolution acquisition period [seconds]")
+      .def("set_rotation_period",
+           &raysim::RadialProbe::set_rotation_period,
+           "Set the full-revolution acquisition period [seconds]")
+      .def("get_transducer_offset_radius",
+           &raysim::RadialProbe::get_transducer_offset_radius,
+           "Get the radial offset between the emitter and catheter axis [mm]")
+      .def("set_transducer_offset_radius",
+           &raysim::RadialProbe::set_transducer_offset_radius,
+           "Set the radial offset between the emitter and catheter axis [mm]")
+      .def("get_beam_tilt",
+           &raysim::RadialProbe::get_beam_tilt,
+           "Get the signed beam tilt from the transverse plane [degrees]")
+      .def("set_beam_tilt",
+           &raysim::RadialProbe::set_beam_tilt,
+           "Set the signed beam tilt from the transverse plane [degrees]")
+      .def("get_rotation_direction",
+           &raysim::RadialProbe::get_rotation_direction,
+           "Get the radial acquisition direction")
+      .def("set_rotation_direction",
+           &raysim::RadialProbe::set_rotation_direction,
+           "Set the radial acquisition direction")
+      .def("get_a_line_angle",
+           &raysim::RadialProbe::get_a_line_angle,
+           py::arg("scanline_index"),
+           "Get an A-line angle [degrees]")
+      .def("get_a_line_timestamp",
+           &raysim::RadialProbe::get_a_line_timestamp,
+           py::arg("scanline_index"),
+           "Get an A-line timestamp relative to frame start [seconds]")
+      .def("get_a_line_timestamps",
+           &raysim::RadialProbe::get_a_line_timestamps,
+           "Get all A-line timestamps relative to frame start [seconds]");
 
   // Bind SimParams struct
   py::class_<raysim::RaytracingUltrasoundSimulator::SimParams>(m, "SimParams", R"pbdoc(
@@ -519,14 +645,9 @@ Elements steer beams electronically to create a sector image from a small footpr
                 throw std::runtime_error("Simulation returned null b_mode");
               }
 
-              const uint32_t elements = result.b_mode->get_size() / sizeof(float);
-              auto host_data = std::unique_ptr<float[]>(new float[elements]);
-              result.b_mode->download(host_data.get(), cudaStreamDefault);
-
               std::vector<ssize_t> shape = {static_cast<ssize_t>(params.b_mode_size.y),
                                             static_cast<ssize_t>(params.b_mode_size.x)};
-
-              auto array = py::array_t<float>(shape, host_data.get());
+              auto array = cuda_memory_to_numpy(*result.b_mode, shape, params.stream);
               spdlog::info("Simulation completed successfully");
               return array;
             } catch (const std::exception& e) {
@@ -543,6 +664,55 @@ Elements steer beams electronically to create a sector image from a small footpr
 
         Returns:
             np.ndarray: B-mode ultrasound image
+      )pbdoc")
+      .def(
+          "simulate_with_metadata",
+          [](raysim::RaytracingUltrasoundSimulator& self,
+             const raysim::BaseProbe* probe,
+             const raysim::RaytracingUltrasoundSimulator::SimParams& params) {
+            try {
+              spdlog::info("Starting simulation with scanline metadata");
+              auto metadata_params = params;
+              metadata_params.return_raw_rf = true;
+              auto result = self.simulate(probe, metadata_params);
+              if (!result.b_mode || !result.rf_data || !result.raw_rf_data) {
+                throw std::runtime_error("Simulation returned incomplete result buffers");
+              }
+
+              py::dict output;
+              output["b_mode"] = cuda_memory_to_numpy(*result.b_mode,
+                                                      {static_cast<ssize_t>(params.b_mode_size.y),
+                                                       static_cast<ssize_t>(params.b_mode_size.x)},
+                                                      params.stream);
+              output["scanlines"] =
+                  cuda_memory_to_numpy(*result.rf_data,
+                                       {static_cast<ssize_t>(probe->get_num_elements()),
+                                        static_cast<ssize_t>(params.buffer_size)},
+                                       params.stream);
+              output["rf_data"] =
+                  cuda_memory_to_numpy(*result.raw_rf_data,
+                                       {static_cast<ssize_t>(probe->get_num_elements()),
+                                        static_cast<ssize_t>(params.buffer_size)},
+                                       params.stream);
+              output["scanline_timestamps"] = vector_to_numpy(result.scanline_timestamps);
+              spdlog::info("Simulation with scanline metadata completed successfully");
+              return output;
+            } catch (const std::exception& e) {
+              spdlog::error("Exception in simulate_with_metadata: {}", e.what());
+              throw;
+            }
+          },
+          R"pbdoc(
+        Run the simulation and return the image with its scanline data.
+
+        Alongside the B-mode image, this returns the direct OptiX response,
+        processed A-lines and the acquisition time of each line. Use simulate()
+        when only the image is needed.
+
+        Returns:
+            dict: ``b_mode`` (H, W), ``rf_data`` and ``scanlines`` (both lines,
+            depth samples), and ``scanline_timestamps`` (lines,) in seconds
+            relative to frame start.
       )pbdoc");
 
   // Bind Hitable base class

@@ -24,7 +24,14 @@ namespace raysim {
 enum ProbeType {
   PROBE_TYPE_CURVILINEAR = 0,
   PROBE_TYPE_LINEAR_ARRAY = 1,
-  PROBE_TYPE_PHASED_ARRAY = 2
+  PROBE_TYPE_PHASED_ARRAY = 2,
+  PROBE_TYPE_RADIAL = 3
+};
+
+/** Direction in which a mechanical radial probe acquires A-lines. */
+enum class RadialRotationDirection : int {
+  NEGATIVE = -1,
+  POSITIVE = 1,
 };
 
 }  // namespace raysim

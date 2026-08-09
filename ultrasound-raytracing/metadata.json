@@ -42,6 +42,13 @@
           "workdir": "holohub_app_source",
           "env": {"ULTRASOUND_MESH_DIR": "/opt/ultrasound-mesh"}
         }
+      },
+      "radial_benchmark": {
+        "description": "Check radial IVUS/R-EBUS geometry and performance against analytic reflectors",
+        "run": {
+          "command": "python <holohub_app_source>/examples/radial_probe_benchmark.py",
+          "workdir": "holohub_app_source"
+        }
       }
     }
   }
