@@ -19,6 +19,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <limits>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -138,6 +139,31 @@ void test_rejects_the_wrong_number_of_normals() {
       "the wrong number of normals was accepted");
 }
 
+void test_rejects_zero_length_normals() {
+  const std::vector<float3> normals(kTriangleVertices.size(), make_float3(0.0f, 0.0f, 0.0f));
+
+  require_invalid_argument(
+      [&normals]() { raysim::Mesh(kTriangleVertices, kTriangleIndices, normals, 0); },
+      "zero-length normals were accepted");
+}
+
+void test_rejects_non_finite_normals() {
+  std::vector<float3> normals(kTriangleVertices.size(), make_float3(0.0f, 0.0f, 1.0f));
+  normals.front().x = std::numeric_limits<float>::quiet_NaN();
+
+  require_invalid_argument(
+      [&normals]() { raysim::Mesh(kTriangleVertices, kTriangleIndices, normals, 0); },
+      "a non-finite normal was accepted");
+}
+
+void test_rejects_cancelling_generated_normals() {
+  const std::vector<uint32_t> opposing_indices = {0, 1, 2, 0, 2, 1};
+
+  require_invalid_argument(
+      [&opposing_indices]() { raysim::Mesh(kTriangleVertices, opposing_indices, {}, 0); },
+      "cancelling generated normals were accepted");
+}
+
 void test_file_constructor_still_rejects_a_mesh_without_normals() {
   const MeshWithoutNormalsFile file;
 
@@ -163,6 +189,9 @@ int main() {
     test_rejects_an_incomplete_triangle();
     test_rejects_an_out_of_range_index();
     test_rejects_the_wrong_number_of_normals();
+    test_rejects_zero_length_normals();
+    test_rejects_non_finite_normals();
+    test_rejects_cancelling_generated_normals();
     test_file_constructor_still_rejects_a_mesh_without_normals();
   } catch (const std::exception& exception) {
     std::cerr << "mesh test failed: " << exception.what() << '\n';

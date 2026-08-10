@@ -194,6 +194,32 @@ def test_array_constructor_rejects_empty_geometry(vertices, indices, message):
         rs.Mesh(vertices=vertices, indices=indices, material_id=0)
 
 
+@pytest.mark.parametrize(
+    "invalid_normal",
+    [
+        np.array([0.0, 0.0, 0.0], dtype=np.float32),
+        np.array([np.nan, 0.0, 1.0], dtype=np.float32),
+    ],
+    ids=["zero-length", "non-finite"],
+)
+def test_array_constructor_rejects_invalid_normals(invalid_normal):
+    vertices, indices, normals = octahedron_geometry()
+    normals[0] = invalid_normal
+
+    with pytest.raises(ValueError, match="Mesh: normals must be finite and non-zero"):
+        rs.Mesh(vertices=vertices, indices=indices, normals=normals, material_id=0)
+
+
+def test_array_constructor_rejects_cancelling_generated_normals():
+    vertices = np.array(
+        [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]], dtype=np.float32
+    )
+    indices = np.array([[0, 1, 2], [0, 2, 1]], dtype=np.uint32)
+
+    with pytest.raises(ValueError, match="Mesh: normals must be finite and non-zero"):
+        rs.Mesh(vertices=vertices, indices=indices, material_id=0)
+
+
 def write_obj(file_name, vertices, indices, normals):
     """Write geometry without changing its vertex or normal indexing."""
     lines = ["o Octahedron"]
@@ -243,7 +269,7 @@ def test_array_and_file_meshes_render_identically(tmp_path):
         lambda material_id: rs.Mesh(
             vertices=vertices,
             indices=indices,
-            normals=normals,
+            normals=normals * np.float32(7.0),
             material_id=material_id,
         )
     )

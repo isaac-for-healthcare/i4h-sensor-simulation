@@ -36,6 +36,23 @@
 
 namespace raysim {
 
+namespace {
+
+void normalise_normals(std::vector<float3>& normals) {
+  for (float3& normal : normals) {
+    const float normal_length = std::hypot(normal.x, normal.y, normal.z);
+    if (!std::isfinite(normal_length) || normal_length == 0.f) {
+      throw std::invalid_argument("Mesh: normals must be finite and non-zero");
+    }
+
+    normal.x /= normal_length;
+    normal.y /= normal_length;
+    normal.z /= normal_length;
+  }
+}
+
+}  // namespace
+
 Hitable::Hitable(uint32_t material_id) : material_id_(material_id) {}
 
 Sphere::Sphere(float3 center, float radius, uint32_t material_id)
@@ -191,17 +208,9 @@ Mesh::Mesh(std::vector<float3> vertices, std::vector<uint32_t> indices, std::vec
         normal.z += face_normal.z;
       }
     }
-
-    for (float3& normal : normals_) {
-      const float normal_length =
-          std::sqrt(normal.x * normal.x + normal.y * normal.y + normal.z * normal.z);
-      if (normal_length > 0.f) {
-        normal.x /= normal_length;
-        normal.y /= normal_length;
-        normal.z /= normal_length;
-      }
-    }
   }
+
+  normalise_normals(normals_);
 
   aabb_min_ = vertices_.front();
   aabb_max_ = vertices_.front();

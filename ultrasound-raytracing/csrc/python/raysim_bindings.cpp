@@ -712,7 +712,8 @@ Elements steer beams electronically to create a sector image from a small footpr
             indices (np.ndarray): Triangle indices with shape (M, 3) and dtype uint32,
                 int32, or int64.
             normals (Optional[np.ndarray]): Per-vertex normals with shape (N, 3) and
-                dtype float32. If omitted, area-weighted normals are computed.
+                dtype float32. Supplied normals are normalised; if omitted, area-weighted
+                normals are computed.
             material_id (int): Material index from Materials.get_index().
 
         Example:
