@@ -18,13 +18,18 @@
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
+#include <cstdint>
+#include <cstring>
 #include <iostream>
+#include <limits>
 
 #include <chrono>
 #include <filesystem>
 #include <iostream>
 #include <map>
 #include <string>
+#include <utility>
+#include <vector>
 
 #include <spdlog/spdlog.h>
 
@@ -59,6 +64,107 @@ py::array_t<float> float3_to_numpy(float3 vec) {
   ptr[1] = vec.y;
   ptr[2] = vec.z;
   return result;
+}
+
+py::array make_c_contiguous(const py::array& array, const char* name) {
+  auto contiguous = py::array::ensure(array, py::array::c_style);
+  if (!contiguous) {
+    throw py::value_error(std::string(name) + " could not be copied to a C-contiguous array");
+  }
+  return contiguous;
+}
+
+template <typename T>
+T read_array_value(const void* data, size_t index) {
+  T value;
+  std::memcpy(&value, static_cast<const char*>(data) + index * sizeof(T), sizeof(T));
+  return value;
+}
+
+std::vector<float3> numpy_to_float3_vector(const py::array& array, const char* name,
+                                           ssize_t expected_rows = -1) {
+  if (!array.dtype().is(py::dtype::of<float>())) {
+    throw py::value_error(std::string(name) + " must have dtype float32");
+  }
+  if (array.ndim() != 2 || array.shape(1) != 3) {
+    throw py::value_error(std::string(name) + " must have shape (N, 3)");
+  }
+  if (expected_rows >= 0 && array.shape(0) != expected_rows) {
+    throw py::value_error(std::string(name) + " must have the same number of rows as vertices");
+  }
+
+  auto contiguous = make_c_contiguous(array, name);
+  const auto buffer = contiguous.request();
+  std::vector<float3> result;
+  result.reserve(static_cast<size_t>(buffer.shape[0]));
+  for (ssize_t row = 0; row < buffer.shape[0]; ++row) {
+    const auto offset = static_cast<size_t>(3 * row);
+    result.push_back(make_float3(read_array_value<float>(buffer.ptr, offset),
+                                 read_array_value<float>(buffer.ptr, offset + 1),
+                                 read_array_value<float>(buffer.ptr, offset + 2)));
+  }
+  return result;
+}
+
+std::vector<uint32_t> numpy_to_triangle_indices(const py::array& array) {
+  if (array.ndim() != 2 || array.shape(1) != 3) {
+    throw py::value_error("indices must have shape (M, 3)");
+  }
+
+  const bool is_uint32 = array.dtype().is(py::dtype::of<uint32_t>());
+  const bool is_int32 = array.dtype().is(py::dtype::of<int32_t>());
+  const bool is_int64 = array.dtype().is(py::dtype::of<int64_t>());
+  if (!is_uint32 && !is_int32 && !is_int64) {
+    throw py::value_error("indices must have dtype uint32, int32, or int64");
+  }
+
+  auto contiguous = make_c_contiguous(array, "indices");
+  const auto buffer = contiguous.request();
+  const auto count = static_cast<size_t>(buffer.shape[0]) * 3;
+  std::vector<uint32_t> result;
+  result.reserve(count);
+
+  if (is_uint32) {
+    for (size_t index = 0; index < count; ++index) {
+      result.push_back(read_array_value<uint32_t>(buffer.ptr, index));
+    }
+    return result;
+  }
+
+  if (is_int32) {
+    for (size_t index = 0; index < count; ++index) {
+      const int32_t value = read_array_value<int32_t>(buffer.ptr, index);
+      if (value < 0) { throw py::value_error("indices must contain only non-negative values"); }
+      result.push_back(static_cast<uint32_t>(value));
+    }
+    return result;
+  }
+
+  for (size_t index = 0; index < count; ++index) {
+    const int64_t value = read_array_value<int64_t>(buffer.ptr, index);
+    if (value < 0) { throw py::value_error("indices must contain only non-negative values"); }
+    if (value > std::numeric_limits<uint32_t>::max()) {
+      throw py::value_error("indices values must fit in uint32");
+    }
+    result.push_back(static_cast<uint32_t>(value));
+  }
+  return result;
+}
+
+std::unique_ptr<raysim::Mesh> mesh_from_numpy(const py::array& vertices, const py::array& indices,
+                                              const py::object& normals, uint32_t material_id) {
+  auto mesh_vertices = numpy_to_float3_vector(vertices, "vertices");
+  auto mesh_indices = numpy_to_triangle_indices(indices);
+  std::vector<float3> mesh_normals;
+  if (!normals.is_none()) {
+    if (!py::isinstance<py::array>(normals)) {
+      throw py::value_error("normals must be a NumPy array or None");
+    }
+    mesh_normals = numpy_to_float3_vector(
+        py::reinterpret_borrow<py::array>(normals), "normals", vertices.shape(0));
+  }
+  return std::make_unique<raysim::Mesh>(
+      std::move(mesh_vertices), std::move(mesh_indices), std::move(mesh_normals), material_id);
 }
 
 PYBIND11_MODULE(ray_sim_python, m) {
@@ -564,7 +670,8 @@ Elements steer beams electronically to create a sector image from a small footpr
   py::class_<raysim::Mesh, raysim::Hitable>(m, "Mesh", R"pbdoc(
         Represents a 3D mesh object for ultrasound simulation.
 
-        The mesh is loaded from an OBJ file and assigned a material.
+        The mesh is loaded from a file or constructed from in-memory arrays and
+        assigned a material.
     )pbdoc")
       .def(py::init([](const std::string& file_name, uint32_t material_id) {
              spdlog::info(
@@ -586,6 +693,52 @@ Elements steer beams electronically to create a sector image from a small footpr
         Args:
             file_name (str): Path to OBJ file
             material_id (int): Material index from Materials.get_index()
+      )pbdoc")
+      .def(py::init([](const py::array& vertices,
+                       const py::array& indices,
+                       const py::object& normals,
+                       uint32_t material_id) {
+             return mesh_from_numpy(vertices, indices, normals, material_id);
+           }),
+           py::arg("vertices"),
+           py::arg("indices"),
+           py::arg("normals"),
+           py::arg("material_id"),
+           R"pbdoc(
+        Initialise a mesh from in-memory geometry.
+
+        Args:
+            vertices (np.ndarray): Vertex positions with shape (N, 3) and dtype float32.
+            indices (np.ndarray): Triangle indices with shape (M, 3) and dtype uint32,
+                int32, or int64.
+            normals (Optional[np.ndarray]): Per-vertex normals with shape (N, 3) and
+                dtype float32. Supplied normals are normalised; if omitted, area-weighted
+                normals are computed.
+            material_id (int): Material index from Materials.get_index().
+
+        Example:
+            >>> import numpy as np
+            >>> vertices = np.array([[0, 0, 0], [1, 0, 0], [0, 1, 0]], dtype=np.float32)
+            >>> indices = np.array([[0, 1, 2]], dtype=np.uint32)
+            >>> mesh = Mesh(vertices=vertices, indices=indices, material_id=0)
+
+        Geometry extracted from a UsdGeomMesh with usd-core can be passed directly after
+        triangulating its face indices host-side; raysim does not depend on usd-core.
+      )pbdoc")
+      .def(py::init([](const py::array& vertices, const py::array& indices, uint32_t material_id) {
+             return mesh_from_numpy(vertices, indices, py::none(), material_id);
+           }),
+           py::arg("vertices"),
+           py::arg("indices"),
+           py::arg("material_id"),
+           R"pbdoc(
+        Initialise a mesh from in-memory geometry and compute area-weighted vertex normals.
+
+        Args:
+            vertices (np.ndarray): Vertex positions with shape (N, 3) and dtype float32.
+            indices (np.ndarray): Triangle indices with shape (M, 3) and dtype uint32,
+                int32, or int64.
+            material_id (int): Material index from Materials.get_index().
       )pbdoc");
 
   // Bind Sphere class

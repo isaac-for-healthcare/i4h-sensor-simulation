@@ -17,8 +17,12 @@
 
 #include "raysim/core/hitable.hpp"
 
+#include <algorithm>
+#include <cmath>
 #include <mutex>
+#include <stdexcept>
 #include <string>
+#include <utility>
 
 #include <assimp/postprocess.h>
 #include <assimp/scene.h>
@@ -31,6 +35,23 @@
 #include "raysim/cuda/optix_trace.hpp"
 
 namespace raysim {
+
+namespace {
+
+void normalise_normals(std::vector<float3>& normals) {
+  for (float3& normal : normals) {
+    const float normal_length = std::hypot(normal.x, normal.y, normal.z);
+    if (!std::isfinite(normal_length) || normal_length == 0.f) {
+      throw std::invalid_argument("Mesh: normals must be finite and non-zero");
+    }
+
+    normal.x /= normal_length;
+    normal.y /= normal_length;
+    normal.z /= normal_length;
+  }
+}
+
+}  // namespace
 
 Hitable::Hitable(uint32_t material_id) : material_id_(material_id) {}
 
@@ -92,12 +113,12 @@ Mesh::Mesh(const std::string& file_name, uint32_t material_id) : Hitable(materia
                                                Assimp::Logger::Err);
   });
 
-  importer_ = std::make_shared<Assimp::Importer>();
+  Assimp::Importer importer;
 
-  auto scene = importer_->ReadFile(file_name, aiProcess_GenBoundingBoxes);
+  auto scene = importer.ReadFile(file_name, aiProcess_GenBoundingBoxes);
   if (!scene) {
     throw std::runtime_error(fmt::format(
-        "Loading of mesh `{}` failed with error `{}`", file_name, importer_->GetErrorString()));
+        "Loading of mesh `{}` failed with error `{}`", file_name, importer.GetErrorString()));
   }
 
   auto node = scene->mRootNode;
@@ -114,6 +135,28 @@ Mesh::Mesh(const std::string& file_name, uint32_t material_id) : Hitable(materia
 
   if (!mesh->HasNormals()) { throw std::runtime_error("Mesh: has no normals"); }
 
+  vertices_.reserve(mesh->mNumVertices);
+  normals_.reserve(mesh->mNumVertices);
+  for (unsigned int vertex_index = 0; vertex_index < mesh->mNumVertices; ++vertex_index) {
+    const auto& vertex = mesh->mVertices[vertex_index];
+    vertices_.push_back({vertex.x, vertex.y, vertex.z});
+
+    const auto& normal = mesh->mNormals[vertex_index];
+    normals_.push_back({normal.x, normal.y, normal.z});
+  }
+
+  indices_.resize(mesh->mNumFaces * 3);
+  for (unsigned int face_index = 0; face_index < mesh->mNumFaces; ++face_index) {
+    const aiFace* const face = &mesh->mFaces[face_index];
+    if (face->mNumIndices != 3) {
+      spdlog::warn("Mesh: only triangles supported, found a face with {} indices",
+                   face->mNumIndices);
+    }
+    indices_[face_index * 3 + 0] = face->mIndices[0];
+    indices_[face_index * 3 + 1] = face->mIndices[1];
+    indices_[face_index * 3 + 2] = face->mIndices[2];
+  }
+
   // Get the axis aligned bounding box
   aabb_min_.x = mesh->mAABB.mMin.x;
   aabb_min_.y = mesh->mAABB.mMin.y;
@@ -123,48 +166,89 @@ Mesh::Mesh(const std::string& file_name, uint32_t material_id) : Hitable(materia
   aabb_max_.z = mesh->mAABB.mMax.z;
 }
 
+Mesh::Mesh(std::vector<float3> vertices, std::vector<uint32_t> indices, std::vector<float3> normals,
+           uint32_t material_id)
+    : Hitable(material_id),
+      vertices_(std::move(vertices)),
+      indices_(std::move(indices)),
+      normals_(std::move(normals)) {
+  if (vertices_.empty()) { throw std::invalid_argument("Mesh: vertices must not be empty"); }
+  if (indices_.empty()) { throw std::invalid_argument("Mesh: indices must not be empty"); }
+  if (indices_.size() % 3 != 0) {
+    throw std::invalid_argument("Mesh: indices size must be a multiple of 3");
+  }
+
+  for (const uint32_t index : indices_) {
+    if (index >= vertices_.size()) {
+      throw std::invalid_argument("Mesh: index is out of range for vertices");
+    }
+  }
+
+  if (!normals_.empty() && normals_.size() != vertices_.size()) {
+    throw std::invalid_argument("Mesh: normals size must match vertices size");
+  }
+
+  if (normals_.empty()) {
+    normals_.resize(vertices_.size(), float3{0.f, 0.f, 0.f});
+    for (size_t index = 0; index < indices_.size(); index += 3) {
+      const float3& a = vertices_[indices_[index]];
+      const float3& b = vertices_[indices_[index + 1]];
+      const float3& c = vertices_[indices_[index + 2]];
+
+      const float3 edge_ab{b.x - a.x, b.y - a.y, b.z - a.z};
+      const float3 edge_ac{c.x - a.x, c.y - a.y, c.z - a.z};
+      const float3 face_normal{edge_ab.y * edge_ac.z - edge_ab.z * edge_ac.y,
+                               edge_ab.z * edge_ac.x - edge_ab.x * edge_ac.z,
+                               edge_ab.x * edge_ac.y - edge_ab.y * edge_ac.x};
+
+      for (size_t vertex = 0; vertex < 3; ++vertex) {
+        float3& normal = normals_[indices_[index + vertex]];
+        normal.x += face_normal.x;
+        normal.y += face_normal.y;
+        normal.z += face_normal.z;
+      }
+    }
+  }
+
+  normalise_normals(normals_);
+
+  aabb_min_ = vertices_.front();
+  aabb_max_ = vertices_.front();
+  for (const float3& vertex : vertices_) {
+    aabb_min_.x = std::min(aabb_min_.x, vertex.x);
+    aabb_min_.y = std::min(aabb_min_.y, vertex.y);
+    aabb_min_.z = std::min(aabb_min_.z, vertex.z);
+    aabb_max_.x = std::max(aabb_max_.x, vertex.x);
+    aabb_max_.y = std::max(aabb_max_.y, vertex.y);
+    aabb_max_.z = std::max(aabb_max_.z, vertex.z);
+  }
+}
+
 void Mesh::build(OptixBuildInput* optix_build_input, HitGroupData* hit_group_data,
                  cudaStream_t stream) {
-  auto scene = importer_->GetScene();
-  auto mesh = scene->mMeshes[scene->mRootNode->mChildren[0]->mMeshes[0]];
-
   optix_build_input->type = OPTIX_BUILD_INPUT_TYPE_TRIANGLES;
 
-  cuda_vertex_buffer_ =
-      std::make_unique<CudaMemory>(mesh->mNumVertices * sizeof(aiVector3D), stream);
-  cuda_vertex_buffer_->upload(mesh->mVertices, stream);
+  cuda_vertex_buffer_ = std::make_unique<CudaMemory>(vertices_.size() * sizeof(float3), stream);
+  cuda_vertex_buffer_->upload(vertices_.data(), stream);
 
   vertex_buffers_.push_back(cuda_vertex_buffer_->get_device_ptr(stream));
   optix_build_input->triangleArray.vertexBuffers = vertex_buffers_.data();
-  optix_build_input->triangleArray.numVertices = mesh->mNumVertices;
+  optix_build_input->triangleArray.numVertices = static_cast<uint32_t>(vertices_.size());
   optix_build_input->triangleArray.vertexFormat = OptixVertexFormat::OPTIX_VERTEX_FORMAT_FLOAT3;
 
-  std::vector<unsigned int> indices(mesh->mNumFaces * 3);
-  for (unsigned int face_index = 0; face_index < mesh->mNumFaces; ++face_index) {
-    const aiFace* const face = &mesh->mFaces[face_index];
-    if (face->mNumIndices != 3) {
-      spdlog::warn("Mesh: only triangles supported, found a face with {} indices",
-                   face->mNumIndices);
-    }
-    indices[face_index * 3 + 0] = face->mIndices[0];
-    indices[face_index * 3 + 1] = face->mIndices[1];
-    indices[face_index * 3 + 2] = face->mIndices[2];
-  }
-
-  cuda_index_buffer_ = std::make_unique<CudaMemory>(indices.size() * sizeof(unsigned int), stream);
-  cuda_index_buffer_->upload(indices.data(), stream);
+  cuda_index_buffer_ = std::make_unique<CudaMemory>(indices_.size() * sizeof(uint32_t), stream);
+  cuda_index_buffer_->upload(indices_.data(), stream);
 
   optix_build_input->triangleArray.indexBuffer = cuda_index_buffer_->get_device_ptr(stream);
-  optix_build_input->triangleArray.numIndexTriplets = indices.size() / 3;
+  optix_build_input->triangleArray.numIndexTriplets = static_cast<uint32_t>(indices_.size() / 3);
   optix_build_input->triangleArray.indexFormat =
       OptixIndicesFormat::OPTIX_INDICES_FORMAT_UNSIGNED_INT3;
 
   hit_group_data->indices =
       reinterpret_cast<uint32_t*>(optix_build_input->triangleArray.indexBuffer);
 
-  cuda_normal_buffer_ =
-      std::make_unique<CudaMemory>(mesh->mNumVertices * sizeof(aiVector3D), stream);
-  cuda_normal_buffer_->upload(mesh->mNormals, stream);
+  cuda_normal_buffer_ = std::make_unique<CudaMemory>(normals_.size() * sizeof(float3), stream);
+  cuda_normal_buffer_->upload(normals_.data(), stream);
   hit_group_data->normals = reinterpret_cast<float3*>(cuda_normal_buffer_->get_ptr(stream));
 
   sbt_flags_.push_back(OPTIX_GEOMETRY_FLAG_DISABLE_ANYHIT |
