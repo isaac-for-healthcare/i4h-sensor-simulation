@@ -21,14 +21,12 @@
 #include <optix_types.h>
 #include <vector_types.h>
 
+#include <cstdint>
 #include <memory>
+#include <string>
 #include <vector>
 
 #include "raysim/cuda/cuda_helper.hpp"
-
-namespace Assimp {
-class Importer;
-}  // namespace Assimp
 
 namespace raysim {
 
@@ -79,12 +77,16 @@ class Sphere : public Hitable {
 class Mesh : public Hitable {
  public:
   Mesh(const std::string& file_name, uint32_t material_id);
+  Mesh(std::vector<float3> vertices, std::vector<uint32_t> indices, std::vector<float3> normals,
+       uint32_t material_id);
 
   void build(OptixBuildInput* optix_build_input, HitGroupData* hit_group_data,
              cudaStream_t stream) override;
 
  private:
-  std::shared_ptr<Assimp::Importer> importer_;
+  std::vector<float3> vertices_;
+  std::vector<uint32_t> indices_;
+  std::vector<float3> normals_;
 
   std::unique_ptr<CudaMemory> cuda_vertex_buffer_;
   std::unique_ptr<CudaMemory> cuda_index_buffer_;
