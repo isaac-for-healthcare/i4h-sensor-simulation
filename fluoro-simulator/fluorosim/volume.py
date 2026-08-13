@@ -41,6 +41,7 @@ class VolumeMetadata:
         hu_range: Original HU range before conversion [min, max].
         mu_range: μ range after conversion [min, max].
         source: Original source path (DICOM dir or NIfTI file).
+        calibration: Calibration provenance used to create the μ volume.
     """
 
     shape_zyx: tuple[int, int, int]
@@ -49,6 +50,7 @@ class VolumeMetadata:
     hu_range: tuple[float, float] | None = None
     mu_range: tuple[float, float] | None = None
     source: str | None = None
+    calibration: dict[str, Any] | None = None
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
@@ -59,6 +61,7 @@ class VolumeMetadata:
             "hu_range": list(self.hu_range) if self.hu_range else None,
             "mu_range": list(self.mu_range) if self.mu_range else None,
             "source": self.source,
+            "calibration": self.calibration,
         }
 
     @classmethod
@@ -71,6 +74,7 @@ class VolumeMetadata:
             hu_range=tuple(d["hu_range"]) if d.get("hu_range") else None,
             mu_range=tuple(d["mu_range"]) if d.get("mu_range") else None,
             source=d.get("source"),
+            calibration=d.get("calibration"),
         )
 
 
@@ -127,7 +131,8 @@ class PreprocessedVolume:
     @property
     def shape(self) -> tuple[int, int, int]:
         """Return volume shape (Z, Y, X)."""
-        return self._mu_volume.shape
+        z, y, x = self._mu_volume.shape
+        return (int(z), int(y), int(x))
 
     @property
     def spacing_zyx_mm(self) -> tuple[float, float, float]:
@@ -181,6 +186,8 @@ class PreprocessedVolume:
 
         Raises:
             FileNotFoundError: If required files are not found.
+            ValueError: If the cache predates calibration provenance and must be
+                regenerated.
         """
         input_dir = Path(input_dir)
 
@@ -192,10 +199,15 @@ class PreprocessedVolume:
         if not meta_path.exists():
             raise FileNotFoundError(f"Metadata file not found: {meta_path}")
 
+        metadata_dict = json.loads(meta_path.read_text(encoding="utf-8"))
+        if metadata_dict.get("calibration") is None:
+            raise ValueError(
+                "Preprocessed-volume cache does not record HU-to-μ calibration "
+                "provenance. Delete this cache and reprocess the source CT."
+            )
+
         mu_volume = np.load(mu_path)
-        metadata = VolumeMetadata.from_dict(
-            json.loads(meta_path.read_text(encoding="utf-8"))
-        )
+        metadata = VolumeMetadata.from_dict(metadata_dict)
 
         return cls(mu_volume, metadata)
 

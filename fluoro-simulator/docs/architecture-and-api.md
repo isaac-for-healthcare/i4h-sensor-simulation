@@ -110,6 +110,27 @@ print(trans.grad)  # ∂L/∂translation
 | `MetricsSettings` | Performance tracking options |
 | `PreprocessingSettings` | HU clipping and mapping settings |
 | `HuToMuMapping` | HU → μ linear mapping parameters |
+| `HuToMuCalibration` | NIST-anchored physical HU → μ calibration |
+
+### Radiometric calibration
+
+The default mapping is physically anchored at 60 keV. For HU <= 0,
+`μ = μ_water (1 + HU / 1000)`; for HU > 0,
+`μ = μ_water + HU (μ_bone - μ_water) / hu_bone_anchor`. The first segment is
+the HU-definition inversion under negligible air attenuation; the second uses
+water and cortical-bone anchors. The bone anchor at 1500 HU
+(`hu_bone_anchor=1500`) is a good median assumption for the input CT calibration.
+
+| Material | Density (g/cm³) | μ/ρ at 60 keV (cm²/g) | μ (mm⁻¹) |
+| --- | ---: | ---: | ---: |
+| Water | 1.000 | 0.2059 | 0.020590 |
+| Cortical bone (ICRU-44) | 1.920 | 0.3148 | 0.060442 |
+| Whole blood (ICRU-44, validation only) | 1.060 | 0.2057 | 0.021804 |
+
+Anchors are from the [NIST XCOM water](https://physics.nist.gov/PhysRefData/XrayMassCoef/ComTab/water.html)
+and [cortical bone](https://physics.nist.gov/PhysRefData/XrayMassCoef/ComTab/bone.html)
+mass attenuation tables (Hubbell & Seltzer; ICRU-44 compositions), retrieved
+2026-08-12. There is no energy interpolation in this version.
 
 ### Key Methods
 

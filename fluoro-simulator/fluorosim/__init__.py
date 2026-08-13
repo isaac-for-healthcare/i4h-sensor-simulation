@@ -32,6 +32,7 @@ Example:
     >>> frame = simulator.render_frame(rotation=(0, 0, 0), translation=(0, 0, 0))
 """
 
+from .calibration import HuToMuCalibration
 from .config import (
     CarmGeometry,
     HuToMuMapping,
@@ -56,6 +57,7 @@ __all__ = [
     "MetricsSettings",
     "PreprocessingSettings",
     "HuToMuMapping",
+    "HuToMuCalibration",
     # Volume
     "PreprocessedVolume",
     "VolumePreprocessor",

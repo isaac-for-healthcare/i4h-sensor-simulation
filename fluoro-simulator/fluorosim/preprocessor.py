@@ -21,10 +21,15 @@ CT volumes from DICOM or NIfTI sources into a format suitable for rendering.
 
 from __future__ import annotations
 
+import importlib
+import warnings
+from importlib import metadata
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 
+from .calibration import HuToMuCalibration, hu_to_mu
 from .config import HuToMuMapping, PreprocessingSettings
 from .volume import PreprocessedVolume, VolumeMetadata
 
@@ -174,7 +179,8 @@ class VolumePreprocessor:
     @property
     def shape(self) -> tuple[int, int, int]:
         """Return volume shape (Z, Y, X)."""
-        return self._hu_volume.shape
+        z, y, x = self._hu_volume.shape
+        return (int(z), int(y), int(x))
 
     @property
     def spacing_zyx_mm(self) -> tuple[float, float, float]:
@@ -225,6 +231,7 @@ class VolumePreprocessor:
             hu_range=hu_range,
             mu_range=mu_range,
             source=self._source,
+            calibration=self._calibration_metadata(settings.hu_to_mu),
         )
 
         # Create volume
@@ -237,23 +244,67 @@ class VolumePreprocessor:
 
         return volume
 
-    def _hu_to_mu(self, hu: np.ndarray, cfg: HuToMuMapping) -> np.ndarray:
-        """Convert Hounsfield Units to linear attenuation coefficient (μ).
+    def _hu_to_mu(
+        self, hu: np.ndarray, cfg: HuToMuCalibration | HuToMuMapping
+    ) -> np.ndarray:
+        """Convert Hounsfield Units to linear attenuation coefficients.
 
-        Uses a linear mapping:
-            μ = μ_min + (HU - HU_min) / (HU_max - HU_min) × (μ_max - μ_min)
+        Dispatches to the physical two-anchor calibration or the retained
+        legacy min-max mapping according to ``cfg``.
 
         Args:
             hu: HU volume array.
-            cfg: Mapping configuration.
+            cfg: Physical calibration or legacy mapping configuration.
 
         Returns:
             μ volume as float32 array.
         """
-        hu_clipped = np.clip(hu, cfg.hu_min, cfg.hu_max)
-        t = (hu_clipped - cfg.hu_min) / (cfg.hu_max - cfg.hu_min + 1e-12)
-        mu = cfg.mu_min + t * (cfg.mu_max - cfg.mu_min)
-        return mu.astype(np.float32)
+        if isinstance(cfg, HuToMuCalibration):
+            return hu_to_mu(hu, cfg)
+        if isinstance(cfg, HuToMuMapping):
+            warnings.warn(
+                "HuToMuMapping is retained only for legacy reproduction and will be "
+                "removed in v0.3; use HuToMuCalibration instead.",
+                FutureWarning,
+                stacklevel=3,
+            )
+            hu_clipped = np.clip(hu, cfg.hu_min, cfg.hu_max)
+            t = (hu_clipped - cfg.hu_min) / (cfg.hu_max - cfg.hu_min + 1e-12)
+            mu = cfg.mu_min + t * (cfg.mu_max - cfg.mu_min)
+            mu_float32: np.ndarray = mu.astype(np.float32)
+            return mu_float32
+        raise TypeError(f"Unsupported HU-to-μ configuration: {type(cfg).__name__}")
+
+    @staticmethod
+    def _calibration_metadata(
+        cfg: HuToMuCalibration | HuToMuMapping,
+    ) -> dict[str, Any]:
+        """Return self-describing provenance for a saved attenuation volume."""
+        if isinstance(cfg, HuToMuCalibration):
+            provenance = cfg.to_dict()
+            provenance["package_version"] = VolumePreprocessor._package_version()
+            return provenance
+        if isinstance(cfg, HuToMuMapping):
+            return {
+                "scheme": "legacy_minmax",
+                "hu_min": cfg.hu_min,
+                "hu_max": cfg.hu_max,
+                "mu_min": cfg.mu_min,
+                "mu_max": cfg.mu_max,
+            }
+        raise TypeError(f"Unsupported HU-to-μ configuration: {type(cfg).__name__}")
+
+    @staticmethod
+    def _package_version() -> str:
+        """Resolve the package version without requiring an installed source tree."""
+        package = importlib.import_module("fluorosim")
+        version = getattr(package, "__version__", None)
+        if version is not None:
+            return str(version)
+        try:
+            return metadata.version("fluorosim")
+        except metadata.PackageNotFoundError:
+            return "unknown"
 
     def __repr__(self) -> str:
         z, y, x = self.shape

@@ -116,13 +116,22 @@ frame.save("output.png")
 
 ### Step 1: Volume Preprocessing
 
-CT volumes store tissue density in Hounsfield Units (HU). The `VolumePreprocessor` converts these to linear attenuation coefficients (μ in mm⁻¹) using a linear mapping:
+CT volumes store tissue density in Hounsfield Units (HU). The `VolumePreprocessor`
+converts these to linear attenuation coefficients (μ in mm⁻¹) using the default
+60 keV NIST-anchored two-anchor calibration. See the [radiometric calibration
+section](docs/architecture-and-api.md#radiometric-calibration) for anchors and
+physics checks.
 
 ```text
-μ = μ_min + (HU - HU_min) / (HU_max - HU_min) × (μ_max - μ_min)
+μ = μ_water (1 + HU / 1000), HU <= 0
+μ = μ_water + HU (μ_bone - μ_water) / 1500, HU > 0
 ```
 
-Default mapping: HU ∈ [-1000, 3000] → μ ∈ [0.0, 0.02] mm⁻¹
+### Changes
+
+The default HU→μ mapping is now physically calibrated at 60 keV. Rendered
+intensities and contrast change. To reproduce legacy output, use
+`PreprocessingSettings(hu_to_mu=HuToMuMapping())`.
 
 ```python
 # Load from various sources
