@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2024-2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-FileCopyrightText: Copyright (c) 2024-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -57,6 +57,14 @@ class TestVolumePreprocessor:
 
         # Check dtype is float32
         assert volume.mu_volume.dtype == np.float32
+
+        water = 0.020590
+        bone = 0.3148 * 1.92 / 10
+        assert float(volume.mu_volume[0, 0, 0]) == pytest.approx(water * 0.1, rel=1e-4)
+        assert float(volume.mu_volume[8, 16, 16]) == pytest.approx(
+            water + 800.0 * (bone - water) / 1500.0,
+            rel=1e-4,
+        )
 
     def test_metadata_preserved(self, sample_hu_volume, sample_spacing):
         """Test that spacing metadata is preserved."""

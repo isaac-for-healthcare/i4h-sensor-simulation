@@ -25,6 +25,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
 
+from .calibration import HuToMuCalibration
+
 
 @dataclass(frozen=True)
 class CarmGeometry:
@@ -148,6 +150,9 @@ class HuToMuMapping:
 
     Defines the linear mapping from HU values to μ (mm⁻¹) for X-ray simulation.
 
+    No longer used by default. Retained for reproducing legacy output; it is not
+    physically calibrated. See ``HuToMuCalibration``.
+
     Attributes:
         hu_min: Minimum HU value (maps to mu_min). Default: -1000 (air).
         hu_max: Maximum HU value (maps to mu_max). Default: 3000 (dense bone).
@@ -235,7 +240,9 @@ class PreprocessingSettings:
     hu_clip_min: float = -1024.0
     hu_clip_max: float = 3071.0
     clip_hu: bool = True
-    hu_to_mu: HuToMuMapping = field(default_factory=HuToMuMapping)
+    hu_to_mu: HuToMuCalibration | HuToMuMapping = field(
+        default_factory=HuToMuCalibration
+    )
 
 
 @dataclass(frozen=True)

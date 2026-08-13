@@ -18,8 +18,11 @@
 from __future__ import annotations
 
 import math
+import warnings
+
 import numpy as np
 import pytest
+from fluorosim import HuToMuMapping, PreprocessingSettings, VolumePreprocessor
 from fluorosim.calibration import HuToMuCalibration, hu_to_mu
 
 
@@ -122,8 +125,33 @@ def test_serialization_warns_on_informational_anchor_mismatch() -> None:
 
 
 def test_units_oracle_300_mm_water() -> None:
-    """The physical mapping produces the closed-form water transmission."""
+    """The default full chain produces the closed-form water transmission."""
     hu = np.zeros((1, 300, 1), dtype=np.float32)
-    mu = hu_to_mu(hu, HuToMuCalibration())
-    transmission = math.exp(-float(np.sum(mu[0, :, 0])))
+    volume = VolumePreprocessor.from_numpy(
+        hu, spacing_zyx_mm=(1.0, 1.0, 1.0), settings=PreprocessingSettings()
+    ).preprocess()
+    transmission = math.exp(-float(np.sum(volume.mu_volume[0, :, 0])))
     assert transmission == pytest.approx(2.077e-3, rel=1e-3)
+
+
+def test_legacy_mapping_is_bit_identical_and_warns() -> None:
+    """An explicit legacy request keeps the original formula and signals migration."""
+    hu = np.array([[[-1024.0, -1000.0, 0.0, 3000.0, 3071.0]]], dtype=np.float32)
+    mapping = HuToMuMapping()
+    with pytest.warns(FutureWarning, match="HuToMuCalibration"):
+        result = VolumePreprocessor.from_numpy(
+            hu, settings=PreprocessingSettings(hu_to_mu=mapping)
+        ).preprocess().mu_volume
+    clipped = np.clip(np.clip(hu, -1024.0, 3071.0), mapping.hu_min, mapping.hu_max)
+    expected = mapping.mu_min + (clipped - mapping.hu_min) / (
+        mapping.hu_max - mapping.hu_min + 1e-12
+    ) * (mapping.mu_max - mapping.mu_min)
+    np.testing.assert_array_equal(result, expected.astype(np.float32))
+
+
+def test_default_is_calibrated_and_warning_free() -> None:
+    """The public preprocessing default selects the physical, warning-free path."""
+    assert isinstance(PreprocessingSettings().hu_to_mu, HuToMuCalibration)
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", FutureWarning)
+        VolumePreprocessor.from_numpy(np.zeros((1, 1, 1), dtype=np.float32)).preprocess()
