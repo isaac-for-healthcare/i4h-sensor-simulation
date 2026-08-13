@@ -21,8 +21,11 @@ CT volumes from DICOM or NIfTI sources into a format suitable for rendering.
 
 from __future__ import annotations
 
+import importlib
 import warnings
+from importlib import metadata
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 
@@ -228,6 +231,7 @@ class VolumePreprocessor:
             hu_range=hu_range,
             mu_range=mu_range,
             source=self._source,
+            calibration=self._calibration_metadata(settings.hu_to_mu),
         )
 
         # Create volume
@@ -270,6 +274,37 @@ class VolumePreprocessor:
             mu_float32: np.ndarray = mu.astype(np.float32)
             return mu_float32
         raise TypeError(f"Unsupported HU-to-μ configuration: {type(cfg).__name__}")
+
+    @staticmethod
+    def _calibration_metadata(
+        cfg: HuToMuCalibration | HuToMuMapping,
+    ) -> dict[str, Any]:
+        """Return self-describing provenance for a saved attenuation volume."""
+        if isinstance(cfg, HuToMuCalibration):
+            provenance = cfg.to_dict()
+            provenance["package_version"] = VolumePreprocessor._package_version()
+            return provenance
+        if isinstance(cfg, HuToMuMapping):
+            return {
+                "scheme": "legacy_minmax",
+                "hu_min": cfg.hu_min,
+                "hu_max": cfg.hu_max,
+                "mu_min": cfg.mu_min,
+                "mu_max": cfg.mu_max,
+            }
+        raise TypeError(f"Unsupported HU-to-μ configuration: {type(cfg).__name__}")
+
+    @staticmethod
+    def _package_version() -> str:
+        """Resolve the package version without requiring an installed source tree."""
+        package = importlib.import_module("fluorosim")
+        version = getattr(package, "__version__", None)
+        if version is not None:
+            return str(version)
+        try:
+            return metadata.version("fluorosim")
+        except metadata.PackageNotFoundError:
+            return "unknown"
 
     def __repr__(self) -> str:
         z, y, x = self.shape

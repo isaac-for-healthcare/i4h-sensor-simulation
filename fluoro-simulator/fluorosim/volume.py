@@ -41,6 +41,7 @@ class VolumeMetadata:
         hu_range: Original HU range before conversion [min, max].
         mu_range: μ range after conversion [min, max].
         source: Original source path (DICOM dir or NIfTI file).
+        calibration: Calibration provenance used to create the μ volume.
     """
 
     shape_zyx: tuple[int, int, int]
@@ -49,6 +50,7 @@ class VolumeMetadata:
     hu_range: tuple[float, float] | None = None
     mu_range: tuple[float, float] | None = None
     source: str | None = None
+    calibration: dict[str, Any] | None = None
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
@@ -59,6 +61,7 @@ class VolumeMetadata:
             "hu_range": list(self.hu_range) if self.hu_range else None,
             "mu_range": list(self.mu_range) if self.mu_range else None,
             "source": self.source,
+            "calibration": self.calibration,
         }
 
     @classmethod
@@ -71,6 +74,7 @@ class VolumeMetadata:
             hu_range=tuple(d["hu_range"]) if d.get("hu_range") else None,
             mu_range=tuple(d["mu_range"]) if d.get("mu_range") else None,
             source=d.get("source"),
+            calibration=d.get("calibration"),
         )
 
 
@@ -127,7 +131,8 @@ class PreprocessedVolume:
     @property
     def shape(self) -> tuple[int, int, int]:
         """Return volume shape (Z, Y, X)."""
-        return self._mu_volume.shape
+        z, y, x = self._mu_volume.shape
+        return (int(z), int(y), int(x))
 
     @property
     def spacing_zyx_mm(self) -> tuple[float, float, float]:
