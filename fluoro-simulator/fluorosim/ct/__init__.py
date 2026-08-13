@@ -17,7 +17,7 @@
 
 Notes:
 - The default ingestion CLIs are plain Python modules.
-- HU → μ conversion is handled by VolumePreprocessor using HuToMuMapping from config.py.
+- HU → μ conversion is handled by VolumePreprocessor using HuToMuCalibration.
 """
 
 from fluorosim.ct.dicom_ingest import CtVolume, load_dicom_series_hu, load_nifti_hu

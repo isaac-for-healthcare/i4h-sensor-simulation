@@ -155,3 +155,40 @@ def test_default_is_calibrated_and_warning_free() -> None:
     with warnings.catch_warnings():
         warnings.simplefilter("error", FutureWarning)
         VolumePreprocessor.from_numpy(np.zeros((1, 1, 1), dtype=np.float32)).preprocess()
+
+
+@pytest.mark.gpu
+def test_renderer_differential_water_slabs() -> None:
+    """A geometry-independent renderer ratio preserves μ times added thickness."""
+    slangpy = pytest.importorskip("slangpy")
+    try:
+        slangpy.create_device(slangpy.DeviceType.cuda)
+    except Exception as error:  # Device creation failures are environment-dependent.
+        pytest.skip(f"Slang renderer unavailable: {error}")
+
+    from fluorosim.rendering.diffdrr_slang_renderer import SlangDiffDRRConfig, SlangDiffDRRRenderer
+
+    calibration = HuToMuCalibration()
+    cfg = SlangDiffDRRConfig(
+        det_height_px=8,
+        det_width_px=8,
+        step_mm=0.25,
+        i0=1.0,
+        normalize=False,
+        invert=False,
+    )
+    renderer_50 = SlangDiffDRRRenderer(
+        np.full((50, 8, 8), calibration.mu_water_mm_inv, dtype=np.float32),
+        (1.0, 1.0, 1.0),
+        cfg,
+    )
+    renderer_100 = SlangDiffDRRRenderer(
+        np.full((100, 8, 8), calibration.mu_water_mm_inv, dtype=np.float32),
+        (1.0, 1.0, 1.0),
+        cfg,
+    )
+    intensity_50 = float(renderer_50.render()[4, 4])
+    intensity_100 = float(renderer_100.render()[4, 4])
+    assert math.log(intensity_50 / intensity_100) == pytest.approx(
+        calibration.mu_water_mm_inv * 50.0, rel=0.02
+    )
