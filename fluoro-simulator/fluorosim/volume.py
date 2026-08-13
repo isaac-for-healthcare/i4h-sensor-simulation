@@ -186,6 +186,8 @@ class PreprocessedVolume:
 
         Raises:
             FileNotFoundError: If required files are not found.
+            ValueError: If the cache predates calibration provenance and must be
+                regenerated.
         """
         input_dir = Path(input_dir)
 
@@ -197,10 +199,15 @@ class PreprocessedVolume:
         if not meta_path.exists():
             raise FileNotFoundError(f"Metadata file not found: {meta_path}")
 
+        metadata_dict = json.loads(meta_path.read_text(encoding="utf-8"))
+        if metadata_dict.get("calibration") is None:
+            raise ValueError(
+                "Preprocessed-volume cache does not record HU-to-μ calibration "
+                "provenance. Delete this cache and reprocess the source CT."
+            )
+
         mu_volume = np.load(mu_path)
-        metadata = VolumeMetadata.from_dict(
-            json.loads(meta_path.read_text(encoding="utf-8"))
-        )
+        metadata = VolumeMetadata.from_dict(metadata_dict)
 
         return cls(mu_volume, metadata)
 

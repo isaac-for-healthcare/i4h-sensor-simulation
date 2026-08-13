@@ -15,9 +15,11 @@
 
 """Tests for VolumePreprocessor functionality."""
 
+import json
+
 import numpy as np
 import pytest
-from fluorosim import HuToMuMapping, PreprocessedVolume, PreprocessingSettings, VolumeMetadata, VolumePreprocessor
+from fluorosim import HuToMuMapping, PreprocessedVolume, PreprocessingSettings, VolumePreprocessor
 
 
 class TestVolumePreprocessor:
@@ -119,8 +121,8 @@ class TestPreprocessedVolume:
         with pytest.raises((FileNotFoundError, ValueError)):
             PreprocessedVolume.load(temp_cache_dir / "nonexistent")
 
-    def test_legacy_metadata_without_calibration_loads(self):
-        """Metadata files written before calibration provenance remain readable."""
+    def test_legacy_metadata_without_calibration_requires_reprocessing(self, temp_cache_dir):
+        """Caches without calibration provenance are invalidated."""
         legacy = {
             "shape_zyx": [1, 2, 3],
             "spacing_zyx_mm": [1.0, 1.0, 1.0],
@@ -129,9 +131,15 @@ class TestPreprocessedVolume:
             "mu_range": [0.0, 0.02],
             "source": "legacy",
         }
-        metadata = VolumeMetadata.from_dict(legacy)
-        assert metadata.calibration is None
-        assert VolumeMetadata.from_dict(metadata.to_dict()).calibration is None
+        cache_path = temp_cache_dir / "legacy_volume"
+        cache_path.mkdir()
+        np.save(cache_path / "mu_volume.npy", np.zeros((1, 2, 3), dtype=np.float32))
+        (cache_path / "metadata.json").write_text(
+            json.dumps(legacy), encoding="utf-8"
+        )
+
+        with pytest.raises(ValueError, match="calibration provenance.*reprocess"):
+            PreprocessedVolume.load(cache_path)
 
 
 class TestEdgeCases:
