@@ -135,6 +135,55 @@ class SlangDiffDRRConfig:
     eps: float = 1e-8
 
 
+def _postprocess_image(image: np.ndarray, cfg: SlangDiffDRRConfig) -> np.ndarray:
+    """Apply configured display processing to a raw DRR image."""
+    if cfg.normalize:
+        vmin = float(np.min(image))
+        vmax = float(np.max(image))
+        image = (image - vmin) / (vmax - vmin + cfg.eps)
+
+    if cfg.invert:
+        image = 1.0 - image
+
+    return image
+
+
+def _postprocess_vjp(
+    image: np.ndarray,
+    grad_output: np.ndarray,
+    cfg: SlangDiffDRRConfig,
+) -> np.ndarray:
+    """Map a processed-image gradient back to the raw DRR image."""
+    grad_input = np.asarray(grad_output, dtype=np.float32)
+
+    if cfg.invert:
+        grad_input = -grad_input
+
+    if not cfg.normalize:
+        return np.ascontiguousarray(grad_input)
+
+    vmin = np.min(image)
+    vmax = np.max(image)
+    denominator = np.float32(vmax - vmin + cfg.eps)
+    centred = image - vmin
+    grad_sum = np.sum(grad_input)
+    weighted_sum = np.sum(grad_input * centred)
+    denominator_squared = denominator * denominator
+
+    min_mask = image == vmin
+    max_mask = image == vmax
+    # Match torch.amin and torch.amax by sharing gradients across tied extrema.
+    min_gradient = min_mask.astype(np.float32) / np.count_nonzero(min_mask)
+    max_gradient = max_mask.astype(np.float32) / np.count_nonzero(max_mask)
+
+    grad_input = grad_input / denominator
+    grad_input += min_gradient * (
+        -grad_sum / denominator + weighted_sum / denominator_squared
+    )
+    grad_input -= max_gradient * weighted_sum / denominator_squared
+    return np.ascontiguousarray(grad_input, dtype=np.float32)
+
+
 class SlangDiffDRRRenderer:
     """Differentiable DRR Renderer using Slang's Automatic Differentiation.
 
@@ -340,12 +389,15 @@ class SlangDiffDRRRenderer:
         self,
         rotation: Union[tuple[float, float, float], np.ndarray] = (0.0, 0.0, 0.0),
         translation: Union[tuple[float, float, float], np.ndarray] = (0.0, 0.0, 0.0),
+        *,
+        raw: bool = False,
     ) -> np.ndarray:
         """Render a DRR image at the specified pose (forward pass only).
 
         Args:
             rotation: Euler angles (rx, ry, rz) in radians.
             translation: Translation (tx, ty, tz) in mm.
+            raw: Return raw Beer-Lambert intensity without display processing.
 
         Returns:
             2D float32 numpy array of shape (H, W).
@@ -378,15 +430,8 @@ class SlangDiffDRRRenderer:
         image = self._output_texture.to_numpy()
         image = image.reshape(cfg.det_height_px, cfg.det_width_px)
 
-        # Normalize if requested
-        if cfg.normalize:
-            vmin = float(np.min(image))
-            vmax = float(np.max(image))
-            image = (image - vmin) / (vmax - vmin + cfg.eps)
-
-        # Invert for clinical X-ray convention (bone=white, air=black)
-        if cfg.invert:
-            image = 1.0 - image
+        if not raw:
+            image = _postprocess_image(image, cfg)
 
         return image.astype(np.float32)
 
@@ -396,12 +441,14 @@ class SlangDiffDRRRenderer:
         translation: Union[tuple[float, float, float], np.ndarray],
         grad_output: Optional[np.ndarray] = None,
         max_steps: int = 2048,
+        *,
+        raw: bool = False,
     ) -> tuple[np.ndarray, dict]:
         """Render DRR and compute gradients via Slang autodiff.
 
         This uses Slang's automatic differentiation with custom backward derivatives
         for texture sampling to compute exact gradients of the rendered image
-        with respect to pose parameters and optionally the volume.
+        with respect to pose parameters.
 
         The implementation follows Slang's autodiff-texture example pattern:
         - Hardware texture sampling for fast forward pass
@@ -411,16 +458,20 @@ class SlangDiffDRRRenderer:
         Args:
             rotation: Euler angles (rx, ry, rz) in radians.
             translation: Translation (tx, ty, tz) in mm.
-            grad_output: Upstream gradient ∂L/∂I. If None, uses ones (gradient of sum).
+            grad_output: Upstream gradient with respect to the returned image.
+                Must have shape (det_height_px, det_width_px). If None, uses
+                ones (gradient of sum).
             max_steps: Maximum ray-march steps (for differentiable path).
+            raw: Return raw Beer-Lambert intensity and treat ``grad_output`` as
+                its upstream gradient. The default returns the configured display
+                image and includes the display-processing Jacobian.
 
         Returns:
             Tuple of (image, gradients_dict) where:
             - image: Rendered DRR as numpy array (H, W)
             - gradients_dict: {
                 'rotation': np.ndarray of shape (3,),
-                'translation': np.ndarray of shape (3,),
-                'volume': np.ndarray of shape (Z, Y, X) - gradients w.r.t. mu volume
+                'translation': np.ndarray of shape (3,)
               }
 
         Example:
@@ -448,16 +499,12 @@ class SlangDiffDRRRenderer:
             grad_output = np.ones((cfg.det_height_px, cfg.det_width_px), dtype=np.float32)
         else:
             grad_output = np.ascontiguousarray(grad_output.astype(np.float32))
-
-        # Upload gradient to texture
-        grad_output_texture = self._device.create_texture(
-            type=slangpy.TextureType.texture_2d,
-            format=slangpy.Format.r32_float,
-            width=cfg.det_width_px,
-            height=cfg.det_height_px,
-            usage=slangpy.TextureUsage.shader_resource,
-            data=grad_output,
-        )
+            expected_shape = (cfg.det_height_px, cfg.det_width_px)
+            if grad_output.shape != expected_shape:
+                raise ValueError(
+                    f"grad_output must have shape {expected_shape}, "
+                    f"got {grad_output.shape}"
+                )
 
         thread_count = slangpy.uint3(cfg.det_width_px, cfg.det_height_px, 1)
 
@@ -472,6 +519,25 @@ class SlangDiffDRRRenderer:
             pose=pose,
             stepMM=float(cfg.step_mm),
             i0=float(cfg.i0),
+        )
+
+        raw_image = self._output_texture.to_numpy().reshape(
+            cfg.det_height_px, cfg.det_width_px
+        )
+        if raw:
+            image = raw_image
+        else:
+            grad_output = _postprocess_vjp(raw_image, grad_output, cfg)
+            image = _postprocess_image(raw_image, cfg)
+
+        # Upload the gradient of the raw Beer-Lambert intensity.
+        grad_output_texture = self._device.create_texture(
+            type=slangpy.TextureType.texture_2d,
+            format=slangpy.Format.r32_float,
+            width=cfg.det_width_px,
+            height=cfg.det_height_px,
+            usage=slangpy.TextureUsage.shader_resource,
+            data=grad_output,
         )
 
         # Step 2: Backward pass - compute per-pixel gradients
@@ -489,9 +555,6 @@ class SlangDiffDRRRenderer:
             i0=float(cfg.i0),
         )
 
-        # Read back results
-        image = self._output_texture.to_numpy().reshape(cfg.det_height_px, cfg.det_width_px)
-
         # Read per-pixel gradients and reduce to total gradients
         grad_rot_pixels = self._grad_rotation_texture.to_numpy()
         grad_rot_pixels = grad_rot_pixels.reshape(cfg.det_height_px, cfg.det_width_px, 4)
@@ -500,16 +563,6 @@ class SlangDiffDRRRenderer:
         grad_trans_pixels = self._grad_translation_texture.to_numpy()
         grad_trans_pixels = grad_trans_pixels.reshape(cfg.det_height_px, cfg.det_width_px, 4)
         grad_translation = grad_trans_pixels[:, :, :3].sum(axis=(0, 1))  # Sum over all pixels
-
-        # Normalize if requested
-        if cfg.normalize:
-            vmin = float(np.min(image))
-            vmax = float(np.max(image))
-            image = (image - vmin) / (vmax - vmin + cfg.eps)
-
-        # Invert for clinical X-ray convention (bone=white, air=black)
-        if cfg.invert:
-            image = 1.0 - image
 
         return image.astype(np.float32), {
             'rotation': grad_rotation.astype(np.float32),
