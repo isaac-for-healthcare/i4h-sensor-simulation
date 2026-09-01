@@ -1,0 +1,129 @@
+# SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Global: must be declared before the first FROM so `FROM cuda${CUDA_MAJOR}` works.
+ARG CUDA_MAJOR=13
+
+# ============================================================================
+# Stage 1: Download datasets using i4h-asset-catalog (requires Isaac Sim)
+# Using Ubuntu 22.04 which has Python 3.11 available
+# ============================================================================
+FROM ubuntu:22.04 AS dataset-downloader
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV PIP_NO_CACHE_DIR=off
+ENV ACCEPT_EULA=Y
+
+# Install minimal dependencies for downloading (Python 3.11 required for Isaac Sim)
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        python3.11 \
+        python3.11-venv \
+        python3-pip \
+        git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create working directory for downloads
+WORKDIR /downloads
+
+# Create venv and install i4h-asset-catalog with Isaac Sim (only in this stage)
+RUN python3.11 -m venv /downloads/.venv && \
+    /downloads/.venv/bin/pip install git+https://github.com/isaac-for-healthcare/i4h-asset-catalog.git
+
+# Download mesh data using the venv (auto-accept EULA)
+RUN echo "Yes" | /downloads/.venv/bin/i4h-asset-retrieve --download-dir assets --sub-path Props/ABDPhantom/Organs --version 0.2.0
+
+# Create the mesh symlink
+RUN ln -s assets/8c0bf782eab2f44f1cc82da60eb10f6be8f941406d291b7fbfbdb53c05b3d149/Props/ABDPhantom/Organs mesh
+
+# ============================================================================
+# Stage 2: Final runtime image (no Isaac Sim dependency)
+# ============================================================================
+# nvcc has to be new enough for the GPU the container runs on, because the
+# documented workflow rebuilds against the mounted source and cmake/SetupCUDA.cmake
+# defaults CMAKE_CUDA_ARCHITECTURES to `native`. CUDA 12.6 stops at sm_90, so it
+# cannot compile Blackwell (sm_120/sm_121). CUDA 13 covers sm_75 through sm_121 but
+# needs a 580+ driver, so keep CUDA 12 reachable for older drivers and pre-Turing
+# GPUs via --build-arg CUDA_MAJOR=12.
+FROM nvidia/cuda:12.6.3-devel-ubuntu24.04 AS cuda12
+FROM nvidia/cuda:13.0.2-devel-ubuntu24.04 AS cuda13
+FROM cuda${CUDA_MAJOR}
+
+# Disable pip cache to avoid creating a cache directory with root permissions in the user's home directory.
+ENV PIP_NO_CACHE_DIR=off
+
+ARG USERNAME=ultrasound_simulator
+ARG USER_UID=1000
+ARG USER_GID=$USER_UID
+
+# Create the user
+# (See https://code.visualstudio.com/remote/advancedcontainers/add-nonroot-user)
+# The 24.04 image added the non-root user 'ubuntu' which needs to be removed first
+RUN touch /var/mail/ubuntu && chown ubuntu /var/mail/ubuntu && userdel -r ubuntu \
+    && groupadd --gid $USER_GID $USERNAME \
+    && useradd --uid $USER_UID --gid $USER_GID -m $USERNAME \
+    # Add sudo support. Omit if you don't need to install software after connecting.
+    && apt-get update \
+    && apt-get install -y sudo \
+    && rm -rf /var/lib/apt/lists/* \
+    && echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME \
+    && chmod 0440 /etc/sudoers.d/$USERNAME
+
+RUN apt-get update \
+    && apt-get install --no-install-recommends -y \
+        cmake="3.28.3-*" \
+        gdb="15.0.50.20240403-*" \
+        git="1:2.43.0-*" \
+        python3.12-dev="3.12.3-*" \
+        python3.12-venv="3.12.3-*" \
+        python3-pip \
+    && rm -rf /var/lib/apt/lists/*
+
+# OptiX runtime is provided by the NVIDIA driver (via --gpus all)
+# Headers are fetched automatically by CMake from optix-dev repository
+# Add NVIDIA library paths to LD_LIBRARY_PATH for OptiX runtime
+ENV LD_LIBRARY_PATH=/usr/local/nvidia/lib64:/usr/local/nvidia/lib:${LD_LIBRARY_PATH}
+
+# Ensure `python` invokes Python 3.12 (python3 already provided by the base image)
+RUN ln -s /usr/bin/python3.12 /usr/bin/python
+
+# Switch to the user for building
+USER $USERNAME
+
+# Set working directory in user's home
+WORKDIR /home/$USERNAME/workspace
+
+# Copy the project files
+COPY --chown=$USERNAME:$USERNAME . /home/$USERNAME/workspace/
+
+# Create virtual environment in user's home
+RUN python -m venv /home/$USERNAME/.venv
+
+# Install Python dependencies including optional dependencies for server.py
+# Set CUDA architectures for the build via CMAKE_ARGS. sm_80 builds under both CUDA
+# majors; override it to match the host GPU when running the image as-is rather than
+# rebuilding inside it, e.g. --build-arg CUDA_ARCHITECTURES=120 for Blackwell.
+ARG CUDA_ARCHITECTURES=80
+RUN CMAKE_ARGS="-DCMAKE_CUDA_ARCHITECTURES=${CUDA_ARCHITECTURES}" \
+    /home/$USERNAME/.venv/bin/python -m pip install -e ".[all]"
+
+# Copy downloaded mesh data from the dataset-downloader stage
+COPY --from=dataset-downloader --chown=$USERNAME:$USERNAME /downloads/mesh /home/$USERNAME/workspace/mesh
+
+# Add venv to PATH so python commands use it by default
+ENV PATH="/home/$USERNAME/.venv/bin:$PATH"
+
+# Expose port for the web server
+EXPOSE 8000

@@ -6,11 +6,14 @@
         },
         {
             "pattern": "http://0.0.0.0:8000"
+        },
+        {
+            "pattern": "https://doi.org"
         }
     ],
     "timeout": "20s",
     "retryOn429": true,
     "retryCount": 3,
     "fallbackRetryDelay": "30s",
-    "aliveStatusCodes": [200, 202, 403]
+    "aliveStatusCodes": [200, 202, 203, 403]
 }

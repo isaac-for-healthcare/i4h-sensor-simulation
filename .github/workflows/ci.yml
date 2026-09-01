@@ -45,12 +45,12 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install mypy numpy-stubs types-tqdm
-          python -m pip install -e ./fluoro-simulator
+          python -m pip install mypy types-numpy types-tqdm
+          python -m pip install -e ./xray-simulator
 
-      - name: Run mypy on fluoro-simulator
+      - name: Run mypy on xray-simulator
         run: |
-          mypy fluoro-simulator/fluorosim \
+          mypy xray-simulator/xray_simulator \
             --ignore-missing-imports \
             --no-error-summary \
             --show-error-codes \
@@ -61,8 +61,8 @@ jobs:
   # Unit Tests (GitHub Free-Tier, CPU-only)
   # ============================================================================
 
-  test-fluorosim:
-    name: Test Fluoro-Simulator (CPU)
+  test-xray_simulator:
+    name: Test X-ray Simulator (CPU)
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -78,11 +78,11 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -e "./fluoro-simulator[dev]"
+          python -m pip install -e "./xray-simulator[dev]"
 
       - name: Run pytest
         run: |
-          pytest fluoro-simulator/tests -v --tb=short \
+          pytest xray-simulator/tests -v --tb=short \
             -m "not gpu" \
             --ignore-glob="**/test_*gpu*.py" \
             || echo "No tests found or tests passed"
@@ -107,17 +107,17 @@ jobs:
         run: |
           python -m pip install --upgrade pip build twine
 
-      - name: Build fluoro-simulator
+      - name: Build xray-simulator
         run: |
-          cd fluoro-simulator
+          cd xray-simulator
           python -m build
           twine check dist/*
 
-      - name: Upload fluoro-simulator artifacts
+      - name: Upload xray-simulator artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: fluorosim-dist
-          path: fluoro-simulator/dist/
+          name: xray_simulator-dist
+          path: xray-simulator/dist/
           retention-days: 7
 
   # ============================================================================
@@ -140,7 +140,7 @@ jobs:
 
       - name: Run security scan
         run: |
-          bandit -r fluoro-simulator/fluorosim -ll -ii \
+          bandit -r xray-simulator/xray_simulator -ll -ii \
             --skip B101,B104 \
             || echo "::warning::Security scan found potential issues"
         continue-on-error: true
