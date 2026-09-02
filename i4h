@@ -52,9 +52,9 @@
 #
 # EXAMPLES:
 #   ./i4h list                             # List available simulators
-#   ./i4h run fluoro-simulator --local     # Run fluoroscopy simulator locally
-#   ./i4h run ultrasound-raytracing        # Run ultrasound simulator in container
-#   ./i4h build-container fluoro-simulator  # Build container image
+#   ./i4h run xray-simulator --local     # Run fluoroscopy simulator locally
+#   ./i4h run ultrasound-simulator        # Run ultrasound simulator in container
+#   ./i4h build-container xray-simulator  # Build container image
 #   ./i4h env-info                         # List environment variables
 #
 #   # Force update CLI to latest version
@@ -155,8 +155,11 @@ export HOLOHUB_ROOT="${SCRIPT_PATH}"
 export HOLOHUB_REPO_PREFIX="i4h_sim_build"
 export HOLOHUB_WORKSPACE_NAME="i4h-sim"
 export HOLOHUB_BUILD_PARENT_DIR="${HOLOHUB_ROOT}/build"
-export HOLOHUB_SEARCH_PATH="fluoro-simulator,ultrasound-raytracing"
+export HOLOHUB_SEARCH_PATH="xray-simulator,ultrasound-simulator"
 export HOLOHUB_DEFAULT_IMAGE_FORMAT="{container_prefix}:main"
+# HoloHub uses `--runtime nvidia`; fall back to `--gpus all` when that runtime
+# is not registered (common on Docker CE / DGX Spark).
+export HOLOHUB_DOCKER_EXE="${SCRIPT_PATH}/.tools/docker-with-gpu.sh"
 
 # The CLI checks build dirs exist when local builds are skipped.
 # Each docker/Dockerfile sets ENV HOLOHUB_ALWAYS_BUILD=false so CMake is
