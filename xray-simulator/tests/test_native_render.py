@@ -8,6 +8,7 @@ import numpy as np
 import pytest
 from xray_simulator import HuToMuMapping, PreprocessingSettings, VolumePreprocessor
 from xray_simulator import scan_volume as scan
+from xray_simulator import volume_center_xyz_mm
 
 from .test_scan_volume import write_dicom
 
@@ -26,12 +27,11 @@ def test_dicom_artifact_mu_parity(tmp_path, preset, resample):
     np.testing.assert_array_equal(direct.mu_volume, saved.mu_volume)
     np.testing.assert_array_equal(direct.metadata.voxel_to_lps_mm, saved.metadata.voxel_to_lps_mm)
     # Public C-arm centering must use the same affine as the GPU renderer.
-    from xray_simulator import xray_simulator
-
-    simulator = object.__new__(xray_simulator)
-    simulator._volume = direct
-    center = np.asarray(direct.metadata.voxel_to_lps_mm) @ np.r_[(np.array(direct.shape[::-1]) - 1) / 2, 1]
-    np.testing.assert_allclose(simulator.volume_center_xyz_mm, center[:3])
+    affine = np.asarray(direct.metadata.voxel_to_lps_mm)
+    center = affine @ np.r_[(np.array(direct.shape[::-1]) - 1) / 2, 1]
+    np.testing.assert_allclose(
+        volume_center_xyz_mm(direct.shape, direct.spacing_zyx_mm, voxel_to_world_mm=affine), center[:3]
+    )
     if os.environ.get("I4H_TEST_GPU") == "1":
         np.testing.assert_array_equal(
             render(direct.mu_volume, direct.metadata.voxel_to_lps_mm),

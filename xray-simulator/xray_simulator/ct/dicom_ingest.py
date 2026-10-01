@@ -20,6 +20,9 @@ from pathlib import Path
 
 import numpy as np
 
+from ..preprocessor import ijk_to_lps_mm
+from ..scan_volume import ScanVolume, from_dicom, from_nifti
+
 
 @dataclass(frozen=True)
 class CtVolume:
@@ -50,23 +53,22 @@ class CtVolume:
         return d
 
 
-def _ct(scan):
-    affine = np.diag([-1.0, -1.0, 1.0, 1.0]) @ scan.ijk_to_ras_m
-    affine[:3] *= 1000
-    spacing = np.linalg.norm(affine[:3, :3], axis=0)
+def _ct(scan: ScanVolume) -> CtVolume:
+    affine = ijk_to_lps_mm(scan)
+    spacing_xyz = np.linalg.norm(affine[:3, :3], axis=0)
     return CtVolume(
-        scan.values_kji, tuple(spacing[::-1]), tuple(affine[:3, 3]), tuple((affine[:3, :3] / spacing).ravel())
+        hu_zyx=scan.values_kji,
+        spacing_zyx_mm=tuple(spacing_xyz[::-1]),
+        origin_xyz_mm=tuple(affine[:3, 3]),
+        direction=tuple((affine[:3, :3] / spacing_xyz).ravel()),
     )
 
 
 def load_dicom_series_hu(dicom_dir: str | Path) -> CtVolume:
-    """Compatibility loader; prefer VolumePreprocessor.from_dicom for full geometry."""
-    from ..scan_volume import from_dicom
-
+    """Load a DICOM CT series in LPS mm; prefer VolumePreprocessor.from_dicom for full geometry."""
     return _ct(from_dicom(dicom_dir))
 
 
 def load_nifti_hu(nifti_path: str | Path) -> CtVolume:
-    from ..scan_volume import from_nifti
-
+    """Load a NIfTI CT in LPS mm; prefer VolumePreprocessor.from_nifti for full geometry."""
     return _ct(from_nifti(nifti_path))

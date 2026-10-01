@@ -216,7 +216,9 @@ class PreprocessedVolume:
             raise FileNotFoundError(f"Metadata file not found: {meta_path}")
 
         mu_volume = np.load(mu_path)
-        metadata = VolumeMetadata.from_dict(json.loads(meta_path.read_text(encoding="utf-8")))
+        metadata = VolumeMetadata.from_dict(
+            json.loads(meta_path.read_text(encoding="utf-8"))
+        )
 
         return cls(mu_volume, metadata)
 

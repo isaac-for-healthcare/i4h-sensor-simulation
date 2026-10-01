@@ -26,9 +26,19 @@ from pathlib import Path
 
 import numpy as np
 
+from . import scan_volume
 from .config import HuToMuMapping, PreprocessingSettings
 from .hu_mapping import hu_to_mu
+from .scan_volume import Conversion, ScanVolume
 from .volume import PreprocessedVolume, VolumeMetadata
+
+
+def ijk_to_lps_mm(scan: ScanVolume) -> np.ndarray:
+    """Return the 4x4 affine from a scan's voxel-centre (i, j, k) indices to LPS mm."""
+    t = np.diag([scan.meters_per_unit * 1000.0] * 3 + [1.0])
+    if scan.frame == "RAS":
+        t = np.diag([-1.0, -1.0, 1.0, 1.0]) @ t
+    return t @ scan.ijk_to_world
 
 
 class VolumePreprocessor:
@@ -58,8 +68,8 @@ class VolumePreprocessor:
         source: str | None = None,
         settings: PreprocessingSettings | None = None,
         anatomical_frame: str | None = None,
-        voxel_to_lps_mm=None,
-        scan_metadata=None,
+        voxel_to_lps_mm: list | None = None,
+        scan_metadata: dict | None = None,
     ):
         """Initialize preprocessor with a loaded HU volume.
 
@@ -69,10 +79,8 @@ class VolumePreprocessor:
             origin_xyz_mm: Volume origin in mm (X, Y, Z).
             source: Source path for metadata.
             settings: Preprocessing settings.
-            anatomical_frame: Physical frame for anatomical view presets. For full
-                affine inputs, from_scan converts coordinates to LPS millimeters
-                internally while preserving the acquired voxel grid.
-            voxel_to_lps_mm: Optional IJK voxel-center to LPS-mm affine.
+            anatomical_frame: Physical frame for anatomical view presets.
+            voxel_to_lps_mm: Optional affine from voxel-centre (i, j, k) indices to LPS mm.
             scan_metadata: Source geometry and conversion recipe, when available.
         """
         if hu_volume.ndim != 3:
@@ -88,42 +96,78 @@ class VolumePreprocessor:
         self._scan_metadata = scan_metadata
 
     @classmethod
-    def from_scan(cls, scan, *, settings=None, source=None):
-        """Prepare native HU with a full LPS-mm affine; never reorient the array."""
-        a = np.diag([-1.0, -1.0, 1.0, 1.0]) @ scan.ijk_to_ras_m
-        a[:3] *= 1000
-        spacing = np.linalg.norm(a[:3, :3], axis=0)
+    def from_scan(
+        cls,
+        scan: ScanVolume,
+        settings: PreprocessingSettings | None = None,
+        source: str | None = None,
+    ) -> "VolumePreprocessor":
+        """Create a preprocessor from a native HU grid and its full affine.
+
+        The array is never reoriented; the renderer ray-marches through the voxel grid
+        using ``voxel_to_lps_mm``, so oblique and flipped acquisitions need no
+        caller-side flips.
+
+        Args:
+            scan: HU volume with its scan geometry.
+            settings: Preprocessing settings.
+            source: Source path for metadata.
+
+        Returns:
+            VolumePreprocessor instance ready for preprocessing.
+        """
+        affine = ijk_to_lps_mm(scan)
+        spacing_xyz = np.linalg.norm(affine[:3, :3], axis=0)
         return cls(
             scan.values_kji,
-            tuple(spacing[::-1]),
-            tuple(a[:3, 3]),
+            tuple(spacing_xyz[::-1]),
+            tuple(affine[:3, 3]),
             source=source,
             settings=settings,
             anatomical_frame="LPS",
-            voxel_to_lps_mm=a.tolist(),
+            voxel_to_lps_mm=affine.tolist(),
             scan_metadata=scan.metadata,
         )
 
     @classmethod
-    def from_dicom(cls, dicom_dir, *, settings=None, series_uid=None, conversion=None):
-        """Read a regular DICOM CT and use the same adapter as a saved artifact."""
-        from .scan_volume import Conversion, from_dicom
+    def from_dicom(
+        cls,
+        dicom_dir: str | Path,
+        settings: PreprocessingSettings | None = None,
+        series_uid: str | None = None,
+        conversion: Conversion | None = None,
+    ) -> "VolumePreprocessor":
+        """Create a preprocessor from a regular, single-series DICOM CT directory.
 
-        scan = from_dicom(dicom_dir, series_uid=series_uid, conversion=conversion or Conversion())
-        return cls.from_scan(scan, settings=settings, source=str(dicom_dir))
+        Args:
+            dicom_dir: Path to directory containing DICOM files.
+            settings: Preprocessing settings.
+            series_uid: Series to load; required when the directory holds several.
+            conversion: Optional grid conversion, e.g. resampling to a new spacing.
+
+        Returns:
+            VolumePreprocessor instance ready for preprocessing.
+        """
+        scan = scan_volume.from_dicom(dicom_dir, series_uid=series_uid, conversion=conversion or Conversion())
+        return cls.from_scan(scan, settings, source=str(dicom_dir))
 
     @classmethod
-    def from_artifact(cls, metadata_path, *, settings=None):
-        """Read volume.yaml and its hash-verified native HU NumPy array."""
-        from .scan_volume import load_artifact
-
-        return cls.from_scan(load_artifact(metadata_path), settings=settings, source=str(metadata_path))
+    def from_nifti(
+        cls,
+        nifti_path: str | Path,
+        settings: PreprocessingSettings | None = None,
+    ) -> "VolumePreprocessor":
+        """Create a preprocessor from a NIfTI file (.nii or .nii.gz) and its affine."""
+        return cls.from_scan(scan_volume.from_nifti(nifti_path), settings, source=str(nifti_path))
 
     @classmethod
-    def from_nifti(cls, nifti_path, *, settings=None):
-        from .scan_volume import from_nifti
-
-        return cls.from_scan(from_nifti(nifti_path), settings=settings, source=str(nifti_path))
+    def from_artifact(
+        cls,
+        metadata_path: str | Path,
+        settings: PreprocessingSettings | None = None,
+    ) -> "VolumePreprocessor":
+        """Create a preprocessor from a saved volume.yaml and its hash-verified HU array."""
+        return cls.from_scan(scan_volume.load_artifact(metadata_path), settings, source=str(metadata_path))
 
     @classmethod
     def from_numpy(
