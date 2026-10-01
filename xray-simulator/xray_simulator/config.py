@@ -408,6 +408,14 @@ class HuToMuMapping:
         return (self.mu_max - self.mu_min) / self.window_width
 
     @classmethod
+    def preset(cls, name: str = "linear") -> "HuToMuMapping":
+        """Select the named linear or interventional attenuation curve."""
+        try:
+            return HU_TO_MU_PRESETS[name]
+        except KeyError as exc:
+            raise ValueError(f"Unknown HU-to-mu preset: {name!r}; choose {tuple(HU_TO_MU_PRESETS)}") from exc
+
+    @classmethod
     def from_window_level(
         cls,
         window_center: float,
@@ -619,6 +627,19 @@ class MetricsSettings:
     track_jitter: bool = True
 
 
+# Shared by patient-volume consumers and the preprocessing CLI.
+DEFAULT_HU_TO_MU_PRESET = "linear"
+LINEAR = HuToMuMapping()
+INTERVENTIONAL = HuToMuMapping(
+    control_points=(
+        (-1000.0, 0.0), (-300.0, 0.0), (100.0, 0.0008),
+        (300.0, 0.0028), (500.0, 0.006), (900.0, 0.009),
+        (1500.0, 0.012), (3000.0, 0.02), (8000.0, 0.044),
+    )
+)
+HU_TO_MU_PRESETS = {"linear": LINEAR, "interventional": INTERVENTIONAL}
+
+
 @dataclass(frozen=True)
 class PreprocessingSettings:
     """CT preprocessing settings.
@@ -626,13 +647,14 @@ class PreprocessingSettings:
     Attributes:
         hu_clip_min: Minimum HU value for clipping.
         hu_clip_max: Maximum HU value for clipping.
-        clip_hu: If True, clip HU values to [hu_clip_min, hu_clip_max].
+        clip_hu: Opt-in pre-clipping to [hu_clip_min, hu_clip_max]. Defaults to False
+            so high-HU contrast and implants retain their input values before mapping.
         hu_to_mu: HU to μ mapping configuration.
     """
 
     hu_clip_min: float = -1024.0
     hu_clip_max: float = 3071.0
-    clip_hu: bool = True
+    clip_hu: bool = False
     hu_to_mu: HuToMuMapping = field(default_factory=HuToMuMapping)
 
 
@@ -717,7 +739,7 @@ class SimulatorConfig:
 def resolve_display_settings(
     physics: XrayPhysics,
     display: DisplaySettings,
-) -> DisplaySettings:
+) -> "DisplaySettings":
     """Fold deprecated ``physics.normalize`` / ``physics.invert`` into display settings.
 
     Args:
