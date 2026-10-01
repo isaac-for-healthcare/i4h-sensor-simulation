@@ -60,6 +60,8 @@ class VolumeMetadata:
     hu_to_mu: dict[str, Any] | None = None
     anatomical_frame: str | None = None
     source_orientation: str | None = None
+    voxel_to_lps_mm: list | None = None
+    scan_metadata: dict | None = None
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
@@ -73,6 +75,8 @@ class VolumeMetadata:
             "hu_to_mu": self.hu_to_mu,
             "anatomical_frame": self.anatomical_frame,
             "source_orientation": self.source_orientation,
+            "voxel_to_lps_mm": self.voxel_to_lps_mm,
+            "scan_metadata": self.scan_metadata,
         }
 
     @classmethod
@@ -88,6 +92,8 @@ class VolumeMetadata:
             hu_to_mu=d.get("hu_to_mu"),
             anatomical_frame=d.get("anatomical_frame"),
             source_orientation=d.get("source_orientation"),
+            voxel_to_lps_mm=d.get("voxel_to_lps_mm"),
+            scan_metadata=d.get("scan_metadata"),
         )
 
 
@@ -210,9 +216,7 @@ class PreprocessedVolume:
             raise FileNotFoundError(f"Metadata file not found: {meta_path}")
 
         mu_volume = np.load(mu_path)
-        metadata = VolumeMetadata.from_dict(
-            json.loads(meta_path.read_text(encoding="utf-8"))
-        )
+        metadata = VolumeMetadata.from_dict(json.loads(meta_path.read_text(encoding="utf-8")))
 
         return cls(mu_volume, metadata)
 

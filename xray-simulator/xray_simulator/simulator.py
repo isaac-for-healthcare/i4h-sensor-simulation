@@ -149,10 +149,7 @@ class Pose:
         return cls(
             rotation=clinical_angles_to_rotation(primary_deg, secondary_deg),
             translation=translation,
-            view=(
-                f"{primary_label} {abs(primary_deg):g} / "
-                f"{secondary_label} {abs(secondary_deg):g}"
-            ),
+            view=(f"{primary_label} {abs(primary_deg):g} / {secondary_label} {abs(secondary_deg):g}"),
         )
 
     def clinical_angles(self) -> tuple[float, float]:
@@ -404,12 +401,12 @@ class xray_simulator:
                 spacing_zyx_mm=self._volume.spacing_zyx_mm,
                 origin_xyz_mm=self._volume.metadata.origin_xyz_mm or (0.0, 0.0, 0.0),
                 cfg=slang_cfg,
+                voxel_to_world_mm=self._volume.metadata.voxel_to_lps_mm,
             )
 
         except Exception as e:
             raise RuntimeError(
-                f"Failed to initialize Slang DiffDRR renderer: {e}\n"
-                "Make sure slangpy is installed: pip install slangpy"
+                f"Failed to initialize Slang DiffDRR renderer: {e}\nMake sure slangpy is installed: pip install slangpy"
             ) from e
 
     def render_frame(
@@ -647,6 +644,10 @@ class xray_simulator:
     @property
     def volume_center_xyz_mm(self) -> np.ndarray:
         """Return the world position the C-arm rotates about at zero translation."""
+        affine = self._volume.metadata.voxel_to_lps_mm
+        if affine is not None:
+            center_ijk = (np.asarray(self._volume.shape[::-1]) - 1) / 2
+            return (np.asarray(affine) @ np.r_[center_ijk, 1])[:3]
         return volume_center_xyz_mm(
             self._volume.shape,
             self._volume.spacing_zyx_mm,
