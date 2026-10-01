@@ -2,6 +2,37 @@
 
 GPU-accelerated fluoroscopy (X-ray) simulation from CT volumes using differentiable ray marching.
 
+## HU input and attenuation presets
+
+Patient bundles provide `hu_volume.npy` with spatial metadata. This library owns
+HU → μ conversion; anatomy exporters do not need to select X-ray attenuation.
+
+```python
+from xray_simulator import HuToMuMapping, PreprocessingSettings, VolumePreprocessor
+
+settings = PreprocessingSettings(hu_to_mu=HuToMuMapping.preset("interventional"))
+volume = VolumePreprocessor.from_numpy(
+    hu_zyx, spacing_zyx_mm=(1.5, 1.5, 1.5),
+    anatomical_frame="LPS", settings=settings,
+).preprocess()
+```
+
+`linear` is the default: −1000–3000 HU → 0–0.02 mm⁻¹. `interventional` provides
+piecewise-linear tissue/contrast/implant control points through 8000 HU →
+0.044 mm⁻¹. Both clamp outside their endpoint knots. `HU_TO_MU_PRESETS` exposes
+the named curves; custom `HuToMuMapping(control_points=...)` remains supported.
+HU pre-clipping is **off by default**. Set `clip_hu=True` explicitly if wanted;
+clipping at 3071 HU changes the high-HU portion of the interventional curve.
+
+```bash
+python examples/preprocess_ct.py --nifti ct.nii.gz --hu-to-mu interventional
+```
+
+These APIs do not reorient the acquisition. Keep the HU array's physical affine
+and any anatomy masks aligned; pass `anatomical_frame="LPS"` only for an already
+canonical array. The `from_numpy` convenience method takes spacing; the constructor
+also accepts origin. Full affine handling is an imaging-contract concern.
+
 ## Overview
 
 The `xray_simulator` package generates realistic simulated X-ray images from CT volumes using Beer-Lambert physics and GPU-accelerated rendering via NVIDIA Slang with automatic differentiation.
