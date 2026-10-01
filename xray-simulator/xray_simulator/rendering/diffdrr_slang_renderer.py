@@ -89,6 +89,7 @@ import numpy as np
 # Optional dependencies
 try:
     import torch
+
     TORCH_AVAILABLE = True
 except ImportError:
     torch = None  # type: ignore
@@ -96,6 +97,7 @@ except ImportError:
 
 try:
     import slangpy
+
     SLANG_AVAILABLE = True
 except ImportError:
     slangpy = None  # type: ignore
@@ -170,6 +172,7 @@ class SlangDiffDRRRenderer:
         spacing_zyx_mm: tuple[float, float, float],
         origin_xyz_mm: tuple[float, float, float] = (0.0, 0.0, 0.0),
         cfg: SlangDiffDRRConfig = SlangDiffDRRConfig(),
+        voxel_to_world_mm: np.ndarray | None = None,
     ):
         """Initialize the Slang differentiable DRR renderer.
 
@@ -187,10 +190,7 @@ class SlangDiffDRRRenderer:
             ValueError: If mu_volume is not 3D.
         """
         if not SLANG_AVAILABLE:
-            raise RuntimeError(
-                "Slang is not available. Install with: pip install slangpy\n"
-                "Requires slangpy >= 0.40"
-            )
+            raise RuntimeError("Slang is not available. Install with: pip install slangpy\nRequires slangpy >= 0.40")
 
         if mu_volume.ndim != 3:
             raise ValueError(f"Expected mu_volume to be 3D; got shape={mu_volume.shape}")
@@ -203,6 +203,20 @@ class SlangDiffDRRRenderer:
         # Convert spacing from ZYX to XYZ
         sz, sy, sx = spacing_zyx_mm
         self._spacing_xyz = (sx, sy, sz)
+        self._voxel_to_world_mm = np.diag([sx, sy, sz, 1.0])
+        self._voxel_to_world_mm[:3, 3] = self._origin_xyz
+        if voxel_to_world_mm is not None:
+            self._voxel_to_world_mm = np.asarray(voxel_to_world_mm, dtype=float).copy()
+        a = self._voxel_to_world_mm
+        if (
+            a.shape != (4, 4)
+            or not np.isfinite(a).all()
+            or not np.allclose(a[3], [0, 0, 0, 1])
+            or np.linalg.matrix_rank(a[:3, :3]) != 3
+        ):
+            raise ValueError("voxel_to_world_mm must be an invertible finite affine")
+        self._world_to_voxel = np.linalg.inv(a)
+        self._sample_offset = 0.5 if voxel_to_world_mm is not None else 0.0
 
         # Store volume as contiguous float32
         self._mu_volume = np.ascontiguousarray(mu_volume.astype(np.float32))
@@ -226,7 +240,7 @@ class SlangDiffDRRRenderer:
             raise ValueError("device_type must be 'cuda' or 'vulkan'") from exc
         self._device = slangpy.create_device(device_type)
         # API changed: adapter_info.name -> info.adapter_name in slangpy 0.40+
-        device_name = getattr(self._device.info, 'adapter_name', 'Unknown GPU')
+        device_name = getattr(self._device.info, "adapter_name", "Unknown GPU")
         print(f"  Device: {device_name}")
 
         # Check shader exists
@@ -270,14 +284,16 @@ class SlangDiffDRRRenderer:
         print(f"  Volume texture: {x}x{y}x{z}")
 
         # Sampler with trilinear interpolation
-        sampler_desc = slangpy.SamplerDesc({
-            "min_filter": slangpy.TextureFilteringMode.linear,
-            "mag_filter": slangpy.TextureFilteringMode.linear,
-            "mip_filter": slangpy.TextureFilteringMode.linear,
-            "address_u": slangpy.TextureAddressingMode.clamp_to_edge,
-            "address_v": slangpy.TextureAddressingMode.clamp_to_edge,
-            "address_w": slangpy.TextureAddressingMode.clamp_to_edge,
-        })
+        sampler_desc = slangpy.SamplerDesc(
+            {
+                "min_filter": slangpy.TextureFilteringMode.linear,
+                "mag_filter": slangpy.TextureFilteringMode.linear,
+                "mip_filter": slangpy.TextureFilteringMode.linear,
+                "address_u": slangpy.TextureAddressingMode.clamp_to_edge,
+                "address_v": slangpy.TextureAddressingMode.clamp_to_edge,
+                "address_w": slangpy.TextureAddressingMode.clamp_to_edge,
+            }
+        )
         self._sampler = self._device.create_sampler(sampler_desc)
 
         # Output image texture (2D)
@@ -334,6 +350,14 @@ class SlangDiffDRRRenderer:
             "spacing": slangpy.float3(sx, sy, sz),
             "dimensions": slangpy.int3(x, y, z),
             "origin": slangpy.float3(ox, oy, oz),
+            "indexRow0": slangpy.float3(*self._world_to_voxel[0, :3]),
+            "indexRow1": slangpy.float3(*self._world_to_voxel[1, :3]),
+            "indexRow2": slangpy.float3(*self._world_to_voxel[2, :3]),
+            "indexOffset": slangpy.float3(*self._world_to_voxel[:3, 3]),
+            "worldCenter": slangpy.float3(
+                *(self._voxel_to_world_mm @ np.r_[np.array([x, y, z]) / 2 - self._sample_offset, 1.0])[:3]
+            ),
+            "sampleOffset": self._sample_offset,
         }
 
         carm = {
@@ -530,8 +554,8 @@ class SlangDiffDRRRenderer:
             image = 1.0 - image
 
         return image.astype(np.float32), {
-            'rotation': grad_rotation.astype(np.float32),
-            'translation': grad_translation.astype(np.float32),
+            "rotation": grad_rotation.astype(np.float32),
+            "translation": grad_translation.astype(np.float32),
         }
 
     @property
@@ -643,15 +667,12 @@ if TORCH_AVAILABLE:
             grad_out_np = grad_output.detach().cpu().numpy()
 
             # Use Slang's autodiff for gradient computation
-            _, grads = renderer.render_with_gradients(
-                rot_np, trans_np, grad_output=grad_out_np
-            )
+            _, grads = renderer.render_with_gradients(rot_np, trans_np, grad_output=grad_out_np)
 
-            grad_rotation = torch.from_numpy(grads['rotation']).to(rotation.device)
-            grad_translation = torch.from_numpy(grads['translation']).to(translation.device)
+            grad_rotation = torch.from_numpy(grads["rotation"]).to(rotation.device)
+            grad_translation = torch.from_numpy(grads["translation"]).to(translation.device)
 
             return None, grad_rotation, grad_translation
-
 
     class TorchSlangDiffDRR(torch.nn.Module):
         """PyTorch Module for Slang-based differentiable DRR.
@@ -767,6 +788,7 @@ if TORCH_AVAILABLE:
 # =============================================================================
 # Convenience Functions
 # =============================================================================
+
 
 def render_diffdrr_slang(
     mu_volume: np.ndarray,

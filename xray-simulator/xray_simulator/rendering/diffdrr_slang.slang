@@ -46,6 +46,12 @@ struct VolumeInfo
     float3 spacing;     // Voxel spacing (X, Y, Z) in mm
     int3 dimensions;    // Volume dimensions (X, Y, Z) in voxels
     float3 origin;      // Volume origin in world coordinates (mm)
+    float3 indexRow0;
+    float3 indexRow1;
+    float3 indexRow2;
+    float3 indexOffset;
+    float3 worldCenter;
+    float sampleOffset;
 };
 
 // ============================================================================
@@ -213,7 +219,10 @@ float rayMarchIntegral(
             break;
 
         float3 worldPos = rayOrigin + rayDir * t;
-        float3 uvw = (worldPos - volInfo.origin) / volumeSize;
+        float3 index = float3(dot(volInfo.indexRow0, worldPos),
+                              dot(volInfo.indexRow1, worldPos), dot(volInfo.indexRow2, worldPos))
+                       + volInfo.indexOffset;
+        float3 uvw = (index + volInfo.sampleOffset) / float3(volInfo.dimensions);
 
         float mu = trilinearSample(volume, sampler, uvw, volInfo.dimensions);
         integral += mu * stepMM;
@@ -249,7 +258,7 @@ float computePixelIntensity(
     float3x3 R = eulerToRotationMatrix(rotation);
 
     // Volume center (isocenter)
-    float3 volumeCenter = volInfo.origin + float3(volInfo.dimensions) * volInfo.spacing * 0.5f;
+    float3 volumeCenter = volInfo.worldCenter;
 
     // Source position in world coordinates
     float3 sourceLocal = float3(0.0f, 0.0f, -carm.sid);
@@ -268,12 +277,14 @@ float computePixelIntensity(
     // Ray direction (normalized)
     float3 rayDir = normalize(detectorWorld - sourceWorld);
 
-    // Volume bounding box
-    float3 boxMin = volInfo.origin;
-    float3 boxMax = volInfo.origin + float3(volInfo.dimensions) * volInfo.spacing;
-
-    // Ray-box intersection
-    float2 tHit = rayBoxIntersect(sourceWorld, rayDir, boxMin, boxMax);
+    // Intersect in voxel coordinates without normalizing the transformed ray.
+    // Its parameter remains physical millimetres, including for oblique/sheared grids.
+    float3 indexOrigin = float3(dot(volInfo.indexRow0, sourceWorld),
+                               dot(volInfo.indexRow1, sourceWorld), dot(volInfo.indexRow2, sourceWorld))
+                        + volInfo.indexOffset;
+    float3 indexDir = float3(dot(volInfo.indexRow0, rayDir),
+                            dot(volInfo.indexRow1, rayDir), dot(volInfo.indexRow2, rayDir));
+    float2 tHit = rayBoxIntersect(indexOrigin, indexDir, float3(-volInfo.sampleOffset), float3(volInfo.dimensions) - volInfo.sampleOffset);
 
     // Check for valid intersection
     if (tHit.x > tHit.y || tHit.y < 0.0f)
