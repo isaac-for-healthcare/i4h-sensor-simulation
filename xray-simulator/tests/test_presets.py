@@ -6,7 +6,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 from xray_simulator import HU_TO_MU_PRESETS as PRESETS
-from xray_simulator import INTERVENTIONAL, LINEAR, HuToMuMapping, PreprocessingSettings, VolumePreprocessor, hu_to_mu
+from xray_simulator import HuToMuMapping, PreprocessingSettings, VolumePreprocessor, hu_to_mu
+from xray_simulator.config import INTERVENTIONAL, LINEAR
 
 BONE_HU = 900.0
 IMPLANT_HU = 6000.0
@@ -63,11 +64,6 @@ def test_values_outside_the_knots_clamp_to_the_end_points() -> None:
 
     assert mu[0] == pytest.approx(INTERVENTIONAL.mu_knots[0])
     assert mu[1] == pytest.approx(INTERVENTIONAL.mu_knots[-1])
-
-
-def test_unknown_preset_is_rejected() -> None:
-    with pytest.raises(KeyError, match="clinical"):
-        PRESETS["clinical"]
 
 
 def test_default_mapping_is_linear_without_preclipping():

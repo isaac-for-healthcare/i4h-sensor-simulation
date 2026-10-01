@@ -36,8 +36,6 @@ from .config import (
     DEFAULT_HU_TO_MU_PRESET,
     DISPLAY_PRESETS,
     HU_TO_MU_PRESETS,
-    INTERVENTIONAL,
-    LINEAR,
     CarmGeometry,
     DisplaySettings,
     HuToMuMapping,
@@ -80,8 +78,6 @@ __all__ = [
     "HuToMuMapping",
     "DEFAULT_HU_TO_MU_PRESET",
     "HU_TO_MU_PRESETS",
-    "LINEAR",
-    "INTERVENTIONAL",
     # Image appearance
     "DisplaySettings",
     "DISPLAY_PRESETS",

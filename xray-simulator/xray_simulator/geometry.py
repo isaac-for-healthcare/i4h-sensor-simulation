@@ -252,10 +252,27 @@ def view_frame_warning(view: str | None, anatomical_frame: str | None) -> str | 
     )
 
 
+def axis_aligned_voxel_to_world_mm(
+    spacing_zyx_mm: tuple[float, float, float],
+    origin_xyz_mm: tuple[float, float, float] = (0.0, 0.0, 0.0),
+) -> np.ndarray:
+    """Return the voxel-index to world-mm affine of an axis-aligned volume.
+
+    Integer indices ``(i, j, k) = (x, y, z)`` are voxel centres, so index 0 sits half a
+    voxel inside ``origin_xyz_mm``, the outer corner of voxel ``[0, 0, 0]``.
+    """
+    sz, sy, sx = spacing_zyx_mm
+    spacing_xyz = np.array([sx, sy, sz], dtype=np.float64)
+    affine = np.diag([*spacing_xyz, 1.0])
+    affine[:3, 3] = np.asarray(origin_xyz_mm, dtype=np.float64) + 0.5 * spacing_xyz
+    return affine
+
+
 def volume_center_xyz_mm(
     shape_zyx: tuple[int, int, int],
     spacing_zyx_mm: tuple[float, float, float],
     origin_xyz_mm: tuple[float, float, float] = (0.0, 0.0, 0.0),
+    voxel_to_world_mm: np.ndarray | None = None,
 ) -> np.ndarray:
     """Return the world position the C-arm rotates about.
 
@@ -266,15 +283,17 @@ def volume_center_xyz_mm(
     Args:
         shape_zyx: Volume shape.
         spacing_zyx_mm: Voxel spacing in mm matching the volume axes.
-        origin_xyz_mm: World position of voxel ``[0, 0, 0]``.
+        origin_xyz_mm: World position of the outer corner of voxel ``[0, 0, 0]``.
+        voxel_to_world_mm: Full voxel-centre index to world-mm affine, e.g. for oblique
+            scans. When given, it replaces ``spacing_zyx_mm`` and ``origin_xyz_mm``.
 
     Returns:
         Center of the volume bounding box in world mm, ``(x, y, z)``.
     """
-    z, y, x = shape_zyx
-    sz, sy, sx = spacing_zyx_mm
-    extent = np.array([x * sx, y * sy, z * sz])
-    return np.asarray(origin_xyz_mm, dtype=np.float64) + 0.5 * extent
+    if voxel_to_world_mm is None:
+        voxel_to_world_mm = axis_aligned_voxel_to_world_mm(spacing_zyx_mm, origin_xyz_mm)
+    center_ijk = (np.asarray(shape_zyx[::-1], dtype=np.float64) - 1) / 2
+    return (np.asarray(voxel_to_world_mm, dtype=np.float64) @ np.r_[center_ijk, 1.0])[:3]
 
 
 def project_point_to_detector(

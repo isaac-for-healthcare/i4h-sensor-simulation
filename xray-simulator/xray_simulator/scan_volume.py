@@ -150,7 +150,8 @@ def convert(image, options=Conversion()):
         ):
             raise ValueError("spacing_ijk_mm must contain three positive finite values")
         extent = (np.array(image.GetSize()) - 1) * np.array(image.GetSpacing())
-        size = np.ceil(extent / spacing).astype(int) + 1
+        # Keep every output centre inside the source so no edge voxel is filled with fill_hu.
+        size = np.floor(extent / spacing + 1e-6).astype(int) + 1
         method = (
             sitk.sitkLinear if c.interpolation == "linear" else sitk.sitkNearestNeighbor
         )

@@ -289,6 +289,9 @@ DISPLAY_PRESETS: dict[str, DisplaySettings] = {
 }
 
 
+DEFAULT_HU_TO_MU_PRESET = "linear"
+
+
 @dataclass(frozen=True)
 class HuToMuMapping:
     """Piecewise-linear Hounsfield Unit to linear attenuation coefficient mapping.
@@ -408,7 +411,7 @@ class HuToMuMapping:
         return (self.mu_max - self.mu_min) / self.window_width
 
     @classmethod
-    def preset(cls, name: str = "linear") -> "HuToMuMapping":
+    def preset(cls, name: str = DEFAULT_HU_TO_MU_PRESET) -> "HuToMuMapping":
         """Select the named linear or interventional attenuation curve."""
         try:
             return HU_TO_MU_PRESETS[name]
@@ -628,7 +631,6 @@ class MetricsSettings:
 
 
 # Shared by patient-volume consumers and the preprocessing CLI.
-DEFAULT_HU_TO_MU_PRESET = "linear"
 LINEAR = HuToMuMapping()
 INTERVENTIONAL = HuToMuMapping(
     control_points=(
@@ -739,7 +741,7 @@ class SimulatorConfig:
 def resolve_display_settings(
     physics: XrayPhysics,
     display: DisplaySettings,
-) -> "DisplaySettings":
+) -> DisplaySettings:
     """Fold deprecated ``physics.normalize`` / ``physics.invert`` into display settings.
 
     Args:
