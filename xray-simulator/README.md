@@ -23,7 +23,7 @@ from xray_simulator.scan_volume import Conversion, export_ct, replay
 
 conversion = Conversion(world_frame="RAS", world_unit="m", array_axes="kji")
 recipe = export_ct("dicom/", "ct_artifact", options=conversion)
-settings = PreprocessingSettings(hu_to_mu=HuToMuMapping.preset("interventional"))
+settings = PreprocessingSettings(hu_to_mu=HuToMuMapping.preset("interventional"), clip_hu=False)
 
 # Equivalent volumes; use either as the simulator input.
 volume = VolumePreprocessor.from_dicom(
@@ -48,7 +48,9 @@ handled by the affine during ray marching; no canonical-array conversion is requ
 `linear` is the default: −1000–3000 HU → 0–0.02 mm⁻¹. `interventional` uses
 piecewise-linear tissue/contrast/implant control points through 8000 HU →
 0.044 mm⁻¹. Both clamp outside their endpoint knots. Custom
-`HuToMuMapping(control_points=...)` remains supported. HU pre-clipping is off by default.
+`HuToMuMapping(control_points=...)` remains supported. HU values are clipped to
+`[hu_clip_min, hu_clip_max]` before mapping by default; pass `clip_hu=False` to
+keep implant and contrast values above 3071 HU.
 The spacing-only `from_numpy` API remains available; use `scan_volume.from_array`
 with `VolumePreprocessor.from_scan` when the array has a full physical affine.
 

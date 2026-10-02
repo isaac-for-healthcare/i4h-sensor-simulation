@@ -132,3 +132,14 @@ def test_multiple_series_requires_selection(tmp_path):
     w.Execute(image)
     with pytest.raises(ValueError, match="Select one series"):
         scan.from_dicom(tmp_path / "dicom")
+
+
+@pytest.mark.parametrize("spacing_ijk_mm", [(0.8, 0.8, 5.0), (0.8, 0.8, 20.0)])
+def test_resampling_covers_source_without_air_edges(spacing_ijk_mm):
+    sitk = pytest.importorskip("SimpleITK")
+    image = sitk.GetImageFromArray(np.full((7, 8, 9), 40.0, np.float32))
+    image.SetSpacing((0.7, 1.1, 2.0))
+    values, metadata = scan.convert(image, scan.Conversion(array_axes="ijk", spacing_ijk_mm=spacing_ijk_mm))
+    np.testing.assert_array_equal(values, 40.0)
+    last_center_ijk = (np.array(values.shape) - 1) * spacing_ijk_mm
+    assert np.all(last_center_ijk >= (np.array(image.GetSize()) - 1) * image.GetSpacing())
