@@ -78,16 +78,16 @@ def test_values_outside_the_knots_clamp_to_the_end_points() -> None:
     assert mu[1] == pytest.approx(INTERVENTIONAL.mu_knots[-1])
 
 
-def test_default_mapping_is_linear_without_preclipping():
+def test_default_mapping_is_linear_with_preclipping():
     settings = PreprocessingSettings()
     assert settings.hu_to_mu == LINEAR
-    assert settings.clip_hu is False
+    assert settings.clip_hu is True
     assert HuToMuMapping.preset() == LINEAR
 
 
 def test_interventional_preprocessing_preserves_high_hu():
     hu = np.array([-1500, -300, 100, 300, 900, 3000, 6000, 9000], dtype=np.float32).reshape(2, 2, 2)
-    settings = PreprocessingSettings(hu_to_mu=HuToMuMapping.preset("interventional"))
+    settings = PreprocessingSettings(hu_to_mu=HuToMuMapping.preset("interventional"), clip_hu=False)
     volume = VolumePreprocessor.from_numpy(hu, settings=settings).preprocess()
     np.testing.assert_array_equal(volume.mu_volume.ravel(), np.array(
         [0, 0, 0.0008, 0.0028, 0.009, 0.02, 0.0344, 0.044], dtype=np.float32))

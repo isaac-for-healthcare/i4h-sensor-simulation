@@ -649,14 +649,14 @@ class PreprocessingSettings:
     Attributes:
         hu_clip_min: Minimum HU value for clipping.
         hu_clip_max: Maximum HU value for clipping.
-        clip_hu: Opt-in pre-clipping to [hu_clip_min, hu_clip_max]. Defaults to False
-            so high-HU contrast and implants retain their input values before mapping.
+        clip_hu: If True, clip HU values to [hu_clip_min, hu_clip_max]. Set False to keep
+            high-HU contrast and implants above hu_clip_max, e.g. for the interventional preset.
         hu_to_mu: HU to μ mapping configuration.
     """
 
     hu_clip_min: float = -1024.0
     hu_clip_max: float = 3071.0
-    clip_hu: bool = False
+    clip_hu: bool = True
     hu_to_mu: HuToMuMapping = field(default_factory=HuToMuMapping)
 
 

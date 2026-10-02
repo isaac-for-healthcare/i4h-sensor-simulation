@@ -163,8 +163,8 @@ def convert(image, options=Conversion()):
         ):
             raise ValueError("spacing_ijk_mm must contain three positive finite values")
         extent = (np.array(image.GetSize()) - 1) * np.array(image.GetSpacing())
-        # Keep every output centre inside the source so no edge voxel is filled with fill_hu.
-        size = np.floor(extent / spacing + 1e-6).astype(int) + 1
+        # Cover the whole source; the sub-voxel overhang repeats edge values instead of fill_hu.
+        size = np.ceil(extent / spacing - 1e-6).astype(int) + 1
         method = (
             sitk.sitkLinear if c.interpolation == "linear" else sitk.sitkNearestNeighbor
         )
@@ -178,6 +178,7 @@ def convert(image, options=Conversion()):
             image.GetDirection(),
             c.fill_hu,
             sitk.sitkFloat32,
+            True,  # useNearestNeighborExtrapolator
         )
     grid_a = affine(image)
     world_from_lps = np.eye(4)
