@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "modality": "xray",
+  "beam": {
+    "i0": 1,
+    "step_mm": 0.5
+  },
+  "geometry": {
+    "source_to_detector_mm": 1020,
+    "source_to_isocenter_mm": 510
+  },
+  "detector": {
+    "width_px": 512,
+    "height_px": 512,
+    "pixel_spacing_mm": 0.5
+  },
+  "post_processing": {
+    "realism": {
+      "enabled": true,
+      "gain": 1,
+      "bias": 0,
+      "poisson_photons": 10000,
+      "gaussian_sigma": 0.002,
+      "blur_sigma_px": 0.6,
+      "seed": 42
+    },
+    "display": {
+      "polarity": "fluoro",
+      "scaling": "log",
+      "log_window": [
+        0,
+        6
+      ],
+      "window": [
+        0,
+        1
+      ],
+      "gamma": 1
+    }
+  }
+}

@@ -61,12 +61,14 @@ from .geometry import (
 )
 from .hu_mapping import hu_to_mu, hu_to_mu_curve
 from .preprocessor import VolumePreprocessor
+from .presets import get_preset_schema
 from .simulator import CineSequence, Frame, Pose, SimulatorMetrics, xray_simulator
 from .volume import PreprocessedVolume, VolumeMetadata
 
 __all__ = [
     # Configuration
     "SimulatorConfig",
+    "get_preset_schema",
     "CarmGeometry",
     "XrayPhysics",
     "RealismSettings",

@@ -1,0 +1,300 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/isaac-for-healthcare/i4h-sensor-simulation/main/xray-simulator/xray_simulator/schemas/preset-v1.schema.json",
+  "title": "X-ray simulator preset v1",
+  "description": "X-ray/fluoroscopy configuration. All numbers must be finite. The API additionally checks SID < SDD and strictly increasing display windows.",
+  "$comment": "SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved. SPDX-License-Identifier: Apache-2.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "modality",
+    "beam",
+    "geometry",
+    "detector",
+    "post_processing"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Preset format version; unsupported versions are rejected."
+    },
+    "modality": {
+      "type": "string",
+      "const": "xray",
+      "description": "X-ray modality, including fluoroscopy and radiography. Display polarity selects appearance."
+    },
+    "beam": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "i0": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "default": 1,
+          "description": "Unattenuated intensity in arbitrary intensity units; not tube voltage or dose."
+        },
+        "step_mm": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "default": 0.5,
+          "description": "Ray-marching integration step in millimeters."
+        }
+      }
+    },
+    "geometry": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "source_to_detector_mm": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "default": 1020,
+          "description": "Source-to-detector distance (SDD), in millimeters; must exceed SID."
+        },
+        "source_to_isocenter_mm": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "default": 510,
+          "description": "Source-to-isocenter distance (SID), in millimeters; must be smaller than SDD."
+        }
+      }
+    },
+    "detector": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "width_px": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 512,
+          "description": "Detector columns in pixels."
+        },
+        "height_px": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 512,
+          "description": "Detector rows in pixels."
+        },
+        "pixel_spacing_mm": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "default": 0.5,
+          "description": "Square detector pixel pitch in millimeters."
+        }
+      }
+    },
+    "post_processing": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "realism": {
+          "type": "object",
+          "additionalProperties": false,
+          "default": {},
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": false,
+              "description": "Apply gain/bias, Poisson noise, Gaussian noise, then blur before display mapping."
+            },
+            "gain": {
+              "type": "number",
+              "minimum": 0,
+              "default": 1,
+              "description": "Non-negative intensity multiplier."
+            },
+            "bias": {
+              "type": "number",
+              "default": 0,
+              "description": "Offset in intensity units, applied after gain."
+            },
+            "poisson_photons": {
+              "type": "number",
+              "minimum": 0,
+              "default": 0,
+              "description": "Expected photons at intensity 1; zero disables Poisson noise."
+            },
+            "gaussian_sigma": {
+              "type": "number",
+              "minimum": 0,
+              "default": 0,
+              "description": "Additive Gaussian noise standard deviation in intensity units; zero disables it."
+            },
+            "blur_sigma_px": {
+              "type": "number",
+              "minimum": 0,
+              "default": 0,
+              "description": "Gaussian blur standard deviation in pixels; zero disables it."
+            },
+            "seed": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0,
+              "default": 0,
+              "description": "Non-negative random seed, or null for fresh randomness."
+            }
+          }
+        },
+        "display": {
+          "type": "object",
+          "additionalProperties": false,
+          "default": {},
+          "properties": {
+            "polarity": {
+              "type": "string",
+              "enum": [
+                "fluoro",
+                "diagnostic"
+              ],
+              "default": "fluoro",
+              "description": "fluoro: dense structures dark; diagnostic: dense structures bright."
+            },
+            "scaling": {
+              "type": "string",
+              "enum": [
+                "log",
+                "transmission",
+                "window",
+                "per_frame"
+              ],
+              "default": "log",
+              "description": "Intensity-to-display scaling; per_frame changes the scale between frames."
+            },
+            "log_window": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "items": {
+                "type": "number",
+                "minimum": 0
+              },
+              "default": [
+                0,
+                6
+              ],
+              "description": "Dimensionless optical-depth bounds [low, high], with low < high."
+            },
+            "window": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "items": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "default": [
+                0,
+                1
+              ],
+              "description": "Transmission bounds [low, high], with low < high."
+            },
+            "gamma": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "default": 1,
+              "description": "Display gamma; values above one brighten midtones."
+            }
+          }
+        }
+      }
+    },
+    "backend": {
+      "type": "string",
+      "const": "slang",
+      "default": "slang",
+      "description": "Rendering backend; loading a preset does not initialize it."
+    },
+    "output": {
+      "type": "object",
+      "additionalProperties": false,
+      "default": {},
+      "properties": {
+        "save_to_disk": {
+          "type": "boolean",
+          "default": false
+        },
+        "output_dir": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1,
+          "default": null,
+          "description": "Output directory. Relative paths are resolved by the simulator against the working directory."
+        },
+        "format": {
+          "type": "string",
+          "enum": [
+            "png",
+            "npy",
+            "npz"
+          ],
+          "default": "png"
+        },
+        "keep_in_gpu": {
+          "type": "boolean",
+          "default": false,
+          "description": "Existing OutputSettings flag; actual residency follows the renderer's capabilities."
+        },
+        "keep_intensity": {
+          "type": "boolean",
+          "default": false,
+          "description": "Retain pre-display intensity for remapping a rendered frame."
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "save_to_disk": {
+                "const": true
+              }
+            },
+            "required": [
+              "save_to_disk"
+            ]
+          },
+          "then": {
+            "required": [
+              "output_dir"
+            ],
+            "properties": {
+              "output_dir": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      ]
+    },
+    "metrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "default": {},
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false
+        },
+        "track_fps": {
+          "type": "boolean",
+          "default": true
+        },
+        "track_gpu_usage": {
+          "type": "boolean",
+          "default": true
+        },
+        "track_jitter": {
+          "type": "boolean",
+          "default": true
+        }
+      }
+    }
+  }
+}

@@ -685,6 +685,50 @@ class SimulatorConfig:
         """
         return cls(display=DisplaySettings.preset(preset), **kwargs)
 
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> SimulatorConfig:
+        """Validate and load a versioned preset dictionary without initializing a GPU.
+
+        The preset groups settings into modality, beam, geometry, detector, and
+        post_processing. Unknown keys, unsupported versions, and invalid values
+        raise ValueError. See docs/preset-schema.md for the complete v1 contract.
+        """
+        from .presets import config_from_dict
+
+        return config_from_dict(data)
+
+    def to_dict(self) -> dict[str, Any]:
+        """Return a validated v1 preset with all defaults explicit.
+
+        Deprecated physics.normalize/invert flags are resolved into display
+        settings, preserving their appearance while emitting the existing warning.
+        """
+        from .presets import config_to_dict
+
+        return config_to_dict(self)
+
+    @classmethod
+    def from_preset(cls, path: str | Path) -> SimulatorConfig:
+        """Load and validate a UTF-8 JSON preset file; no GPU is required.
+
+        Invalid JSON, duplicate keys, and invalid settings raise ValueError.
+        Filesystem errors propagate as OSError. Relative output_dir values retain
+        their existing meaning: relative to the simulator's working directory.
+        """
+        from .presets import load_preset
+
+        return load_preset(path)
+
+    def save_preset(self, path: str | Path) -> Path:
+        """Write a complete UTF-8 JSON preset and return its absolute path.
+
+        The parent directory must exist. Validation finishes before an existing
+        file is replaced. This saves configuration only, not a volume or a pose.
+        """
+        from .presets import save_preset
+
+        return save_preset(self, path)
+
     def _replace(self, **kwargs) -> "SimulatorConfig":
         fields = {
             "geometry": self.geometry,

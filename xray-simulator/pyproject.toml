@@ -11,6 +11,7 @@ requires-python = ">=3.10"
 dependencies = [
     "numpy",
     "scipy",
+    "jsonschema>=4.18",
 ]
 
 [project.optional-dependencies]
@@ -40,6 +41,9 @@ dev = [
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["xray_simulator*"]
+
+[tool.setuptools.package-data]
+xray_simulator = ["schemas/*.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
