@@ -19,9 +19,9 @@ jobs:
       - name: Install xray-simulator (CPU-only)
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -e './xray-simulator[cli]' pytest
+          python -m pip install -e './xray-simulator[cli,validation]' pytest
 
-      - name: CPU tests including YAML/JSON presets and config-file launcher
+      - name: CPU tests including presets, CLI, and validation metrics
         run: python -m pytest xray-simulator/tests -m 'not gpu'
 
       - name: Smoke test (imports + preprocessing + cache IO)

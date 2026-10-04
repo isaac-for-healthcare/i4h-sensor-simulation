@@ -25,6 +25,7 @@ The `xray_simulator` package generates realistic simulated X-ray images from CT 
 3. [Architecture, API & Configuration](docs/architecture-and-api.md) — rendering pipeline, physics, API reference, C-arm configuration
 4. [Examples & Test Data](docs/examples-and-test-data.md) — test datasets, example scripts, running the examples
 5. [Preset Schema & API](docs/preset-schema.md) — versioned JSON/YAML configuration, validation, field reference
+6. [Image validation](docs/validation.md) — paired X-ray/fluoroscopy metrics, reference datasets, and evaluation protocol
 
 ---
 
