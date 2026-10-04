@@ -266,7 +266,7 @@ def volume_center_xyz_mm(
     Args:
         shape_zyx: Volume shape.
         spacing_zyx_mm: Voxel spacing in mm matching the volume axes.
-        origin_xyz_mm: World position of voxel ``[0, 0, 0]``.
+        origin_xyz_mm: Volume box corner, half a voxel before the first sample center.
 
     Returns:
         Center of the volume bounding box in world mm, ``(x, y, z)``.
@@ -287,6 +287,9 @@ def project_point_to_detector(
     detector_height_px: int,
     pixel_spacing_mm: float,
     isocenter_xyz_mm: tuple[float, float, float] | np.ndarray = (0.0, 0.0, 0.0),
+    *,
+    pixel_spacing_y_mm: float | None = None,
+    detector_offset_xy_mm: tuple[float, float] = (0.0, 0.0),
 ) -> tuple[float, float] | None:
     """Project a world point onto the detector, mirroring the shader's cone-beam geometry.
 
@@ -304,6 +307,8 @@ def project_point_to_detector(
         pixel_spacing_mm: Detector pixel pitch in mm.
         isocenter_xyz_mm: World position the C-arm rotates about, i.e.
             :func:`volume_center_xyz_mm` for the volume being rendered.
+        pixel_spacing_y_mm: Vertical pitch, or None for square pixels.
+        detector_offset_xy_mm: Detector center displacement in its column/row axes (mm).
 
     Returns:
         Continuous ``(column, row)`` pixel coordinates matching ``image[row, column]``, or
@@ -318,6 +323,8 @@ def project_point_to_detector(
         return None
 
     scale = source_to_detector_mm / depth_from_source
-    column = scale * local[0] / pixel_spacing_mm + 0.5 * detector_width_px - 0.5
-    row = scale * local[1] / pixel_spacing_mm + 0.5 * detector_height_px - 0.5
+    dy = pixel_spacing_mm if pixel_spacing_y_mm is None else pixel_spacing_y_mm
+    ox, oy = detector_offset_xy_mm
+    column = (scale * local[0] - ox) / pixel_spacing_mm + 0.5 * detector_width_px - 0.5
+    row = (scale * local[1] - oy) / dy + 0.5 * detector_height_px - 0.5
     return (float(column), float(row))

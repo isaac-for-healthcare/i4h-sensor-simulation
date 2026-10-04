@@ -185,8 +185,9 @@ clinical realism.
 Detector MTF/NPS, dose-dependent DQE, scatter and temporal behavior require
 additional calibrated acquisitions or phantoms. Registration accuracy, catheter
 localization, task performance and observer studies are separate validation
-stages. Dataset-specific pose adapters, automatic benchmark rendering and these
-physics/task evaluations are not implemented by this metric runner.
+stages. The [xvr geometry adapter and single-view exporter](validation-datasets.md#geometry-adapter-for-the-downloaded-xvr-release)
+prepare matched dataset geometry separately. Cohort calibration, physics/task
+evaluations and automatic clinical acceptance are not implemented by this metric runner.
 
 ## Test without patient data
 

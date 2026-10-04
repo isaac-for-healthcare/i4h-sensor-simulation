@@ -43,7 +43,11 @@ class CarmGeometry:
             rotation center, typically at patient table level. Typical range: 495–780 mm.
         detector_width_px: Detector width in pixels.
         detector_height_px: Detector height in pixels.
-        pixel_spacing_mm: Physical size of each detector pixel (mm).
+        pixel_spacing_mm: Horizontal detector pixel pitch (mm); also vertical by default.
+        pixel_spacing_y_mm: Vertical pitch, or None to use the horizontal pitch.
+        detector_offset_xy_mm: Detector center displacement along its column/row axes,
+            relative to the central beam. Positive offsets move the principal point
+            toward smaller pixel indices. Defaults preserve a centered detector.
 
     Vendor-Specific Configuration:
         Different C-arm vendors (GE, Siemens, Philips, Ziehm, etc.) have distinct
@@ -114,13 +118,21 @@ class CarmGeometry:
     detector_width_px: int = 512
     detector_height_px: int = 512
     pixel_spacing_mm: float = 0.5
+    pixel_spacing_y_mm: float | None = None
+    detector_offset_xy_mm: tuple[float, float] = (0.0, 0.0)
+
+    @property
+    def pixel_spacing_xy_mm(self) -> tuple[float, float]:
+        """Horizontal and vertical detector pitch in mm."""
+        dy = self.pixel_spacing_mm if self.pixel_spacing_y_mm is None else self.pixel_spacing_y_mm
+        return (self.pixel_spacing_mm, dy)
 
     @property
     def detector_size_mm(self) -> tuple[float, float]:
         """Physical detector size (width, height) in mm."""
         return (
             self.detector_width_px * self.pixel_spacing_mm,
-            self.detector_height_px * self.pixel_spacing_mm,
+            self.detector_height_px * self.pixel_spacing_xy_mm[1],
         )
 
 

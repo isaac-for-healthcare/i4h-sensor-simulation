@@ -114,6 +114,8 @@ class SlangDiffDRRConfig:
         det_height_px: Detector height in pixels.
         det_width_px: Detector width in pixels.
         pixel_spacing_mm: Pixel pitch on detector (mm).
+        pixel_spacing_y_mm: Vertical pitch; None uses pixel_spacing_mm.
+        detector_offset_xy_mm: Detector center displacement in local X/Y (mm).
         source_to_detector_mm: Source-to-detector distance (mm).
         source_to_isocenter_mm: Source-to-isocenter distance (mm).
         step_mm: Ray-marching step size (mm). Smaller = more accurate but slower.
@@ -134,6 +136,8 @@ class SlangDiffDRRConfig:
     invert: bool = True  # Clinical convention: bone=white, air=black
     eps: float = 1e-8
     device_type: str = "cuda"
+    pixel_spacing_y_mm: float | None = None
+    detector_offset_xy_mm: tuple[float, float] = (0.0, 0.0)
 
 
 class SlangDiffDRRRenderer:
@@ -176,7 +180,8 @@ class SlangDiffDRRRenderer:
         Args:
             mu_volume: 3D numpy array (Z, Y, X) of linear attenuation coefficients (mm^-1).
             spacing_zyx_mm: Voxel spacing in (Z, Y, X) order, in mm.
-            origin_xyz_mm: World position of voxel [0, 0, 0] in mm, (X, Y, Z) order. The
+            origin_xyz_mm: Volume box corner in mm, (X, Y, Z) order, half a voxel before
+                the first sample center. The
                 source, detector and volume all shift with the origin, so this does not
                 change the rendered image; it makes the render happen in the patient's
                 coordinate frame so that poses and translations can be expressed there.
@@ -329,6 +334,7 @@ class SlangDiffDRRRenderer:
         cfg = self._cfg
 
         ox, oy, oz = self._origin_xyz
+        dy = cfg.pixel_spacing_mm if cfg.pixel_spacing_y_mm is None else cfg.pixel_spacing_y_mm
 
         vol_info = {
             "spacing": slangpy.float3(sx, sy, sz),
@@ -341,10 +347,11 @@ class SlangDiffDRRRenderer:
             "sid": float(cfg.source_to_isocenter_mm),
             "detectorSize": slangpy.float2(
                 cfg.det_width_px * cfg.pixel_spacing_mm,
-                cfg.det_height_px * cfg.pixel_spacing_mm,
+                cfg.det_height_px * dy,
             ),
             "detectorPixels": slangpy.int2(cfg.det_width_px, cfg.det_height_px),
-            "pixelSpacing": float(cfg.pixel_spacing_mm),
+            "pixelSpacing": slangpy.float2(cfg.pixel_spacing_mm, dy),
+            "detectorOffset": slangpy.float2(*cfg.detector_offset_xy_mm),
         }
 
         pose = {

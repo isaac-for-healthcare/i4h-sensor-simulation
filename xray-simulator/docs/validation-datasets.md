@@ -49,7 +49,7 @@ Preparation checks for this pinned release:
   similarity score.
 - Inspect each view's SDD, pixel pitch and principal-point offsets. The simulator's
   default centered detector and raw Euler frame do not automatically reproduce
-  the release's camera model. A verified coordinate/geometry adapter is required.
+  the release's camera model. Use the adapter below; the default AP pose is not a dataset pose.
 - The Ljubljana angiography volume is not automatically a calibrated HU CT.
   Document its intensity interpretation and compare DSA-like references to the
   appropriate signal, rather than treating them as ordinary transmission images.
@@ -59,6 +59,107 @@ Preparation checks for this pinned release:
 
 CT-RATE is **not required** for either fluoroscopy dataset: their matched volumes
 are already part of this release.
+
+## Geometry adapter for the downloaded xvr release
+
+`xray_simulator.validation.xvr` adapts the pinned **NIfTI/DICOM/PT xvr-data layout**.
+It supports DeepFluoro and Ljubljana camera geometry. It does not accept the
+original DeepFluoro HDF5 camera matrices, automatically register images, or infer
+a scanner's attenuation/processing model.
+
+Install file-loading and rendering dependencies separately from the CPU metrics:
+
+```bash
+python -m pip install -e './xray-simulator[datasets,validation,slang]'
+```
+
+From `xray-simulator/`, preview and then export a matched DeepFluoro view:
+
+```bash
+python -m examples.render_deepfluoro \
+  --subject-dir /path/to/validation-data/fluoroscopy/deepfluoro/subject01 \
+  --view 000 --binning 4 --output output/deepfluoro_subject01_000 --dryrun
+
+python -m examples.render_deepfluoro \
+  --subject-dir /path/to/validation-data/fluoroscopy/deepfluoro/subject01 \
+  --view 000 --binning 4 --output output/deepfluoro_subject01_000
+```
+
+The exporter refuses to overwrite an existing directory. It saves stored reference
+values, rendered intensity, attenuation and display arrays, preview PNGs, and a
+manifest with geometry, transforms, HU mapping, source hashes and code hashes.
+The reference PNG is scaled for viewing only. The raw reference is not calibrated
+attenuation; prepare a documented proxy and fixed mask before running the metric
+runner. Default HU/display settings are an engineering baseline, not a fitted
+fluoroscopy preset. No similarity acceptance is claimed by the exporter.
+
+The geometry API can also be used directly:
+
+```python
+from xray_simulator.validation.xvr import load_xvr_view, load_xvr_volume
+
+values_zyx, frame = load_xvr_volume(subject_dir / "volume.nii.gz")
+view = load_xvr_view(subject_dir, "000", dataset="deepfluoro")
+camera = view.camera(frame, binning=4)
+reference = view.load_reference(binning=4)
+# Preprocess values_zyx using frame.spacing_zyx_mm and frame.origin_xyz_mm.
+# Use camera.geometry in SimulatorConfig, and render_frame(pose=camera.pose).
+# camera.project(fiducials) returns zero-based (column, row) pixel centers.
+```
+
+For Ljubljana use `dataset="ljubljana"` and a view such as `"frontal"`. The
+geometry conversion is the same, but the 3D angiography values need an explicit
+signal model; do not pass them through a HU mapping by assumption. The example
+exporter deliberately handles only DeepFluoro CTs.
+
+### Coordinate contract
+
+The adapter follows the pinned [xvr evaluator](https://github.com/eigenvivek/xvr/blob/caa55cc8096294cf70a218126bf16008dee0dec7/experiments/evaluate.py)
+and the camera/volume conventions of [DiffDRR 0.6.0](https://pypi.org/project/diffdrr/0.6.0/):
+
+- CT coordinates are NIfTI RAS, centered at the midpoint of the first and last
+  voxel centers. `warp.txt` is **not** applied: the evaluator uses the supplied
+  NIfTI directly, centered in this way.
+- The stored pose is applied after the AP camera reorientation, with
+  `reverse_x_axis=False`. The image row axis has the opposite sign to the
+  camera's vertical axis.
+- The adapter preserves the voxel samples and spacing. To express the camera
+  with proper Euler rotations, it reverses voxel Y when needed to obtain a
+  left-handed grid-to-RAS transform. Both coordinate reflections cancel. The
+  renderer frame is explicitly unlabeled; anatomical AP/PA presets must not be
+  mixed into it. Orthogonal oblique affines work without interpolation; sheared
+  affines are rejected.
+- The renderer origin is the volume box corner, half a voxel before its first
+  sample center. Source location is preserved exactly. SID is chosen as SDD/2
+  solely to parameterize the same source/detector pose; it is not inferred
+  patient distance.
+- Stored `x0/y0` values are detector offsets in mm. The simulator uses
+  `(x0, -y0)` with separate horizontal/vertical pitches. Positive simulator
+  offsets move the principal point toward smaller image indices. DiffDRR's
+  getter properties negate its stored offsets, so do not substitute those
+  getters for the companion file values.
+- DeepFluoro references lose exactly 50 pixels on each edge to match the
+  companion's 1436×1436 grid. No further principal-point shift is applied to the
+  already-cropped calibration. Ljubljana references use the supplied grid.
+- Integer binning must divide both dimensions. It multiplies detector pitches,
+  keeps physical offsets and FOV fixed, and block-averages stored reference
+  values. It does not model detector blur or average simulated subpixel rays.
+- Coordinates returned by `camera.project` place the first pixel center at
+  `(0, 0)`. DiffDRR's continuous intrinsic projection uses pixel-boundary
+  coordinates; subtract 0.5 on both axes for comparison.
+
+The four upstream questionable DeepFluoro poses fail closed unless
+`include_excluded=True` is explicitly requested. The DICOM loader accepts the
+release's single-frame MONOCHROME2 stored values; other polarities, modality LUTs,
+or nonidentity rescale transforms require explicit preparation.
+
+For centered-RAS points, the independent pinhole equation used by the tests is
+`[u, v, 1] ~ K * inverse(P * AP) * [X, Y, Z, 1]`, with
+`fx = SDD/dx`, `fy = -SDD/dy`,
+`cx = (width-1)/2 - x0/dx`, `cy = (height-1)/2 + y0/dy`.
+CPU tests cover this equation, voxel-center placement, oblique affines, cropping,
+binning, exclusions and invalid geometry. A `gpu` test projects a synthetic bead
+through the actual shader with nonzero offsets and unequal detector pitches.
 
 ## DRR-RATE and CT-RATE
 
