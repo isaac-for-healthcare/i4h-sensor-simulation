@@ -56,6 +56,45 @@ renderer, not realism.
 
 ![Per-subject agreement for DRR-RATE](reports/drr-rate/comparison_summary.png)
 
+### DeepFluoro per-subject scores
+
+| Subject | Views | NCC | Gradient NCC | Shape SSIM |
+| --- | ---: | ---: | ---: | ---: |
+| subject01 | 109 | 0.941 | 0.706 | 0.858 |
+| subject02 | 104 | 0.888 | 0.657 | 0.825 |
+| subject03 | 24 | 0.937 | 0.750 | 0.898 |
+| subject04 | 46 | 0.944 | 0.536 | 0.842 |
+| subject05 | 55 | 0.935 | 0.651 | 0.838 |
+| subject06 | 24 | 0.969 | 0.755 | 0.878 |
+
+Values are medians over each subject's views, from the
+[per-subject summary](reports/deepfluoro-ljubljana/per_subject_summary.csv).
+
+**subject02 and subject03 have truncated CT volumes.** Each CT in this release
+is a box cropped around the pelvis. For subject01 and subject04–06, the box's
+left/right and front/back faces lie almost entirely in air: at most 10% of each
+face is tissue. The crop cuts through subject02's body on all four sides (68% of
+the left/right faces and 57% of the front/back faces are tissue) and subject03's
+mainly at the sides (39% left/right, 16% front/back). A ray that passes through
+tissue outside the box is attenuated in the real image but not in our render.
+
+To measure the effect, we rendered the tissue on the box faces with each view's
+pose and marked every scored pixel whose ray crosses it, on every second view:
+
+- **subject02** has the lowest NCC because of this. In its median view, 90% of
+  the scored pixels have truncated rays. In the 23 of 52 analysed views that keep
+  at least a quarter of the scored region untruncated, NCC over the untruncated
+  pixels is 0.921, against 0.842 over the full region of the same views. The low
+  score reflects tissue missing from the input CT, not the simulator.
+- **subject03's** scores are typical despite the truncation: NCC close to the
+  dataset median of 0.939, and the second-highest gradient NCC and highest shape
+  SSIM. 59% of its scored pixels have truncated rays, but excluding them changes
+  its NCC only from 0.936 to 0.938, so the truncation has little effect on its
+  scores.
+
+The published scores keep the full scored region for every subject; this
+truncation analysis is supplementary.
+
 ### DeepFluoro sample comparisons
 
 ![DeepFluoro real fluoroscopy versus simulator, with edge overlay and difference map](images/validation/deepfluoro_samples.png)
@@ -64,8 +103,11 @@ The rows are chosen by a fixed rule rather than by appearance: the subjects with
 the highest, closest-to-median and lowest median gradient NCC, and for each the
 view closest to that subject's median. Columns, left to right:
 
-1. **Real fluoroscopy**, contrast-stretched for viewing.
-2. **Our render** in fluoroscopy appearance, with the view's NCC and gradient NCC.
+1. **Real fluoroscopy.**
+2. **Our render**, with the view's NCC and gradient NCC. Both images use the
+   same display: a linear stretch between the 1st and 99th percentiles of each
+   image's scored region, bright where transmission is high. The stored
+   DeepFluoro values are already log-converted, so this compares like with like.
 3. **Edge overlay:** the strongest 12% of edges in the scored region, in blue for
    the reference only, orange for our render only and white where they coincide.
 4. **Difference map:** the reference attenuation proxy minus our render after

@@ -51,6 +51,12 @@ def edges(image, mask, fraction=0.12):
     return mask & (magnitude >= np.quantile(magnitude[mask], 1 - fraction))
 
 
+def same_display(signal, mask):
+    """Linear stretch between the scored region's 1st and 99th percentiles, applied identically to both images."""
+    low, high = np.percentile(signal[mask], [1, 99])
+    return np.clip((signal - low) / (high - low), 0, 1)
+
+
 def select_views(out):
     subjects = {r['subject']: float(r['gradient_ncc_median']) for r in csv.DictReader((out / 'per_subject_summary.csv').open())
                 if r['dataset'] == 'deepfluoro'}
@@ -75,7 +81,7 @@ def main():
     views = select_views(args.output)
     plt.rcParams.update({'font.size': 9})
     fig, axes = plt.subplots(len(views), 4, figsize=(13, 3.6 * len(views)), constrained_layout=True)
-    headers = ['Real fluoroscopy\n(contrast preview)', 'Our render\n(fluoroscopy appearance)',
+    headers = ['Real fluoroscopy', 'Our render',
                'Strongest edges', 'Reference − our render\n(after gain/bias fit, scored ROI)']
     for axis, header in zip(axes[0], headers):
         axis.annotate(header, (0.5, 1.22), xycoords='axes fraction', ha='center', va='bottom', fontsize=10, weight='bold')
@@ -84,17 +90,21 @@ def main():
         mask = np.load(p / 'mask.npy')
         reference = np.load(p / 'reference_proxy.npy')
         attenuation = np.load(p / 'rendered_attenuation.npy')
+        # The stored DeepFluoro values are log-domain and bright where transmission is high, so both
+        # are shown linearly in that polarity: stored values, and our line integral negated.
+        real_display = same_display(np.load(p / 'reference_stored.npy'), mask)
+        our_display = same_display(-attenuation, mask)
         fit = record['scores']['affine_fit']
         fitted = fit['gain'] * attenuation / 6 + fit['bias']
         scores = record['scores']['as_configured']
 
-        row[0].imshow(plt.imread(p / 'reference_contrast_preview.png'), cmap='gray', vmin=0, vmax=1)
+        row[0].imshow(real_display, cmap='gray', vmin=0, vmax=1)
         row[0].set_title(f'{label}\n{record["subject"]} / view {record["view"]}')
-        row[1].imshow(plt.imread(p / 'fluoro_subject_window.png'), cmap='gray', vmin=0, vmax=1)
+        row[1].imshow(our_display, cmap='gray', vmin=0, vmax=1)
         row[1].set_title(f'NCC {scores["ncc"]:.3f}\ngradient NCC {scores["gradient_ncc"]:.3f}')
 
         ref_edges, our_edges = edges(reference, mask), edges(fitted, mask)
-        overlay = np.repeat((0.35 * plt.imread(p / 'reference_contrast_preview.png'))[..., None], 3, axis=2)[..., :3]
+        overlay = np.repeat((0.35 * real_display)[..., None], 3, axis=2)
         thick = lambda e: binary_dilation(e, iterations=1)  # noqa: E731
         overlay[thick(ref_edges) & ~thick(our_edges)] = REFERENCE_EDGE
         overlay[thick(our_edges) & ~thick(ref_edges)] = RENDER_EDGE
@@ -114,7 +124,9 @@ def main():
                         Patch(facecolor='white', edgecolor='#888888', label='Edge in both')],
                loc='upper center', ncol=3, frameon=False, bbox_to_anchor=(0.5, -0.005))
     fig.suptitle('DeepFluoro: real fluoroscopy versus our simulator for matched pose and calibration\n'
-                 'Views selected by a fixed rule from per-subject gradient NCC; no registration or image alignment', fontsize=11)
+                 'Views selected by a fixed rule from per-subject gradient NCC; no registration or image alignment\n'
+                 'Both images use the same display: linear, 1st to 99th percentile of the scored region, bright = more transmission',
+                 fontsize=11)
     args.figure.parent.mkdir(parents=True, exist_ok=True)
     buffer = io.BytesIO()
     fig.savefig(buffer, format='png', dpi=90, bbox_inches='tight')
