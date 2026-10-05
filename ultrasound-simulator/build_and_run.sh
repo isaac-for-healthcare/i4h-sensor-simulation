@@ -30,8 +30,7 @@ cd "$SCRIPT_DIR"
 
 # This image runs the example straight from the build baked into it, so both the CUDA
 # toolkit and the target architecture have to match the host GPU: CUDA 12.6 cannot
-# compile Blackwell (sm_120/sm_121), and CUDA 13 needs a 580+ driver. Mirrors
-# get_default_cuda_version() in tools/utilities/cli/util.py, which ./i4h uses.
+# compile Blackwell (sm_120/sm_121), and CUDA 13 needs a 580+ driver.
 CUDA_MAJOR=13
 CUDA_ARCHITECTURES=80
 if command -v nvidia-smi >/dev/null 2>&1; then
