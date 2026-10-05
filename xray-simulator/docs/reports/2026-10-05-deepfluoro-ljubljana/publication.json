@@ -1,0 +1,15 @@
+{
+  "original_run": "paired_deepfluoro_ljubljana_20261005_032129",
+  "original_protocol_sha256": "c6146c1e90df2a96a746734f7caeeb4057d6b5591370d56001d4cf8011e93c91",
+  "original_report_sha256": "77e9a433f7c4a93a708837238be817fe3ece4035e961e7f884227aa7292a8114",
+  "original_render_script_sha256": "ea09f01296cf8d41478d0e06a51aa7754d4978f7439d7f55ba9bfa24c4af47ce",
+  "original_report_builder_sha256": "6d5cbd2ed19a95157fa6d9adbf6853482ab219aaff7bfc5f036a7137349e60eb",
+  "changes_for_publication": [
+    "Publish the report as GitHub-readable Markdown, numerical JSON/CSV, and metric plots.",
+    "Split the unchanged pairs array into files indexed by report.json.",
+    "Replace two host-specific protocol paths with placeholders.",
+    "Configure the archived renderer script via two environment variables; inventory hash is optional if the local manifest is absent; apply repository lint formatting.",
+    "Retain source volumes, reference/generated images, raw arrays, and the interactive image gallery locally, following the dataset guide.",
+    "Normalize CSV line endings to LF; all field values are unchanged."
+  ]
+}

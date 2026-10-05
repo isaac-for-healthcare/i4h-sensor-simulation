@@ -5,8 +5,11 @@ The validation module measures agreement between explicitly paired images of the
 does not require a renderer, GPU, network connection or downloaded dataset.
 
 This is evaluation tooling, not a claim that the simulator reproduces a clinical
-scanner. The repository includes analytical metric tests; it does not include
-clinical images, fitted scanner parameters or clinical validation results.
+scanner. The repository includes analytical metric tests and a
+[paired DeepFluoro/Ljubljana comparison report](reports/2026-10-05-deepfluoro-ljubljana/README.md)
+covering 382 matched views. The report separates current-branch results from an
+exploratory Ljubljana detector-offset diagnostic. Dataset images remain local;
+these structural comparisons do not establish physical or clinical validation.
 
 ## Install and run
 

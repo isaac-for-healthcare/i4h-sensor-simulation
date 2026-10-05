@@ -1,0 +1,2742 @@
+{
+  "dataset": "ljubljana",
+  "subject": "subject01",
+  "pairs": [
+    {
+      "dataset": "ljubljana",
+      "subject": "subject01",
+      "view": "frontal",
+      "directory": "ljubljana/subject01/frontal",
+      "scores": {
+        "domain": "attenuation_proxy",
+        "units": "arbitrary proxy units",
+        "settings": {
+          "data_range": 1.0,
+          "histogram_range": [
+            0.0,
+            1.0
+          ],
+          "bins": 64,
+          "ssim": "Gaussian 11x11, sigma=1.5, population covariance",
+          "gradient": "Sobel magnitude, 3x3 support"
+        },
+        "mask_pixels": 241056,
+        "gradient_mask_pixels": 239080,
+        "ssim_mask_pixels": 231256,
+        "as_configured": {
+          "ncc": 0.0876497967469548,
+          "gradient_ncc": 0.09559069762800479,
+          "mi_nats": 0.006224936022114732,
+          "ssim": 0.37379774097764534,
+          "rmse": 0.09960097691802507,
+          "wasserstein": 0.04925654129284881,
+          "histogram_clipped_reference_fraction": 0.0,
+          "histogram_clipped_rendered_fraction": 0.0
+        },
+        "shape_only": {
+          "ncc": 0.08764979674694456,
+          "gradient_ncc": 0.09559069762799682,
+          "mi_nats": 0.010224509224582177,
+          "ssim": 0.48059715284562693,
+          "rmse": 0.08650458836442655,
+          "wasserstein": 0.04551604017631111,
+          "histogram_clipped_reference_fraction": 0.0,
+          "histogram_clipped_rendered_fraction": 0.0
+        },
+        "affine_fit": {
+          "gain": 1.7787199414997616,
+          "bias": 0.04856117704773941
+        },
+        "radial_profiles": [
+          {
+            "radius_px": 12.229514919090212,
+            "pixels": 1876,
+            "reference": 0.13712384070414724,
+            "rendered": 0.0,
+            "shape_only": 0.048561177047739414
+          },
+          {
+            "radius_px": 36.688544757270634,
+            "pixels": 5640,
+            "reference": 0.10405959308358795,
+            "rendered": 2.8227721745292427e-06,
+            "shape_only": 0.04856619796889656
+          },
+          {
+            "radius_px": 61.14757459545106,
+            "pixels": 9380,
+            "reference": 0.12216287792237329,
+            "rendered": 4.796794874671767e-05,
+            "shape_only": 0.048646498594728034
+          },
+          {
+            "radius_px": 85.60660443363147,
+            "pixels": 13204,
+            "reference": 0.12700331319880753,
+            "rendered": 0.0004924448683761029,
+            "shape_only": 0.04943709855520921
+          },
+          {
+            "radius_px": 110.06563427181192,
+            "pixels": 16852,
+            "reference": 0.09647066680744994,
+            "rendered": 0.0011164171683549296,
+            "shape_only": 0.050546970528125026
+          },
+          {
+            "radius_px": 134.52466410999233,
+            "pixels": 20736,
+            "reference": 0.09776086848010712,
+            "rendered": 0.002823417714689353,
+            "shape_only": 0.053583246440041046
+          },
+          {
+            "radius_px": 158.98369394817274,
+            "pixels": 24404,
+            "reference": 0.07003406838127246,
+            "rendered": 0.0013033193220384535,
+            "shape_only": 0.050879417115991164
+          },
+          {
+            "radius_px": 183.44272378635318,
+            "pixels": 28172,
+            "reference": 0.05064990359934897,
+            "rendered": 0.0007573218572340618,
+            "shape_only": 0.04990824053733528
+          },
+          {
+            "radius_px": 207.9017536245336,
+            "pixels": 31504,
+            "reference": 0.03417201377470339,
+            "rendered": 0.0011607633199982967,
+            "shape_only": 0.050625849912381865
+          },
+          {
+            "radius_px": 232.36078346271404,
+            "pixels": 27328,
+            "reference": 0.014410575210559563,
+            "rendered": 0.001025174070274387,
+            "shape_only": 0.050384674610044956
+          },
+          {
+            "radius_px": 256.81981330089445,
+            "pixels": 25148,
+            "reference": 0.005246747897220033,
+            "rendered": 0.000512701087110732,
+            "shape_only": 0.04947312869541188
+          },
+          {
+            "radius_px": 281.27884313907487,
+            "pixels": 20556,
+            "reference": 0.0014893311770144638,
+            "rendered": 1.3593084170934498e-05,
+            "shape_only": 0.048585355337620734
+          },
+          {
+            "radius_px": 305.7378729772553,
+            "pixels": 10960,
+            "reference": 1.5491388575003965e-06,
+            "rendered": 1.2631653016041253e-06,
+            "shape_only": 0.04856342386505079
+          },
+          {
+            "radius_px": 330.1969028154357,
+            "pixels": 4844,
+            "reference": 0.0,
+            "rendered": 1.8480889357515058e-06,
+            "shape_only": 0.0485644642803831
+          },
+          {
+            "radius_px": 354.65593265361616,
+            "pixels": 452,
+            "reference": 0.0,
+            "rendered": 6.194507495959883e-06,
+            "shape_only": 0.04857219534175025
+          },
+          {
+            "radius_px": 379.1149624917966,
+            "pixels": 0,
+            "reference": null,
+            "rendered": null,
+            "shape_only": null
+          }
+        ],
+        "warnings": []
+      },
+      "misposed_scores": {
+        "domain": "attenuation_proxy",
+        "units": "arbitrary proxy units",
+        "settings": {
+          "data_range": 1.0,
+          "histogram_range": [
+            0.0,
+            1.0
+          ],
+          "bins": 64,
+          "ssim": "Gaussian 11x11, sigma=1.5, population covariance",
+          "gradient": "Sobel magnitude, 3x3 support"
+        },
+        "mask_pixels": 241056,
+        "gradient_mask_pixels": 239080,
+        "ssim_mask_pixels": 231256,
+        "as_configured": {
+          "ncc": -0.011764950821263888,
+          "gradient_ncc": 0.018240025195485985,
+          "mi_nats": 0.0018124559463350463,
+          "ssim": 0.36389666942626825,
+          "rmse": 0.09998009655061742,
+          "wasserstein": 0.049275670513691416,
+          "histogram_clipped_reference_fraction": 0.0,
+          "histogram_clipped_rendered_fraction": 0.0
+        },
+        "shape_only": {
+          "ncc": 1.5042040229434713e-14,
+          "gradient_ncc": null,
+          "mi_nats": 0.0,
+          "ssim": 0.4819874490746961,
+          "rmse": 0.08683880046924569,
+          "wasserstein": 0.04783495985667908,
+          "histogram_clipped_reference_fraction": 0.0,
+          "histogram_clipped_rendered_fraction": 0.0
+        },
+        "affine_fit": {
+          "gain": 0.0,
+          "bias": 0.05014949934882233
+        },
+        "radial_profiles": [
+          {
+            "radius_px": 12.229514919090212,
+            "pixels": 1876,
+            "reference": 0.13712384070414724,
+            "rendered": 6.097553778681976e-07,
+            "shape_only": 0.05014949934882232
+          },
+          {
+            "radius_px": 36.688544757270634,
+            "pixels": 5640,
+            "reference": 0.10405959308358795,
+            "rendered": 1.2039637213834434e-06,
+            "shape_only": 0.050149499348822325
+          },
+          {
+            "radius_px": 61.14757459545106,
+            "pixels": 9380,
+            "reference": 0.12216287792237329,
+            "rendered": 6.443014124998512e-06,
+            "shape_only": 0.05014949934882234
+          },
+          {
+            "radius_px": 85.60660443363147,
+            "pixels": 13204,
+            "reference": 0.12700331319880753,
+            "rendered": 2.2045610468485624e-05,
+            "shape_only": 0.050149499348822325
+          },
+          {
+            "radius_px": 110.06563427181192,
+            "pixels": 16852,
+            "reference": 0.09647066680744994,
+            "rendered": 3.289437547718634e-05,
+            "shape_only": 0.05014949934882233
+          },
+          {
+            "radius_px": 134.52466410999233,
+            "pixels": 20736,
+            "reference": 0.09776086848010712,
+            "rendered": 0.00032722094998516885,
+            "shape_only": 0.05014949934882233
+          },
+          {
+            "radius_px": 158.98369394817274,
+            "pixels": 24404,
+            "reference": 0.07003406838127246,
+            "rendered": 0.001111268064226347,
+            "shape_only": 0.05014949934882233
+          },
+          {
+            "radius_px": 183.44272378635318,
+            "pixels": 28172,
+            "reference": 0.05064990359934897,
+            "rendered": 0.0022360995076854337,
+            "shape_only": 0.050149499348822325
+          },
+          {
+            "radius_px": 207.9017536245336,
+            "pixels": 31504,
+            "reference": 0.03417201377470339,
+            "rendered": 0.0008918388594222194,
+            "shape_only": 0.05014949934882232
+          },
+          {
+            "radius_px": 232.36078346271404,
+            "pixels": 27328,
+            "reference": 0.014410575210559563,
+            "rendered": 0.0007715313819260566,
+            "shape_only": 0.050149499348822325
+          },
+          {
+            "radius_px": 256.81981330089445,
+            "pixels": 25148,
+            "reference": 0.005246747897220033,
+            "rendered": 0.0018526453339609786,
+            "shape_only": 0.050149499348822325
+          },
+          {
+            "radius_px": 281.27884313907487,
+            "pixels": 20556,
+            "reference": 0.0014893311770144638,
+            "rendered": 0.0008080234326725467,
+            "shape_only": 0.050149499348822346
+          },
+          {
+            "radius_px": 305.7378729772553,
+            "pixels": 10960,
+            "reference": 1.5491388575003965e-06,
+            "rendered": 2.2485920642030563e-05,
+            "shape_only": 0.05014949934882233
+          },
+          {
+            "radius_px": 330.1969028154357,
+            "pixels": 4844,
+            "reference": 0.0,
+            "rendered": 3.9708258693180084e-05,
+            "shape_only": 0.05014949934882234
+          },
+          {
+            "radius_px": 354.65593265361616,
+            "pixels": 452,
+            "reference": 0.0,
+            "rendered": 1.793105987963521e-05,
+            "shape_only": 0.05014949934882232
+          },
+          {
+            "radius_px": 379.1149624917966,
+            "pixels": 0,
+            "reference": null,
+            "rendered": null,
+            "shape_only": null
+          }
+        ],
+        "warnings": [
+          "Affine gain reached zero; inspect polarity and pairing"
+        ]
+      },
+      "gradient_ncc_gap": 0.07735067243251881,
+      "reference_preparation": {
+        "roi_min": 2076.0625,
+        "roi_max": 65535.0,
+        "bits": 16
+      },
+      "camera": {
+        "geometry": {
+          "source_to_detector_mm": 1196.3883056640625,
+          "source_to_isocenter_mm": 598.1941528320312,
+          "detector_width_px": 620,
+          "detector_height_px": 480,
+          "pixel_spacing_mm": 0.6159999966621399,
+          "pixel_spacing_y_mm": 0.6159999966621399,
+          "detector_offset_xy_mm": [
+            -24.881847381591797,
+            0.8912994265556335
+          ]
+        },
+        "pose": {
+          "rotation": [
+            -1.5688567441251853,
+            0.8422593835249854,
+            -1.9822681319091602
+          ],
+          "translation": [
+            -32.41447687603835,
+            144.78222413378057,
+            0.4012590595194936
+          ],
+          "view": null
+        },
+        "binning": 4,
+        "volume_frame": {
+          "shape_xyz": [
+            512,
+            512,
+            391
+          ],
+          "affine_ras": [
+            [
+              -0.4645639955997467,
+              -0.0,
+              0.0,
+              -118.69609832763672
+            ],
+            [
+              -0.0,
+              0.4645639955997467,
+              -0.0,
+              -118.69609832763672
+            ],
+            [
+              0.0,
+              0.0,
+              0.4645639955997467,
+              -90.58998107910156
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              1.0
+            ]
+          ],
+          "spacing_xyz_mm": [
+            0.4645639955997467,
+            0.4645639955997467,
+            0.4645639955997467
+          ],
+          "center_ras_mm": [
+            -237.392199203372,
+            2.5480985641479492e-06,
+            -1.9371509552001953e-06
+          ],
+          "simulator_to_centered_ras": [
+            [
+              -1.0,
+              -0.0,
+              0.0
+            ],
+            [
+              -0.0,
+              1.0,
+              -0.0
+            ],
+            [
+              0.0,
+              0.0,
+              1.0
+            ]
+          ],
+          "flip_voxel_y": false,
+          "origin_xyz_mm": [
+            -118.92838287353516,
+            -118.92838287353516,
+            -90.82226113975048
+          ],
+          "anatomical_frame": null,
+          "warp_applied": false
+        },
+        "convention": "xvr centered RAS; AP; reverse_x_axis=False",
+        "sid_note": "SDD/2 is a pose parameterization choice, not measured patient distance",
+        "supported_data_revision": "a17273e3eadbd793bd861f3598a80ce4590c1124",
+        "reference_code_revision": "caa55cc8096294cf70a218126bf16008dee0dec7"
+      },
+      "control_pose": {
+        "rotation": [
+          -1.5688567441251853,
+          0.8422593835249854,
+          -1.8950016693094436
+        ],
+        "translation": [
+          -27.41447687603835,
+          144.78222413378057,
+          0.4012590595194936
+        ],
+        "view": null
+      },
+      "reference_sha256": "9f8ca42d75a4c903fe7a702b4c00bfc69479d2971fea7a3bb48183882230b025",
+      "calibration_sha256": "7d2285cf2595568ad6808a85441063b085468df9d0c71a64c24e5d2069457e32",
+      "render_ms": 942.197629949078,
+      "display_scores": {
+        "fluoro_default": {
+          "domain": "display",
+          "units": "normalized grayscale",
+          "settings": {
+            "data_range": 1.0,
+            "histogram_range": [
+              0.0,
+              1.0
+            ],
+            "bins": 64,
+            "ssim": "Gaussian 11x11, sigma=1.5, population covariance",
+            "gradient": "Sobel magnitude, 3x3 support"
+          },
+          "mask_pixels": 241056,
+          "gradient_mask_pixels": 239080,
+          "ssim_mask_pixels": 231256,
+          "as_configured": {
+            "ncc": 0.08764979612052515,
+            "gradient_ncc": 0.0955907078503459,
+            "mi_nats": 0.006239566940650861,
+            "ssim": 0.8545067998705126,
+            "rmse": 0.09642732215344528,
+            "wasserstein": 0.04766787103617502,
+            "histogram_clipped_reference_fraction": 0.0,
+            "histogram_clipped_rendered_fraction": 0.0
+          },
+          "shape_only": null,
+          "affine_fit": null,
+          "radial_profiles": null,
+          "warnings": []
+        },
+        "xray_default": {
+          "domain": "display",
+          "units": "normalized grayscale",
+          "settings": {
+            "data_range": 1.0,
+            "histogram_range": [
+              0.0,
+              1.0
+            ],
+            "bins": 64,
+            "ssim": "Gaussian 11x11, sigma=1.5, population covariance",
+            "gradient": "Sobel magnitude, 3x3 support"
+          },
+          "mask_pixels": 241056,
+          "gradient_mask_pixels": 239080,
+          "ssim_mask_pixels": 231256,
+          "as_configured": {
+            "ncc": 0.08764979617984567,
+            "gradient_ncc": 0.09559070773650778,
+            "mi_nats": 0.006239566940650804,
+            "ssim": 0.3766710823174129,
+            "rmse": 0.09642732214751701,
+            "wasserstein": 0.047667871035124154,
+            "histogram_clipped_reference_fraction": 0.0,
+            "histogram_clipped_rendered_fraction": 0.0
+          },
+          "shape_only": null,
+          "affine_fit": null,
+          "radial_profiles": null,
+          "warnings": []
+        },
+        "fluoro_subject_window": {
+          "domain": "display",
+          "units": "normalized grayscale",
+          "settings": {
+            "data_range": 1.0,
+            "histogram_range": [
+              0.0,
+              1.0
+            ],
+            "bins": 64,
+            "ssim": "Gaussian 11x11, sigma=1.5, population covariance",
+            "gradient": "Sobel magnitude, 3x3 support"
+          },
+          "mask_pixels": 241056,
+          "gradient_mask_pixels": 239080,
+          "ssim_mask_pixels": 231256,
+          "as_configured": {
+            "ncc": 0.09524161531062172,
+            "gradient_ncc": 0.09253782609771319,
+            "mi_nats": 0.03601826687464236,
+            "ssim": 0.7815677006484897,
+            "rmse": 0.15866845530936896,
+            "wasserstein": 0.03682280408001407,
+            "histogram_clipped_reference_fraction": 0.0,
+            "histogram_clipped_rendered_fraction": 0.0
+          },
+          "shape_only": null,
+          "affine_fit": null,
+          "radial_profiles": null,
+          "warnings": []
+        },
+        "xray_subject_window": {
+          "domain": "display",
+          "units": "normalized grayscale",
+          "settings": {
+            "data_range": 1.0,
+            "histogram_range": [
+              0.0,
+              1.0
+            ],
+            "bins": 64,
+            "ssim": "Gaussian 11x11, sigma=1.5, population covariance",
+            "gradient": "Sobel magnitude, 3x3 support"
+          },
+          "mask_pixels": 241056,
+          "gradient_mask_pixels": 239080,
+          "ssim_mask_pixels": 231256,
+          "as_configured": {
+            "ncc": 0.095241615395223,
+            "gradient_ncc": 0.09253782629227628,
+            "mi_nats": 0.0360182668746422,
+            "ssim": 0.3424789991816018,
+            "rmse": 0.15866845530024595,
+            "wasserstein": 0.03682280408106492,
+            "histogram_clipped_reference_fraction": 0.0,
+            "histogram_clipped_rendered_fraction": 0.0
+          },
+          "shape_only": null,
+          "affine_fit": null,
+          "radial_profiles": null,
+          "warnings": []
+        }
+      },
+      "vessel_roi_scores": {
+        "domain": "attenuation_proxy",
+        "units": "arbitrary proxy units",
+        "settings": {
+          "data_range": 1.0,
+          "histogram_range": [
+            0.0,
+            1.0
+          ],
+          "bins": 64,
+          "ssim": "Gaussian 11x11, sigma=1.5, population covariance",
+          "gradient": "Sobel magnitude, 3x3 support"
+        },
+        "mask_pixels": 88522,
+        "gradient_mask_pixels": 85180,
+        "ssim_mask_pixels": 72176,
+        "as_configured": {
+          "ncc": 0.0657169758064125,
+          "gradient_ncc": 0.048490653167514504,
+          "mi_nats": 0.019096471809628486,
+          "ssim": 0.32651469546209444,
+          "rmse": 0.11653939492685997,
+          "wasserstein": 0.06660222056528457,
+          "histogram_clipped_reference_fraction": 0.0,
+          "histogram_clipped_rendered_fraction": 0.0
+        },
+        "shape_only": {
+          "ncc": 0.06571697580641621,
+          "gradient_ncc": 0.04849065316751447,
+          "mi_nats": 0.01827649574409675,
+          "ssim": 0.4058254310067249,
+          "rmse": 0.09563122734500494,
+          "wasserstein": 0.059256749552802614,
+          "histogram_clipped_reference_fraction": 0.0,
+          "histogram_clipped_rendered_fraction": 0.0
+        },
+        "affine_fit": {
+          "gain": 0.9273932565779215,
+          "bias": 0.06677877342077312
+        },
+        "radial_profiles": [
+          {
+            "radius_px": 12.229514919090212,
+            "pixels": 0,
+            "reference": null,
+            "rendered": null,
+            "shape_only": null
+          },
+          {
+            "radius_px": 36.688544757270634,
+            "pixels": 1023,
+            "reference": 0.13469639400116742,
+            "rendered": 1.5562497619105503e-05,
+            "shape_only": 0.06679320597612058
+          },
+          {
+            "radius_px": 61.14757459545106,
+            "pixels": 4326,
+            "reference": 0.1564440076074499,
+            "rendered": 0.00010400817365793152,
+            "shape_only": 0.06687522989965246
+          },
+          {
+            "radius_px": 85.60660443363147,
+            "pixels": 5123,
+            "reference": 0.13916952217227893,
+            "rendered": 0.0012692254620413942,
+            "shape_only": 0.0679558445553473
+          },
+          {
+            "radius_px": 110.06563427181192,
+            "pixels": 7444,
+            "reference": 0.12762048866145398,
+            "rendered": 0.002527386099021665,
+            "shape_only": 0.06912265424577457
+          },
+          {
+            "radius_px": 134.52466410999233,
+            "pixels": 9008,
+            "reference": 0.13341965179619103,
+            "rendered": 0.0064993771904749585,
+            "shape_only": 0.07280625199917595
+          },
+          {
+            "radius_px": 158.98369394817274,
+            "pixels": 10761,
+            "reference": 0.09204584808777659,
+            "rendered": 0.002955692290217119,
+            "shape_only": 0.06951986251923982
+          },
+          {
+            "radius_px": 183.44272378635318,
+            "pixels": 12810,
+            "reference": 0.05608964762959417,
+            "rendered": 0.0016655168900857134,
+            "shape_only": 0.06832336255335524
+          },
+          {
+            "radius_px": 207.9017536245336,
+            "pixels": 13477,
+            "reference": 0.03407817747734983,
+            "rendered": 0.0027134145309212986,
+            "shape_only": 0.06929517575905007
+          },
+          {
+            "radius_px": 232.36078346271404,
+            "pixels": 11930,
+            "reference": 0.01791440368398137,
+            "rendered": 0.002348361860222837,
+            "shape_only": 0.06895662837394856
+          },
+          {
+            "radius_px": 256.81981330089445,
+            "pixels": 7342,
+            "reference": 0.006022960702589051,
+            "rendered": 0.0017561164449279064,
+            "shape_only": 0.06840738396956485
+          },
+          {
+            "radius_px": 281.27884313907487,
+            "pixels": 3184,
+            "reference": 0.0016966414211982458,
+            "rendered": 8.77573612492869e-05,
+            "shape_only": 0.06686015900581077
+          },
+          {
+            "radius_px": 305.7378729772553,
+            "pixels": 984,
+            "reference": 0.0,
+            "rendered": 1.4069402139818306e-05,
+            "shape_only": 0.06679182128944165
+          },
+          {
+            "radius_px": 330.1969028154357,
+            "pixels": 997,
+            "reference": 0.0,
+            "rendered": 8.979080044915039e-06,
+            "shape_only": 0.06678710055905704
+          },
+          {
+            "radius_px": 354.65593265361616,
+            "pixels": 113,
+            "reference": 0.0,
+            "rendered": 2.477802998383953e-05,
+            "shape_only": 0.0668017523986914
+          },
+          {
+            "radius_px": 379.1149624917966,
+            "pixels": 0,
+            "reference": null,
+            "rendered": null,
+            "shape_only": null
+          }
+        ],
+        "warnings": []
+      },
+      "vessel_roi_misposed_scores": {
+        "domain": "attenuation_proxy",
+        "units": "arbitrary proxy units",
+        "settings": {
+          "data_range": 1.0,
+          "histogram_range": [
+            0.0,
+            1.0
+          ],
+          "bins": 64,
+          "ssim": "Gaussian 11x11, sigma=1.5, population covariance",
+          "gradient": "Sobel magnitude, 3x3 support"
+        },
+        "mask_pixels": 88522,
+        "gradient_mask_pixels": 85180,
+        "ssim_mask_pixels": 72176,
+        "as_configured": {
+          "ncc": -0.05417435645969716,
+          "gradient_ncc": -0.031841447149497056,
+          "mi_nats": 0.005158468289016057,
+          "ssim": 0.29484627542111963,
+          "rmse": 0.11740381366796207,
+          "wasserstein": 0.06706718847890507,
+          "histogram_clipped_reference_fraction": 0.0,
+          "histogram_clipped_rendered_fraction": 0.0
+        },
+        "shape_only": {
+          "ncc": null,
+          "gradient_ncc": null,
+          "mi_nats": 0.0,
+          "ssim": 0.4102683398401172,
+          "rmse": 0.09583840092122445,
+          "wasserstein": 0.062260169889655055,
+          "histogram_clipped_reference_fraction": 0.0,
+          "histogram_clipped_rendered_fraction": 0.0
+        },
+        "affine_fit": {
+          "gain": 0.0,
+          "bias": 0.0690338522177636
+        },
+        "radial_profiles": [
+          {
+            "radius_px": 12.229514919090212,
+            "pixels": 0,
+            "reference": null,
+            "rendered": null,
+            "shape_only": null
+          },
+          {
+            "radius_px": 36.688544757270634,
+            "pixels": 1023,
+            "reference": 0.13469639400116742,
+            "rendered": 0.0,
+            "shape_only": 0.0690338522177636
+          },
+          {
+            "radius_px": 61.14757459545106,
+            "pixels": 4326,
+            "reference": 0.1564440076074499,
+            "rendered": 8.350279465044942e-06,
+            "shape_only": 0.06903385221776362
+          },
+          {
+            "radius_px": 85.60660443363147,
+            "pixels": 5123,
+            "reference": 0.13916952217227893,
+            "rendered": 5.507745455752931e-05,
+            "shape_only": 0.0690338522177636
+          },
+          {
+            "radius_px": 110.06563427181192,
+            "pixels": 7444,
+            "reference": 0.12762048866145398,
+            "rendered": 7.446749268424829e-05,
+            "shape_only": 0.0690338522177636
+          },
+          {
+            "radius_px": 134.52466410999233,
+            "pixels": 9008,
+            "reference": 0.13341965179619103,
+            "rendered": 0.0007532475154187902,
+            "shape_only": 0.0690338522177636
+          },
+          {
+            "radius_px": 158.98369394817274,
+            "pixels": 10761,
+            "reference": 0.09204584808777659,
+            "rendered": 0.0025201548033992912,
+            "shape_only": 0.0690338522177636
+          },
+          {
+            "radius_px": 183.44272378635318,
+            "pixels": 12810,
+            "reference": 0.05608964762959417,
+            "rendered": 0.00476985438464277,
+            "shape_only": 0.0690338522177636
+          },
+          {
+            "radius_px": 207.9017536245336,
+            "pixels": 13477,
+            "reference": 0.03407817747734983,
+            "rendered": 0.0018254743371325108,
+            "shape_only": 0.06903385221776359
+          },
+          {
+            "radius_px": 232.36078346271404,
+            "pixels": 11930,
+            "reference": 0.01791440368398137,
+            "rendered": 0.0008336407788794834,
+            "shape_only": 0.06903385221776359
+          },
+          {
+            "radius_px": 256.81981330089445,
+            "pixels": 7342,
+            "reference": 0.006022960702589051,
+            "rendered": 0.0037552586422209475,
+            "shape_only": 0.0690338522177636
+          },
+          {
+            "radius_px": 281.27884313907487,
+            "pixels": 3184,
+            "reference": 0.0016966414211982458,
+            "rendered": 0.004925258300616535,
+            "shape_only": 0.0690338522177636
+          },
+          {
+            "radius_px": 305.7378729772553,
+            "pixels": 984,
+            "reference": 0.0,
+            "rendered": 0.00021654175141503235,
+            "shape_only": 0.0690338522177636
+          },
+          {
+            "radius_px": 330.1969028154357,
+            "pixels": 997,
+            "reference": 0.0,
+            "rendered": 0.00019292558185533032,
+            "shape_only": 0.0690338522177636
+          },
+          {
+            "radius_px": 354.65593265361616,
+            "pixels": 113,
+            "reference": 0.0,
+            "rendered": 7.172423951854084e-05,
+            "shape_only": 0.0690338522177636
+          },
+          {
+            "radius_px": 379.1149624917966,
+            "pixels": 0,
+            "reference": null,
+            "rendered": null,
+            "shape_only": null
+          }
+        ],
+        "warnings": [
+          "Affine gain reached zero; inspect polarity and pairing"
+        ]
+      },
+      "offset_diagnostic": {
+        "geometry": {
+          "source_to_detector_mm": 1196.3883056640625,
+          "source_to_isocenter_mm": 598.1941528320312,
+          "detector_width_px": 620,
+          "detector_height_px": 480,
+          "pixel_spacing_mm": 0.6159999966621399,
+          "pixel_spacing_y_mm": 0.6159999966621399,
+          "detector_offset_xy_mm": [
+            24.881847381591797,
+            0.8912994265556335
+          ]
+        },
+        "predicted_column_shift_px": -80.78521920914505,
+        "scores": {
+          "domain": "attenuation_proxy",
+          "units": "arbitrary proxy units",
+          "settings": {
+            "data_range": 1.0,
+            "histogram_range": [
+              0.0,
+              1.0
+            ],
+            "bins": 64,
+            "ssim": "Gaussian 11x11, sigma=1.5, population covariance",
+            "gradient": "Sobel magnitude, 3x3 support"
+          },
+          "mask_pixels": 241056,
+          "gradient_mask_pixels": 239080,
+          "ssim_mask_pixels": 231256,
+          "as_configured": {
+            "ncc": 0.8537204644375849,
+            "gradient_ncc": 0.7423928015619913,
+            "mi_nats": 0.08089201946569899,
+            "ssim": 0.3646428512338277,
+            "rmse": 0.09670069160105346,
+            "wasserstein": 0.04925656241564204,
+            "histogram_clipped_reference_fraction": 0.0,
+            "histogram_clipped_rendered_fraction": 0.0
+          },
+          "shape_only": {
+            "ncc": 0.8537204644376601,
+            "gradient_ncc": 0.7423928015620325,
+            "mi_nats": 0.2944472246235181,
+            "ssim": 0.5623615018110201,
+            "rmse": 0.04521970495577476,
+            "wasserstein": 0.02833833240510883,
+            "histogram_clipped_reference_fraction": 0.0,
+            "histogram_clipped_rendered_fraction": 0.0003775056418425594
+          },
+          "affine_fit": {
+            "gain": 17.325097361749986,
+            "bias": 0.03467928004357153
+          },
+          "radial_profiles": [
+            {
+              "radius_px": 12.229514919090212,
+              "pixels": 1876,
+              "reference": 0.13712384070414724,
+              "rendered": 0.00450290863341132,
+              "shape_only": 0.11269261052848724
+            },
+            {
+              "radius_px": 36.688544757270634,
+              "pixels": 5640,
+              "reference": 0.10405959308358795,
+              "rendered": 0.0021980768199523653,
+              "shape_only": 0.07276117495785206
+            },
+            {
+              "radius_px": 61.14757459545106,
+              "pixels": 9380,
+              "reference": 0.12216287792237329,
+              "rendered": 0.003459964003299906,
+              "shape_only": 0.09462349326889266
+            },
+            {
+              "radius_px": 85.60660443363147,
+              "pixels": 13204,
+              "reference": 0.12700331319880753,
+              "rendered": 0.003422249278451262,
+              "shape_only": 0.09397008198891828
+            },
+            {
+              "radius_px": 110.06563427181192,
+              "pixels": 16852,
+              "reference": 0.09647066680744994,
+              "rendered": 0.0015454748940463454,
+              "shape_only": 0.0614547830530647
+            },
+            {
+              "radius_px": 134.52466410999233,
+              "pixels": 20736,
+              "reference": 0.09776086848010712,
+              "rendered": 0.0017704903678564827,
+              "shape_only": 0.06535319804472563
+            },
+            {
+              "radius_px": 158.98369394817274,
+              "pixels": 24404,
+              "reference": 0.07003406838127246,
+              "rendered": 0.0008495359769658447,
+              "shape_only": 0.049397573556814185
+            },
+            {
+              "radius_px": 183.44272378635318,
+              "pixels": 28172,
+              "reference": 0.05064990359934897,
+              "rendered": 0.0006925107952177874,
+              "shape_only": 0.0466770969947826
+            },
+            {
+              "radius_px": 207.9017536245336,
+              "pixels": 31504,
+              "reference": 0.03417201377470339,
+              "rendered": 0.0003360876086914994,
+              "shape_only": 0.04050203058622948
+            },
+            {
+              "radius_px": 232.36078346271404,
+              "pixels": 27328,
+              "reference": 0.014410575210559563,
+              "rendered": 0.00011414509947199211,
+              "shape_only": 0.03665685500529042
+            },
+            {
+              "radius_px": 256.81981330089445,
+              "pixels": 25148,
+              "reference": 0.005246747897220033,
+              "rendered": 9.338696212348333e-07,
+              "shape_only": 0.03469545942568259
+            },
+            {
+              "radius_px": 281.27884313907487,
+              "pixels": 20556,
+              "reference": 0.0014893311770144638,
+              "rendered": 6.266382290560496e-07,
+              "shape_only": 0.034690136611900506
+            },
+            {
+              "radius_px": 305.7378729772553,
+              "pixels": 10960,
+              "reference": 1.5491388575003965e-06,
+              "rendered": 1.2604289687828065e-06,
+              "shape_only": 0.03470111709817325
+            },
+            {
+              "radius_px": 330.1969028154357,
+              "pixels": 4844,
+              "reference": 0.0,
+              "rendered": 1.0302767182750413e-06,
+              "shape_only": 0.034697129688025186
+            },
+            {
+              "radius_px": 354.65593265361616,
+              "pixels": 452,
+              "reference": 0.0,
+              "rendered": 0.0,
+              "shape_only": 0.03467928004357152
+            },
+            {
+              "radius_px": 379.1149624917966,
+              "pixels": 0,
+              "reference": null,
+              "rendered": null,
+              "shape_only": null
+            }
+          ],
+          "warnings": []
+        },
+        "misposed_scores": {
+          "domain": "attenuation_proxy",
+          "units": "arbitrary proxy units",
+          "settings": {
+            "data_range": 1.0,
+            "histogram_range": [
+              0.0,
+              1.0
+            ],
+            "bins": 64,
+            "ssim": "Gaussian 11x11, sigma=1.5, population covariance",
+            "gradient": "Sobel magnitude, 3x3 support"
+          },
+          "mask_pixels": 241056,
+          "gradient_mask_pixels": 239080,
+          "ssim_mask_pixels": 231256,
+          "as_configured": {
+            "ncc": 0.11723527902155377,
+            "gradient_ncc": 0.1423867108724114,
+            "mi_nats": 0.016274564206784192,
+            "ssim": 0.37819192583040667,
+            "rmse": 0.09948472969472177,
+            "wasserstein": 0.04924439126611516,
+            "histogram_clipped_reference_fraction": 0.0,
+            "histogram_clipped_rendered_fraction": 0.0
+          },
+          "shape_only": {
+            "ncc": 0.11723527902154679,
+            "gradient_ncc": 0.14238671087240842,
+            "mi_nats": 0.03224897216985824,
+            "ssim": 0.48202450382274453,
+            "rmse": 0.08623997472745565,
+            "wasserstein": 0.0446989346516434,
+            "histogram_clipped_reference_fraction": 0.0,
+            "histogram_clipped_rendered_fraction": 0.0
+          },
+          "affine_fit": {
+            "gain": 2.381059887609204,
+            "bias": 0.04799438279913748
+          },
+          "radial_profiles": [
+            {
+              "radius_px": 12.229514919090212,
+              "pixels": 1876,
+              "reference": 0.13712384070414724,
+              "rendered": 6.330174936763153e-07,
+              "shape_only": 0.047995890051699824
+            },
+            {
+              "radius_px": 36.688544757270634,
+              "pixels": 5640,
+              "reference": 0.10405959308358795,
+              "rendered": 4.868368728259809e-05,
+              "shape_only": 0.048110301574106985
+            },
+            {
+              "radius_px": 61.14757459545106,
+              "pixels": 9380,
+              "reference": 0.12216287792237329,
+              "rendered": 0.001063955057359609,
+              "shape_only": 0.0505277235084354
+            },
+            {
+              "radius_px": 85.60660443363147,
+              "pixels": 13204,
+              "reference": 0.12700331319880753,
+              "rendered": 0.0018494159123710495,
+              "shape_only": 0.05239795284359037
+            },
+            {
+              "radius_px": 110.06563427181192,
+              "pixels": 16852,
+              "reference": 0.09647066680744994,
+              "rendered": 0.003051624510905596,
+              "shape_only": 0.055260483514099845
+            },
+            {
+              "radius_px": 134.52466410999233,
+              "pixels": 20736,
+              "reference": 0.09776086848010712,
+              "rendered": 0.0015328501190343667,
+              "shape_only": 0.0516441907312872
+            },
+            {
+              "radius_px": 158.98369394817274,
+              "pixels": 24404,
+              "reference": 0.07003406838127246,
+              "rendered": 0.001151898706051025,
+              "shape_only": 0.05073712260270452
+            },
+            {
+              "radius_px": 183.44272378635318,
+              "pixels": 28172,
+              "reference": 0.05064990359934897,
+              "rendered": 0.0011831840845007255,
+              "shape_only": 0.050811614962399776
+            },
+            {
+              "radius_px": 207.9017536245336,
+              "pixels": 31504,
+              "reference": 0.03417201377470339,
+              "rendered": 0.0008240283377025531,
+              "shape_only": 0.04995644362029432
+            },
+            {
+              "radius_px": 232.36078346271404,
+              "pixels": 27328,
+              "reference": 0.014410575210559563,
+              "rendered": 0.000450826303667795,
+              "shape_only": 0.049067827227079995
+            },
+            {
+              "radius_px": 256.81981330089445,
+              "pixels": 25148,
+              "reference": 0.005246747897220033,
+              "rendered": 1.886558959189448e-05,
+              "shape_only": 0.04803930289777084
+            },
+            {
+              "radius_px": 281.27884313907487,
+              "pixels": 20556,
+              "reference": 0.0014893311770144638,
+              "rendered": 3.9214579815410215e-06,
+              "shape_only": 0.048003720025438276
+            },
+            {
+              "radius_px": 305.7378729772553,
+              "pixels": 10960,
+              "reference": 1.5491388575003965e-06,
+              "rendered": 7.651516120468994e-07,
+              "shape_only": 0.04799620467094886
+            },
+            {
+              "radius_px": 330.1969028154357,
+              "pixels": 4844,
+              "reference": 0.0,
+              "rendered": 1.2755794050163537e-06,
+              "shape_only": 0.04799742003009222
+            },
+            {
+              "radius_px": 354.65593265361616,
+              "pixels": 452,
+              "reference": 0.0,
+              "rendered": 3.658501400101175e-06,
+              "shape_only": 0.04800309391007003
+            },
+            {
+              "radius_px": 379.1149624917966,
+              "pixels": 0,
+              "reference": null,
+              "rendered": null,
+              "shape_only": null
+            }
+          ],
+          "warnings": []
+        },
+        "vessel_roi_scores": {
+          "domain": "attenuation_proxy",
+          "units": "arbitrary proxy units",
+          "settings": {
+            "data_range": 1.0,
+            "histogram_range": [
+              0.0,
+              1.0
+            ],
+            "bins": 64,
+            "ssim": "Gaussian 11x11, sigma=1.5, population covariance",
+            "gradient": "Sobel magnitude, 3x3 support"
+          },
+          "mask_pixels": 88593,
+          "gradient_mask_pixels": 85241,
+          "ssim_mask_pixels": 72117,
+          "as_configured": {
+            "ncc": 0.8803414065261548,
+            "gradient_ncc": 0.7335611855489366,
+            "mi_nats": 0.16762235611562099,
+            "ssim": 0.07553867028730187,
+            "rmse": 0.15535948560567012,
+            "wasserstein": 0.10358825038977815,
+            "histogram_clipped_reference_fraction": 0.0,
+            "histogram_clipped_rendered_fraction": 0.0
+          },
+          "shape_only": {
+            "ncc": 0.8803414065261864,
+            "gradient_ncc": 0.7335611855489553,
+            "mi_nats": 0.5043497583044114,
+            "ssim": 0.6617583323296935,
+            "rmse": 0.05773494614345364,
+            "wasserstein": 0.032335100569611426,
+            "histogram_clipped_reference_fraction": 0.0,
+            "histogram_clipped_rendered_fraction": 0.0001467384556341923
+          },
+          "affine_fit": {
+            "gain": 15.783414174351556,
+            "bias": 0.06767009142883704
+          },
+          "radial_profiles": [
+            {
+              "radius_px": 12.229514919090212,
+              "pixels": 1824,
+              "reference": 0.13958024207437247,
+              "rendered": 0.0046312810286620815,
+              "shape_only": 0.14076751806202759
+            },
+            {
+              "radius_px": 36.688544757270634,
+              "pixels": 4296,
+              "reference": 0.12217801791274126,
+              "rendered": 0.0028857433111106473,
+              "shape_only": 0.11321697330896102
+            },
+            {
+              "radius_px": 61.14757459545106,
+              "pixels": 6756,
+              "reference": 0.1529591507887685,
+              "rendered": 0.0048037984533678395,
+              "shape_only": 0.1434904320284511
+            },
+            {
+              "radius_px": 85.60660443363147,
+              "pixels": 9175,
+              "reference": 0.16570918811439495,
+              "rendered": 0.004925054983397326,
+              "shape_only": 0.14540427406325115
+            },
+            {
+              "radius_px": 110.06563427181192,
+              "pixels": 10859,
+              "reference": 0.12943496817393751,
+              "rendered": 0.0023984108034320853,
+              "shape_only": 0.10552520249964492
+            },
+            {
+              "radius_px": 134.52466410999233,
+              "pixels": 12311,
+              "reference": 0.13935263030913056,
+              "rendered": 0.0029821207268192693,
+              "shape_only": 0.11473813797814386
+            },
+            {
+              "radius_px": 158.98369394817274,
+              "pixels": 12868,
+              "reference": 0.09991968239005916,
+              "rendered": 0.001611134285193851,
+              "shape_only": 0.09309929114254943
+            },
+            {
+              "radius_px": 183.44272378635318,
+              "pixels": 13623,
+              "reference": 0.06887045519945074,
+              "rendered": 0.0014320938209554067,
+              "shape_only": 0.09027342134150589
+            },
+            {
+              "radius_px": 207.9017536245336,
+              "pixels": 7739,
+              "reference": 0.06772596924045256,
+              "rendered": 0.0013681488595706159,
+              "shape_only": 0.08926415153160681
+            },
+            {
+              "radius_px": 232.36078346271404,
+              "pixels": 2765,
+              "reference": 0.0568186423662127,
+              "rendered": 0.001128158147692803,
+              "shape_only": 0.08547627872804182
+            },
+            {
+              "radius_px": 256.81981330089445,
+              "pixels": 2266,
+              "reference": 0.01212116428844085,
+              "rendered": 1.0364057032133093e-05,
+              "shape_only": 0.0678336716335018
+            },
+            {
+              "radius_px": 281.27884313907487,
+              "pixels": 1779,
+              "reference": 0.003036597124842729,
+              "rendered": 7.2406832133086876e-06,
+              "shape_only": 0.06778437413089798
+            },
+            {
+              "radius_px": 305.7378729772553,
+              "pixels": 1490,
+              "reference": 0.0,
+              "rendered": 9.271343287154067e-06,
+              "shape_only": 0.0678164248798908
+            },
+            {
+              "radius_px": 330.1969028154357,
+              "pixels": 780,
+              "reference": 0.0,
+              "rendered": 6.398282594005513e-06,
+              "shape_only": 0.06777107817302279
+            },
+            {
+              "radius_px": 354.65593265361616,
+              "pixels": 62,
+              "reference": 0.0,
+              "rendered": 0.0,
+              "shape_only": 0.06767009142883704
+            },
+            {
+              "radius_px": 379.1149624917966,
+              "pixels": 0,
+              "reference": null,
+              "rendered": null,
+              "shape_only": null
+            }
+          ],
+          "warnings": []
+        }
+      },
+      "integration_check": {
+        "coarse_mm": 0.5,
+        "fine_mm": 0.25,
+        "rmse": 4.930951408521591e-05,
+        "relative_l2": 0.00188017555013502
+      },
+      "elapsed_seconds": 17.08049290603958
+    },
+    {
+      "dataset": "ljubljana",
+      "subject": "subject01",
+      "view": "lateral",
+      "directory": "ljubljana/subject01/lateral",
+      "scores": {
+        "domain": "attenuation_proxy",
+        "units": "arbitrary proxy units",
+        "settings": {
+          "data_range": 1.0,
+          "histogram_range": [
+            0.0,
+            1.0
+          ],
+          "bins": 64,
+          "ssim": "Gaussian 11x11, sigma=1.5, population covariance",
+          "gradient": "Sobel magnitude, 3x3 support"
+        },
+        "mask_pixels": 241056,
+        "gradient_mask_pixels": 239080,
+        "ssim_mask_pixels": 231256,
+        "as_configured": {
+          "ncc": 0.1677559041140478,
+          "gradient_ncc": 0.18362343392660785,
+          "mi_nats": 0.014130707569567936,
+          "ssim": 0.25439346328529105,
+          "rmse": 0.12984063643493807,
+          "wasserstein": 0.06446835571461651,
+          "histogram_clipped_reference_fraction": 0.0,
+          "histogram_clipped_rendered_fraction": 0.0
+        },
+        "shape_only": {
+          "ncc": 0.1677559041140366,
+          "gradient_ncc": 0.18362343392663694,
+          "mi_nats": 0.08553255973230962,
+          "ssim": 0.5098634587130351,
+          "rmse": 0.11169085076729279,
+          "wasserstein": 0.05003360573526161,
+          "histogram_clipped_reference_fraction": 0.0,
+          "histogram_clipped_rendered_fraction": 0.0
+        },
+        "affine_fit": {
+          "gain": 4.8478542001833835,
+          "bias": 0.06109951206238126
+        },
+        "radial_profiles": [
+          {
+            "radius_px": 12.229514919090212,
+            "pixels": 1876,
+            "reference": 0.16795147831506058,
+            "rendered": 0.007355099513895928,
+            "shape_only": 0.09675596213358842
+          },
+          {
+            "radius_px": 36.688544757270634,
+            "pixels": 5640,
+            "reference": 0.1765203114097,
+            "rendered": 0.006580160195359862,
+            "shape_only": 0.09299916930333607
+          },
+          {
+            "radius_px": 61.14757459545106,
+            "pixels": 9380,
+            "reference": 0.17122279445626842,
+            "rendered": 0.003781008518734621,
+            "shape_only": 0.07942929009085806
+          },
+          {
+            "radius_px": 85.60660443363147,
+            "pixels": 13204,
+            "reference": 0.16312154408874963,
+            "rendered": 0.0030481175580179738,
+            "shape_only": 0.07587634156867142
+          },
+          {
+            "radius_px": 110.06563427181192,
+            "pixels": 16852,
+            "reference": 0.14070396292967946,
+            "rendered": 0.0017768285171095603,
+            "shape_only": 0.06971331765205646
+          },
+          {
+            "radius_px": 134.52466410999233,
+            "pixels": 20736,
+            "reference": 0.08897859301349079,
+            "rendered": 0.0007556902818841949,
+            "shape_only": 0.06476298836945132
+          },
+          {
+            "radius_px": 158.98369394817274,
+            "pixels": 24404,
+            "reference": 0.07698154033764212,
+            "rendered": 0.0006592355972295502,
+            "shape_only": 0.06429539012132095
+          },
+          {
+            "radius_px": 183.44272378635318,
+            "pixels": 28172,
+            "reference": 0.06128610318084171,
+            "rendered": 0.0004222699238560484,
+            "shape_only": 0.06314661508635795
+          },
+          {
+            "radius_px": 207.9017536245336,
+            "pixels": 31504,
+            "reference": 0.04664157709762371,
+            "rendered": 0.00032986399488654805,
+            "shape_only": 0.0626986446154813
+          },
+          {
+            "radius_px": 232.36078346271404,
+            "pixels": 27328,
+            "reference": 0.02783782199784171,
+            "rendered": 8.26041125347349e-06,
+            "shape_only": 0.06113955733177168
+          },
+          {
+            "radius_px": 256.81981330089445,
+            "pixels": 25148,
+            "reference": 0.012803027983763761,
+            "rendered": 2.0933724839756396e-06,
+            "shape_only": 0.06110966042697027
+          },
+          {
+            "radius_px": 281.27884313907487,
+            "pixels": 20556,
+            "reference": 0.00779447141881814,
+            "rendered": 6.527180202418342e-06,
+            "shape_only": 0.061131154880340925
+          },
+          {
+            "radius_px": 305.7378729772553,
+            "pixels": 10960,
+            "reference": 0.00760464040141036,
+            "rendered": 2.0203044842702206e-06,
+            "shape_only": 0.061109306203961
+          },
+          {
+            "radius_px": 330.1969028154357,
+            "pixels": 4844,
+            "reference": 0.012507851068684132,
+            "rendered": 0.0,
+            "shape_only": 0.06109951206238128
+          },
+          {
+            "radius_px": 354.65593265361616,
+            "pixels": 452,
+            "reference": 0.007220139941283032,
+            "rendered": 0.0,
+            "shape_only": 0.06109951206238128
+          },
+          {
+            "radius_px": 379.1149624917966,
+            "pixels": 0,
+            "reference": null,
+            "rendered": null,
+            "shape_only": null
+          }
+        ],
+        "warnings": []
+      },
+      "misposed_scores": {
+        "domain": "attenuation_proxy",
+        "units": "arbitrary proxy units",
+        "settings": {
+          "data_range": 1.0,
+          "histogram_range": [
+            0.0,
+            1.0
+          ],
+          "bins": 64,
+          "ssim": "Gaussian 11x11, sigma=1.5, population covariance",
+          "gradient": "Sobel magnitude, 3x3 support"
+        },
+        "mask_pixels": 241056,
+        "gradient_mask_pixels": 239080,
+        "ssim_mask_pixels": 231256,
+        "as_configured": {
+          "ncc": 0.026380795475196887,
+          "gradient_ncc": 0.07590009933183187,
+          "mi_nats": 0.012281489782599115,
+          "ssim": 0.26005698418183065,
+          "rmse": 0.13032768322702895,
+          "wasserstein": 0.0644764648420208,
+          "histogram_clipped_reference_fraction": 0.0,
+          "histogram_clipped_rendered_fraction": 0.0
+        },
+        "shape_only": {
+          "ncc": 0.026380795475201346,
+          "gradient_ncc": 0.0759000993318237,
+          "mi_nats": 0.010629288108148442,
+          "ssim": 0.51285478751961,
+          "rmse": 0.11325699286305768,
+          "wasserstein": 0.055620904330414236,
+          "histogram_clipped_reference_fraction": 0.0,
+          "histogram_clipped_rendered_fraction": 0.0
+        },
+        "affine_fit": {
+          "gain": 0.7546686557952035,
+          "bias": 0.06468926602649572
+        },
+        "radial_profiles": [
+          {
+            "radius_px": 12.229514919090212,
+            "pixels": 1876,
+            "reference": 0.16795147831506058,
+            "rendered": 0.008667853455204811,
+            "shape_only": 0.07123062334216496
+          },
+          {
+            "radius_px": 36.688544757270634,
+            "pixels": 5640,
+            "reference": 0.1765203114097,
+            "rendered": 0.004397936078842249,
+            "shape_only": 0.06800825053538882
+          },
+          {
+            "radius_px": 61.14757459545106,
+            "pixels": 9380,
+            "reference": 0.17122279445626842,
+            "rendered": 0.004830176340033857,
+            "shape_only": 0.06833444871228286
+          },
+          {
+            "radius_px": 85.60660443363147,
+            "pixels": 13204,
+            "reference": 0.16312154408874963,
+            "rendered": 0.0027644517347819577,
+            "shape_only": 0.06677551110119434
+          },
+          {
+            "radius_px": 110.06563427181192,
+            "pixels": 16852,
+            "reference": 0.14070396292967946,
+            "rendered": 0.0013012316650552963,
+            "shape_only": 0.06567126477804117
+          },
+          {
+            "radius_px": 134.52466410999233,
+            "pixels": 20736,
+            "reference": 0.08897859301349079,
+            "rendered": 0.0008028821728323396,
+            "shape_only": 0.06529517603662903
+          },
+          {
+            "radius_px": 158.98369394817274,
+            "pixels": 24404,
+            "reference": 0.07698154033764212,
+            "rendered": 0.0007106426904770479,
+            "shape_only": 0.06522556579046872
+          },
+          {
+            "radius_px": 183.44272378635318,
+            "pixels": 28172,
+            "reference": 0.06128610318084171,
+            "rendered": 0.0005433296914438498,
+            "shape_only": 0.06509929991439127
+          },
+          {
+            "radius_px": 207.9017536245336,
+            "pixels": 31504,
+            "reference": 0.04664157709762371,
+            "rendered": 0.0003633030412009468,
+            "shape_only": 0.06496343944424514
+          },
+          {
+            "radius_px": 232.36078346271404,
+            "pixels": 27328,
+            "reference": 0.02783782199784171,
+            "rendered": 0.00011859205979402972,
+            "shape_only": 0.06477876373684846
+          },
+          {
+            "radius_px": 256.81981330089445,
+            "pixels": 25148,
+            "reference": 0.012803027983763761,
+            "rendered": 8.913337383561255e-06,
+            "shape_only": 0.06469599264283762
+          },
+          {
+            "radius_px": 281.27884313907487,
+            "pixels": 20556,
+            "reference": 0.00779447141881814,
+            "rendered": 3.956405605193271e-06,
+            "shape_only": 0.06469225180179555
+          },
+          {
+            "radius_px": 305.7378729772553,
+            "pixels": 10960,
+            "reference": 0.00760464040141036,
+            "rendered": 5.3353940290641075e-08,
+            "shape_only": 0.06468930629104212
+          },
+          {
+            "radius_px": 330.1969028154357,
+            "pixels": 4844,
+            "reference": 0.012507851068684132,
+            "rendered": 6.799096248851294e-09,
+            "shape_only": 0.06468927115756054
+          },
+          {
+            "radius_px": 354.65593265361616,
+            "pixels": 452,
+            "reference": 0.007220139941283032,
+            "rendered": 0.0,
+            "shape_only": 0.06468926602649572
+          },
+          {
+            "radius_px": 379.1149624917966,
+            "pixels": 0,
+            "reference": null,
+            "rendered": null,
+            "shape_only": null
+          }
+        ],
+        "warnings": []
+      },
+      "gradient_ncc_gap": 0.10772333459477598,
+      "reference_preparation": {
+        "roi_min": 17320.6875,
+        "roi_max": 65535.0,
+        "bits": 16
+      },
+      "camera": {
+        "geometry": {
+          "source_to_detector_mm": 1249.52392578125,
+          "source_to_isocenter_mm": 624.761962890625,
+          "detector_width_px": 620,
+          "detector_height_px": 480,
+          "pixel_spacing_mm": 0.6159999966621399,
+          "pixel_spacing_y_mm": 0.6159999966621399,
+          "detector_offset_xy_mm": [
+            -10.951577186584473,
+            1.5337587594985962
+          ]
+        },
+        "pose": {
+          "rotation": [
+            -1.567249338337511,
+            1.588351287193489,
+            -3.104727933300335
+          ],
+          "translation": [
+            157.67403158127513,
+            -2.6492220905588457,
+            0.61490083974296
+          ],
+          "view": null
+        },
+        "binning": 4,
+        "volume_frame": {
+          "shape_xyz": [
+            512,
+            512,
+            391
+          ],
+          "affine_ras": [
+            [
+              -0.4645639955997467,
+              -0.0,
+              0.0,
+              -118.69609832763672
+            ],
+            [
+              -0.0,
+              0.4645639955997467,
+              -0.0,
+              -118.69609832763672
+            ],
+            [
+              0.0,
+              0.0,
+              0.4645639955997467,
+              -90.58998107910156
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              1.0
+            ]
+          ],
+          "spacing_xyz_mm": [
+            0.4645639955997467,
+            0.4645639955997467,
+            0.4645639955997467
+          ],
+          "center_ras_mm": [
+            -237.392199203372,
+            2.5480985641479492e-06,
+            -1.9371509552001953e-06
+          ],
+          "simulator_to_centered_ras": [
+            [
+              -1.0,
+              -0.0,
+              0.0
+            ],
+            [
+              -0.0,
+              1.0,
+              -0.0
+            ],
+            [
+              0.0,
+              0.0,
+              1.0
+            ]
+          ],
+          "flip_voxel_y": false,
+          "origin_xyz_mm": [
+            -118.92838287353516,
+            -118.92838287353516,
+            -90.82226113975048
+          ],
+          "anatomical_frame": null,
+          "warp_applied": false
+        },
+        "convention": "xvr centered RAS; AP; reverse_x_axis=False",
+        "sid_note": "SDD/2 is a pose parameterization choice, not measured patient distance",
+        "supported_data_revision": "a17273e3eadbd793bd861f3598a80ce4590c1124",
+        "reference_code_revision": "caa55cc8096294cf70a218126bf16008dee0dec7"
+      },
+      "control_pose": {
+        "rotation": [
+          -1.567249338337511,
+          1.588351287193489,
+          -3.0174614707006184
+        ],
+        "translation": [
+          162.67403158127513,
+          -2.6492220905588457,
+          0.61490083974296
+        ],
+        "view": null
+      },
+      "reference_sha256": "97b243955a95f96c33b085e43575648f67909ded8101619fc9ff71fc13e32115",
+      "calibration_sha256": "4b7c0e08c7717391988101c41e3a877609bb8e2a8876205f7e75737af847c8dd",
+      "render_ms": 900.2393998671323,
+      "display_scores": {
+        "fluoro_default": {
+          "domain": "display",
+          "units": "normalized grayscale",
+          "settings": {
+            "data_range": 1.0,
+            "histogram_range": [
+              0.0,
+              1.0
+            ],
+            "bins": 64,
+            "ssim": "Gaussian 11x11, sigma=1.5, population covariance",
+            "gradient": "Sobel magnitude, 3x3 support"
+          },
+          "mask_pixels": 241056,
+          "gradient_mask_pixels": 239080,
+          "ssim_mask_pixels": 231256,
+          "as_configured": {
+            "ncc": 0.16775590689118422,
+            "gradient_ncc": 0.18362344060695668,
+            "mi_nats": 0.01420398342835304,
+            "ssim": 0.8249782062684216,
+            "rmse": 0.09529452071278416,
+            "wasserstein": 0.047198183745661065,
+            "histogram_clipped_reference_fraction": 0.0,
+            "histogram_clipped_rendered_fraction": 0.0
+          },
+          "shape_only": null,
+          "affine_fit": null,
+          "radial_profiles": null,
+          "warnings": []
+        },
+        "xray_default": {
+          "domain": "display",
+          "units": "normalized grayscale",
+          "settings": {
+            "data_range": 1.0,
+            "histogram_range": [
+              0.0,
+              1.0
+            ],
+            "bins": 64,
+            "ssim": "Gaussian 11x11, sigma=1.5, population covariance",
+            "gradient": "Sobel magnitude, 3x3 support"
+          },
+          "mask_pixels": 241056,
+          "gradient_mask_pixels": 239080,
+          "ssim_mask_pixels": 231256,
+          "as_configured": {
+            "ncc": 0.1677559069595379,
+            "gradient_ncc": 0.183623440577596,
+            "mi_nats": 0.014203983428353035,
+            "ssim": 0.28734960587919084,
+            "rmse": 0.09529452068347519,
+            "wasserstein": 0.04719818374034489,
+            "histogram_clipped_reference_fraction": 0.0,
+            "histogram_clipped_rendered_fraction": 0.0
+          },
+          "shape_only": null,
+          "affine_fit": null,
+          "radial_profiles": null,
+          "warnings": []
+        },
+        "fluoro_subject_window": {
+          "domain": "display",
+          "units": "normalized grayscale",
+          "settings": {
+            "data_range": 1.0,
+            "histogram_range": [
+              0.0,
+              1.0
+            ],
+            "bins": 64,
+            "ssim": "Gaussian 11x11, sigma=1.5, population covariance",
+            "gradient": "Sobel magnitude, 3x3 support"
+          },
+          "mask_pixels": 241056,
+          "gradient_mask_pixels": 239080,
+          "ssim_mask_pixels": 231256,
+          "as_configured": {
+            "ncc": 0.18068799098860758,
+            "gradient_ncc": 0.1894484346320521,
+            "mi_nats": 0.08726960266460909,
+            "ssim": 0.7499227127493573,
+            "rmse": 0.1541690978825096,
+            "wasserstein": 0.03691751987632667,
+            "histogram_clipped_reference_fraction": 0.0,
+            "histogram_clipped_rendered_fraction": 0.0
+          },
+          "shape_only": null,
+          "affine_fit": null,
+          "radial_profiles": null,
+          "warnings": []
+        },
+        "xray_subject_window": {
+          "domain": "display",
+          "units": "normalized grayscale",
+          "settings": {
+            "data_range": 1.0,
+            "histogram_range": [
+              0.0,
+              1.0
+            ],
+            "bins": 64,
+            "ssim": "Gaussian 11x11, sigma=1.5, population covariance",
+            "gradient": "Sobel magnitude, 3x3 support"
+          },
+          "mask_pixels": 241056,
+          "gradient_mask_pixels": 239080,
+          "ssim_mask_pixels": 231256,
+          "as_configured": {
+            "ncc": 0.1806879910562144,
+            "gradient_ncc": 0.1894484345226564,
+            "mi_nats": 0.08726960266460898,
+            "ssim": 0.2935567369071768,
+            "rmse": 0.15416909786544525,
+            "wasserstein": 0.036917519881642866,
+            "histogram_clipped_reference_fraction": 0.0,
+            "histogram_clipped_rendered_fraction": 0.0
+          },
+          "shape_only": null,
+          "affine_fit": null,
+          "radial_profiles": null,
+          "warnings": []
+        }
+      },
+      "vessel_roi_scores": {
+        "domain": "attenuation_proxy",
+        "units": "arbitrary proxy units",
+        "settings": {
+          "data_range": 1.0,
+          "histogram_range": [
+            0.0,
+            1.0
+          ],
+          "bins": 64,
+          "ssim": "Gaussian 11x11, sigma=1.5, population covariance",
+          "gradient": "Sobel magnitude, 3x3 support"
+        },
+        "mask_pixels": 115026,
+        "gradient_mask_pixels": 110906,
+        "ssim_mask_pixels": 94108,
+        "as_configured": {
+          "ncc": 0.09532041980594819,
+          "gradient_ncc": 0.09782128015681088,
+          "mi_nats": 0.010211260001735471,
+          "ssim": 0.061422046963948346,
+          "rmse": 0.18024709113405804,
+          "wasserstein": 0.10688970463210053,
+          "histogram_clipped_reference_fraction": 0.0,
+          "histogram_clipped_rendered_fraction": 0.0
+        },
+        "shape_only": {
+          "ncc": 0.09532041980594921,
+          "gradient_ncc": 0.09782128015680892,
+          "mi_nats": 0.03603563881021646,
+          "ssim": 0.4615467017611209,
+          "rmse": 0.14489230726764057,
+          "wasserstein": 0.0796949755483874,
+          "histogram_clipped_reference_fraction": 0.0,
+          "histogram_clipped_rendered_fraction": 0.0
+        },
+        "affine_fit": {
+          "gain": 2.5142550326316457,
+          "bias": 0.10411137863913833
+        },
+        "radial_profiles": [
+          {
+            "radius_px": 12.229514919090212,
+            "pixels": 1876,
+            "reference": 0.16795147831506058,
+            "rendered": 0.007355099513895928,
+            "shape_only": 0.12260397460745774
+          },
+          {
+            "radius_px": 36.688544757270634,
+            "pixels": 5640,
+            "reference": 0.1765203114097,
+            "rendered": 0.006580160195359862,
+            "shape_only": 0.1206555795258443
+          },
+          {
+            "radius_px": 61.14757459545106,
+            "pixels": 9352,
+            "reference": 0.17138207765651423,
+            "rendered": 0.0037923289035212515,
+            "shape_only": 0.1136462606702111
+          },
+          {
+            "radius_px": 85.60660443363147,
+            "pixels": 12670,
+            "reference": 0.16781448464555446,
+            "rendered": 0.0031765859696976577,
+            "shape_only": 0.11209812590003775
+          },
+          {
+            "radius_px": 110.06563427181192,
+            "pixels": 15022,
+            "reference": 0.14849930506478834,
+            "rendered": 0.0019932841279676683,
+            "shape_only": 0.10912300328934584
+          },
+          {
+            "radius_px": 134.52466410999233,
+            "pixels": 15742,
+            "reference": 0.09643406295334123,
+            "rendered": 0.000995425847106509,
+            "shape_only": 0.10661413308483748
+          },
+          {
+            "radius_px": 158.98369394817274,
+            "pixels": 16538,
+            "reference": 0.08302875314201145,
+            "rendered": 0.0009727890624495067,
+            "shape_only": 0.10655721843509104
+          },
+          {
+            "radius_px": 183.44272378635318,
+            "pixels": 17456,
+            "reference": 0.06904212324636776,
+            "rendered": 0.000681495663088485,
+            "shape_only": 0.10582483253977519
+          },
+          {
+            "radius_px": 207.9017536245336,
+            "pixels": 10780,
+            "reference": 0.06356087337508935,
+            "rendered": 0.0009640106952602792,
+            "shape_only": 0.10653514738120723
+          },
+          {
+            "radius_px": 232.36078346271404,
+            "pixels": 4651,
+            "reference": 0.04107714160696918,
+            "rendered": 4.853591028486853e-05,
+            "shape_only": 0.10423341029583542
+          },
+          {
+            "radius_px": 256.81981330089445,
+            "pixels": 3158,
+            "reference": 0.03744739597926342,
+            "rendered": 1.6670085885693283e-05,
+            "shape_only": 0.10415329148647083
+          },
+          {
+            "radius_px": 281.27884313907487,
+            "pixels": 1700,
+            "reference": 0.05028951385441948,
+            "rendered": 7.892512720053614e-05,
+            "shape_only": 0.10430981653740336
+          },
+          {
+            "radius_px": 305.7378729772553,
+            "pixels": 438,
+            "reference": 0.13512931294637184,
+            "rendered": 5.055373777991236e-05,
+            "shape_only": 0.10423848362876982
+          },
+          {
+            "radius_px": 330.1969028154357,
+            "pixels": 3,
+            "reference": 0.06410785516103108,
+            "rendered": 0.0,
+            "shape_only": 0.10411137863913833
+          },
+          {
+            "radius_px": 354.65593265361616,
+            "pixels": 0,
+            "reference": null,
+            "rendered": null,
+            "shape_only": null
+          },
+          {
+            "radius_px": 379.1149624917966,
+            "pixels": 0,
+            "reference": null,
+            "rendered": null,
+            "shape_only": null
+          }
+        ],
+        "warnings": []
+      },
+      "vessel_roi_misposed_scores": {
+        "domain": "attenuation_proxy",
+        "units": "arbitrary proxy units",
+        "settings": {
+          "data_range": 1.0,
+          "histogram_range": [
+            0.0,
+            1.0
+          ],
+          "bins": 64,
+          "ssim": "Gaussian 11x11, sigma=1.5, population covariance",
+          "gradient": "Sobel magnitude, 3x3 support"
+        },
+        "mask_pixels": 115026,
+        "gradient_mask_pixels": 110906,
+        "ssim_mask_pixels": 94108,
+        "as_configured": {
+          "ncc": -0.05514439958842162,
+          "gradient_ncc": -0.006444543138312906,
+          "mi_nats": 0.009265015438227489,
+          "ssim": 0.06253740525820035,
+          "rmse": 0.18102519932138045,
+          "wasserstein": 0.10709958982294858,
+          "histogram_clipped_reference_fraction": 0.0,
+          "histogram_clipped_rendered_fraction": 0.0
+        },
+        "shape_only": {
+          "ncc": -4.241779754262916e-15,
+          "gradient_ncc": null,
+          "mi_nats": 0.0,
+          "ssim": 0.468347158660721,
+          "rmse": 0.1455550715807857,
+          "wasserstein": 0.08676453277898609,
+          "histogram_clipped_reference_fraction": 0.0,
+          "histogram_clipped_rendered_fraction": 0.0
+        },
+        "affine_fit": {
+          "gain": 0.0,
+          "bias": 0.10872448538771308
+        },
+        "radial_profiles": [
+          {
+            "radius_px": 12.229514919090212,
+            "pixels": 1876,
+            "reference": 0.16795147831506058,
+            "rendered": 0.008667853455204811,
+            "shape_only": 0.10872448538771311
+          },
+          {
+            "radius_px": 36.688544757270634,
+            "pixels": 5640,
+            "reference": 0.1765203114097,
+            "rendered": 0.004397936078842249,
+            "shape_only": 0.1087244853877131
+          },
+          {
+            "radius_px": 61.14757459545106,
+            "pixels": 9352,
+            "reference": 0.17138207765651423,
+            "rendered": 0.004842269153049837,
+            "shape_only": 0.10872448538771307
+          },
+          {
+            "radius_px": 85.60660443363147,
+            "pixels": 12670,
+            "reference": 0.16781448464555446,
+            "rendered": 0.0023011234743656335,
+            "shape_only": 0.10872448538771311
+          },
+          {
+            "radius_px": 110.06563427181192,
+            "pixels": 15022,
+            "reference": 0.14849930506478834,
+            "rendered": 0.0014536925865140553,
+            "shape_only": 0.10872448538771311
+          },
+          {
+            "radius_px": 134.52466410999233,
+            "pixels": 15742,
+            "reference": 0.09643406295334123,
+            "rendered": 0.0007632696781367417,
+            "shape_only": 0.10872448538771312
+          },
+          {
+            "radius_px": 158.98369394817274,
+            "pixels": 16538,
+            "reference": 0.08302875314201145,
+            "rendered": 0.000648255885590849,
+            "shape_only": 0.10872448538771314
+          },
+          {
+            "radius_px": 183.44272378635318,
+            "pixels": 17456,
+            "reference": 0.06904212324636776,
+            "rendered": 0.0008174649272672868,
+            "shape_only": 0.10872448538771307
+          },
+          {
+            "radius_px": 207.9017536245336,
+            "pixels": 10780,
+            "reference": 0.06356087337508935,
+            "rendered": 0.0010202939479116698,
+            "shape_only": 0.10872448538771311
+          },
+          {
+            "radius_px": 232.36078346271404,
+            "pixels": 4651,
+            "reference": 0.04107714160696918,
+            "rendered": 0.0002768795942719066,
+            "shape_only": 0.10872448538771308
+          },
+          {
+            "radius_px": 256.81981330089445,
+            "pixels": 3158,
+            "reference": 0.03744739597926342,
+            "rendered": 6.0678006050885945e-05,
+            "shape_only": 0.1087244853877131
+          },
+          {
+            "radius_px": 281.27884313907487,
+            "pixels": 1700,
+            "reference": 0.05028951385441948,
+            "rendered": 4.6084340895183285e-05,
+            "shape_only": 0.1087244853877131
+          },
+          {
+            "radius_px": 305.7378729772553,
+            "pixels": 438,
+            "reference": 0.13512931294637184,
+            "rendered": 1.459777203428912e-07,
+            "shape_only": 0.1087244853877131
+          },
+          {
+            "radius_px": 330.1969028154357,
+            "pixels": 3,
+            "reference": 0.06410785516103108,
+            "rendered": 0.0,
+            "shape_only": 0.10872448538771308
+          },
+          {
+            "radius_px": 354.65593265361616,
+            "pixels": 0,
+            "reference": null,
+            "rendered": null,
+            "shape_only": null
+          },
+          {
+            "radius_px": 379.1149624917966,
+            "pixels": 0,
+            "reference": null,
+            "rendered": null,
+            "shape_only": null
+          }
+        ],
+        "warnings": [
+          "Affine gain reached zero; inspect polarity and pairing"
+        ]
+      },
+      "offset_diagnostic": {
+        "geometry": {
+          "source_to_detector_mm": 1249.52392578125,
+          "source_to_isocenter_mm": 624.761962890625,
+          "detector_width_px": 620,
+          "detector_height_px": 480,
+          "pixel_spacing_mm": 0.6159999966621399,
+          "pixel_spacing_y_mm": 0.6159999966621399,
+          "detector_offset_xy_mm": [
+            10.951577186584473,
+            1.5337587594985962
+          ]
+        },
+        "predicted_column_shift_px": -35.557068980281606,
+        "scores": {
+          "domain": "attenuation_proxy",
+          "units": "arbitrary proxy units",
+          "settings": {
+            "data_range": 1.0,
+            "histogram_range": [
+              0.0,
+              1.0
+            ],
+            "bins": 64,
+            "ssim": "Gaussian 11x11, sigma=1.5, population covariance",
+            "gradient": "Sobel magnitude, 3x3 support"
+          },
+          "mask_pixels": 241056,
+          "gradient_mask_pixels": 239080,
+          "ssim_mask_pixels": 231256,
+          "as_configured": {
+            "ncc": 0.8897191732354945,
+            "gradient_ncc": 0.726673745386766,
+            "mi_nats": 0.0849982662280829,
+            "ssim": 0.24142911697928615,
+            "rmse": 0.1273483480910845,
+            "wasserstein": 0.06446867406827553,
+            "histogram_clipped_reference_fraction": 0.0,
+            "histogram_clipped_rendered_fraction": 0.0
+          },
+          "shape_only": {
+            "ncc": 0.8897191732354155,
+            "gradient_ncc": 0.7266737453867792,
+            "mi_nats": 0.30116240577133735,
+            "ssim": 0.6285506558584701,
+            "rmse": 0.05172075347731267,
+            "wasserstein": 0.026174508228172442,
+            "histogram_clipped_reference_fraction": 0.0,
+            "histogram_clipped_rendered_fraction": 0.0011408137528209213
+          },
+          "affine_fit": {
+            "gain": 25.72270205549621,
+            "bias": 0.042831515076075355
+          },
+          "radial_profiles": [
+            {
+              "radius_px": 12.229514919090212,
+              "pixels": 1876,
+              "reference": 0.16795147831506058,
+              "rendered": 0.0023296990105104057,
+              "shape_only": 0.10275766860241886
+            },
+            {
+              "radius_px": 36.688544757270634,
+              "pixels": 5640,
+              "reference": 0.1765203114097,
+              "rendered": 0.0034666244934118055,
+              "shape_only": 0.13200246405839272
+            },
+            {
+              "radius_px": 61.14757459545106,
+              "pixels": 9380,
+              "reference": 0.17122279445626842,
+              "rendered": 0.00377326492589505,
+              "shape_only": 0.1398900845413277
+            },
+            {
+              "radius_px": 85.60660443363147,
+              "pixels": 13204,
+              "reference": 0.16312154408874963,
+              "rendered": 0.003442911434179799,
+              "shape_only": 0.1313925001009435
+            },
+            {
+              "radius_px": 110.06563427181192,
+              "pixels": 16852,
+              "reference": 0.14070396292967946,
+              "rendered": 0.002744905176322061,
+              "shape_only": 0.11343789309719701
+            },
+            {
+              "radius_px": 134.52466410999233,
+              "pixels": 20736,
+              "reference": 0.08897859301349079,
+              "rendered": 0.0008939296212864178,
+              "shape_only": 0.06582580038300845
+            },
+            {
+              "radius_px": 158.98369394817274,
+              "pixels": 24404,
+              "reference": 0.07698154033764212,
+              "rendered": 0.0007090454780685794,
+              "shape_only": 0.06107008065223029
+            },
+            {
+              "radius_px": 183.44272378635318,
+              "pixels": 28172,
+              "reference": 0.06128610318084171,
+              "rendered": 0.0004542062108580702,
+              "shape_only": 0.05451492610973338
+            },
+            {
+              "radius_px": 207.9017536245336,
+              "pixels": 31504,
+              "reference": 0.04664157709762371,
+              "rendered": 0.00034342153023351265,
+              "shape_only": 0.0516652447777146
+            },
+            {
+              "radius_px": 232.36078346271404,
+              "pixels": 27328,
+              "reference": 0.02783782199784171,
+              "rendered": 3.429890816502159e-06,
+              "shape_only": 0.04291974113563113
+            },
+            {
+              "radius_px": 256.81981330089445,
+              "pixels": 25148,
+              "reference": 0.012803027983763761,
+              "rendered": 7.785006562735523e-06,
+              "shape_only": 0.043031766480388686
+            },
+            {
+              "radius_px": 281.27884313907487,
+              "pixels": 20556,
+              "reference": 0.00779447141881814,
+              "rendered": 1.7938143724828278e-06,
+              "shape_only": 0.0428776568287216
+            },
+            {
+              "radius_px": 305.7378729772553,
+              "pixels": 10960,
+              "reference": 0.00760464040141036,
+              "rendered": 9.126138447616565e-06,
+              "shape_only": 0.0430662640162806
+            },
+            {
+              "radius_px": 330.1969028154357,
+              "pixels": 4844,
+              "reference": 0.012507851068684132,
+              "rendered": 1.1638681725050186e-05,
+              "shape_only": 0.04313089341840757
+            },
+            {
+              "radius_px": 354.65593265361616,
+              "pixels": 452,
+              "reference": 0.007220139941283032,
+              "rendered": 0.0,
+              "shape_only": 0.04283151507607536
+            },
+            {
+              "radius_px": 379.1149624917966,
+              "pixels": 0,
+              "reference": null,
+              "rendered": null,
+              "shape_only": null
+            }
+          ],
+          "warnings": []
+        },
+        "misposed_scores": {
+          "domain": "attenuation_proxy",
+          "units": "arbitrary proxy units",
+          "settings": {
+            "data_range": 1.0,
+            "histogram_range": [
+              0.0,
+              1.0
+            ],
+            "bins": 64,
+            "ssim": "Gaussian 11x11, sigma=1.5, population covariance",
+            "gradient": "Sobel magnitude, 3x3 support"
+          },
+          "mask_pixels": 241056,
+          "gradient_mask_pixels": 239080,
+          "ssim_mask_pixels": 231256,
+          "as_configured": {
+            "ncc": 0.12532824084720431,
+            "gradient_ncc": 0.16792528042767582,
+            "mi_nats": 0.01327557963310671,
+            "ssim": 0.25519536076196353,
+            "rmse": 0.1299866995270344,
+            "wasserstein": 0.0644766599490697,
+            "histogram_clipped_reference_fraction": 0.0,
+            "histogram_clipped_rendered_fraction": 0.0
+          },
+          "shape_only": {
+            "ncc": 0.12532824084719732,
+            "gradient_ncc": 0.16792528042767527,
+            "mi_nats": 0.09135181964022865,
+            "ssim": 0.5098847910562189,
+            "rmse": 0.11240311915781495,
+            "wasserstein": 0.05178336501916678,
+            "histogram_clipped_reference_fraction": 0.0,
+            "histogram_clipped_rendered_fraction": 0.0
+          },
+          "affine_fit": {
+            "gain": 3.585627823103696,
+            "bias": 0.0622343826656117
+          },
+          "radial_profiles": [
+            {
+              "radius_px": 12.229514919090212,
+              "pixels": 1876,
+              "reference": 0.16795147831506058,
+              "rendered": 0.00794539054558299,
+              "shape_only": 0.09072359607127911
+            },
+            {
+              "radius_px": 36.688544757270634,
+              "pixels": 5640,
+              "reference": 0.1765203114097,
+              "rendered": 0.006811811222689068,
+              "shape_only": 0.08665900251141563
+            },
+            {
+              "radius_px": 61.14757459545106,
+              "pixels": 9380,
+              "reference": 0.17122279445626842,
+              "rendered": 0.003431386786073896,
+              "shape_only": 0.07453805859758864
+            },
+            {
+              "radius_px": 85.60660443363147,
+              "pixels": 13204,
+              "reference": 0.16312154408874963,
+              "rendered": 0.0030629792646695957,
+              "shape_only": 0.07321708633860069
+            },
+            {
+              "radius_px": 110.06563427181192,
+              "pixels": 16852,
+              "reference": 0.14070396292967946,
+              "rendered": 0.0016985218842866323,
+              "shape_only": 0.06832464999206037
+            },
+            {
+              "radius_px": 134.52466410999233,
+              "pixels": 20736,
+              "reference": 0.08897859301349079,
+              "rendered": 0.0007134335345229464,
+              "shape_only": 0.06479248979693239
+            },
+            {
+              "radius_px": 158.98369394817274,
+              "pixels": 24404,
+              "reference": 0.07698154033764212,
+              "rendered": 0.000685754747287156,
+              "shape_only": 0.06469324396730997
+            },
+            {
+              "radius_px": 183.44272378635318,
+              "pixels": 28172,
+              "reference": 0.06128610318084171,
+              "rendered": 0.00041192455380600684,
+              "shape_only": 0.06371139080675808
+            },
+            {
+              "radius_px": 207.9017536245336,
+              "pixels": 31504,
+              "reference": 0.04664157709762371,
+              "rendered": 0.00034257052783175833,
+              "shape_only": 0.06346271308158055
+            },
+            {
+              "radius_px": 232.36078346271404,
+              "pixels": 27328,
+              "reference": 0.02783782199784171,
+              "rendered": 9.359019004620505e-06,
+              "shape_only": 0.06226794062455161
+            },
+            {
+              "radius_px": 256.81981330089445,
+              "pixels": 25148,
+              "reference": 0.012803027983763761,
+              "rendered": 2.9573247486432267e-06,
+              "shape_only": 0.062244986531512385
+            },
+            {
+              "radius_px": 281.27884313907487,
+              "pixels": 20556,
+              "reference": 0.00779447141881814,
+              "rendered": 6.5277572594467816e-06,
+              "shape_only": 0.06225778877366363
+            },
+            {
+              "radius_px": 305.7378729772553,
+              "pixels": 10960,
+              "reference": 0.00760464040141036,
+              "rendered": 7.045749739388423e-06,
+              "shape_only": 0.06225964610191187
+            },
+            {
+              "radius_px": 330.1969028154357,
+              "pixels": 4844,
+              "reference": 0.012507851068684132,
+              "rendered": 1.080727484807815e-07,
+              "shape_only": 0.062234770174265576
+            },
+            {
+              "radius_px": 354.65593265361616,
+              "pixels": 452,
+              "reference": 0.007220139941283032,
+              "rendered": 0.0,
+              "shape_only": 0.06223438266561168
+            },
+            {
+              "radius_px": 379.1149624917966,
+              "pixels": 0,
+              "reference": null,
+              "rendered": null,
+              "shape_only": null
+            }
+          ],
+          "warnings": []
+        },
+        "vessel_roi_scores": {
+          "domain": "attenuation_proxy",
+          "units": "arbitrary proxy units",
+          "settings": {
+            "data_range": 1.0,
+            "histogram_range": [
+              0.0,
+              1.0
+            ],
+            "bins": 64,
+            "ssim": "Gaussian 11x11, sigma=1.5, population covariance",
+            "gradient": "Sobel magnitude, 3x3 support"
+          },
+          "mask_pixels": 114877,
+          "gradient_mask_pixels": 110721,
+          "ssim_mask_pixels": 93759,
+          "as_configured": {
+            "ncc": 0.9047558392818175,
+            "gradient_ncc": 0.7025279804130093,
+            "mi_nats": 0.1473680351628548,
+            "ssim": 0.024873037048933858,
+            "rmse": 0.1814352644863858,
+            "wasserstein": 0.11089617188645474,
+            "histogram_clipped_reference_fraction": 0.0,
+            "histogram_clipped_rendered_fraction": 0.0
+          },
+          "shape_only": {
+            "ncc": 0.9047558392818712,
+            "gradient_ncc": 0.7025279804130166,
+            "mi_nats": 0.4202219531386203,
+            "ssim": 0.6859234573454235,
+            "rmse": 0.06328201148320274,
+            "wasserstein": 0.027052895197870838,
+            "histogram_clipped_reference_fraction": 0.0,
+            "histogram_clipped_rendered_fraction": 0.0019586166073278376
+          },
+          "affine_fit": {
+            "gain": 24.35636172437639,
+            "bias": 0.06800238850573354
+          },
+          "radial_profiles": [
+            {
+              "radius_px": 12.229514919090212,
+              "pixels": 1876,
+              "reference": 0.16795147831506058,
+              "rendered": 0.0023296990105104057,
+              "shape_only": 0.12474538031464673
+            },
+            {
+              "radius_px": 36.688544757270634,
+              "pixels": 5630,
+              "reference": 0.17673017401678312,
+              "rendered": 0.003472781908142555,
+              "shape_only": 0.15258672085032365
+            },
+            {
+              "radius_px": 61.14757459545106,
+              "pixels": 9247,
+              "reference": 0.1729318146848983,
+              "rendered": 0.003827535958137295,
+              "shape_only": 0.16122723881518308
+            },
+            {
+              "radius_px": 85.60660443363147,
+              "pixels": 11715,
+              "reference": 0.1774485290177704,
+              "rendered": 0.003880512383859161,
+              "shape_only": 0.16251755180292934
+            },
+            {
+              "radius_px": 110.06563427181192,
+              "pixels": 15006,
+              "reference": 0.15141781114759753,
+              "rendered": 0.003082576438183351,
+              "shape_only": 0.14308273527716697
+            },
+            {
+              "radius_px": 134.52466410999233,
+              "pixels": 16241,
+              "reference": 0.09909980898676787,
+              "rendered": 0.0011413413353238814,
+              "shape_only": 0.09580131091986475
+            },
+            {
+              "radius_px": 158.98369394817274,
+              "pixels": 15985,
+              "reference": 0.09307903961200135,
+              "rendered": 0.0010824864464676642,
+              "shape_only": 0.09436781995763474
+            },
+            {
+              "radius_px": 183.44272378635318,
+              "pixels": 15748,
+              "reference": 0.07805339152933469,
+              "rendered": 0.0008125411082228571,
+              "shape_only": 0.0877929336535351
+            },
+            {
+              "radius_px": 207.9017536245336,
+              "pixels": 13730,
+              "reference": 0.06155635423236577,
+              "rendered": 0.0007879935825547402,
+              "shape_only": 0.08719504523892402
+            },
+            {
+              "radius_px": 232.36078346271404,
+              "pixels": 5644,
+              "reference": 0.03691019922558252,
+              "rendered": 1.6607380622496634e-05,
+              "shape_only": 0.06840688387546945
+            },
+            {
+              "radius_px": 256.81981330089445,
+              "pixels": 1481,
+              "reference": 0.05266421473887545,
+              "rendered": 0.0001321926705196981,
+              "shape_only": 0.07122212100622259
+            },
+            {
+              "radius_px": 281.27884313907487,
+              "pixels": 1186,
+              "reference": 0.07634211757532863,
+              "rendered": 3.109076580165009e-05,
+              "shape_only": 0.0687596464438864
+            },
+            {
+              "radius_px": 305.7378729772553,
+              "pixels": 887,
+              "reference": 0.08795848169617078,
+              "rendered": 0.00011276491249817086,
+              "shape_only": 0.07074893150435663
+            },
+            {
+              "radius_px": 330.1969028154357,
+              "pixels": 477,
+              "reference": 0.12701893202663717,
+              "rendered": 0.0001181923989017675,
+              "shape_only": 0.07088112532645674
+            },
+            {
+              "radius_px": 354.65593265361616,
+              "pixels": 24,
+              "reference": 0.12787216156721115,
+              "rendered": 0.0,
+              "shape_only": 0.06800238850573354
+            },
+            {
+              "radius_px": 379.1149624917966,
+              "pixels": 0,
+              "reference": null,
+              "rendered": null,
+              "shape_only": null
+            }
+          ],
+          "warnings": []
+        }
+      },
+      "elapsed_seconds": 7.545845247805119
+    }
+  ]
+}
