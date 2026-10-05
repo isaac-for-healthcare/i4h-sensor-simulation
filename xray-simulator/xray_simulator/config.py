@@ -725,8 +725,11 @@ class SimulatorConfig:
     def save_preset(self, path: str | Path) -> Path:
         """Write a complete UTF-8 JSON or YAML preset and return its absolute path.
 
-        The parent directory must exist. Validation finishes before an existing
-        file is replaced. This saves configuration only, not a volume or a pose.
+        Symlinks are preserved; their resolved target is atomically replaced,
+        retaining any existing permission bits. The target's parent directory
+        must exist. The supplied path selects the format and is returned as an
+        absolute path. Validation finishes before writing. This saves
+        configuration only, not a volume or a pose.
         """
         from .presets import save_preset
 

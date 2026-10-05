@@ -213,7 +213,7 @@ def load_preset(path: str | Path) -> SimulatorConfig:
 
 
 def save_preset(config: SimulatorConfig, path: str | Path) -> Path:
-    """Atomically save a validated preset, preserving existing permission bits."""
+    """Atomically save a validated preset, following symlinks and preserving target permissions."""
     path = _preset_path(path)
     document = config_to_dict(config)
     text = (
@@ -221,19 +221,22 @@ def save_preset(config: SimulatorConfig, path: str | Path) -> Path:
         if path.suffix.lower() == ".json"
         else yaml.safe_dump(document, sort_keys=False)
     )
+    # Keep the caller's path for format selection and the return value, but
+    # replace the resolved target so aliases remain intact.
+    destination = path.resolve()
     existing_mode: int | None = None
     try:
-        existing_mode = stat.S_IMODE(path.stat().st_mode)
+        existing_mode = stat.S_IMODE(destination.stat().st_mode)
     except FileNotFoundError:
         pass  # New presets retain the temporary file's private permissions.
     temporary = None
     try:
-        with NamedTemporaryFile(mode="w", encoding="utf-8", dir=path.parent, delete=False) as stream:
+        with NamedTemporaryFile(mode="w", encoding="utf-8", dir=destination.parent, delete=False) as stream:
             temporary = Path(stream.name)
             stream.write(text)
         if existing_mode is not None:
             temporary.chmod(existing_mode)
-        os.replace(temporary, path)
+        os.replace(temporary, destination)
     finally:
         if temporary is not None:
             temporary.unlink(missing_ok=True)

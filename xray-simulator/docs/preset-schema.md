@@ -61,7 +61,13 @@ documents, and values that cannot be represented in JSON. Saving validates befor
 atomically replaces the destination, preserving an existing file's permission bits.
 New files use owner-only permissions. If copying the permissions fails, saving
 raises the file-system error and leaves the original file intact.
-The parent directory must already exist.
+Saving through a symbolic link follows the link (including relative links and
+link chains) and atomically replaces its target, keeping the links intact.
+Other aliases of the same target therefore see the updated preset. A link to a
+missing file creates that target; the target's parent directory must already
+exist. The temporary file is created beside the resolved target so replacement
+stays on the same filesystem. The supplied path's extension selects the format,
+and its absolute path is returned without resolving the links.
 Malformed documents, duplicate keys, unsupported versions, and invalid values raise
 `ValueError`; validation messages identify the relevant field or section. File
 loading also includes the preset path in validation errors. File-system failures

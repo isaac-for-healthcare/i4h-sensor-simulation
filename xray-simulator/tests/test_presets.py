@@ -122,6 +122,95 @@ def test_permission_copy_failure_preserves_original_file(tmp_path, monkeypatch):
     assert list(tmp_path.iterdir()) == [path]  # The unpublished temporary file is removed.
 
 
+@pytest.mark.skipif(os.name != "posix", reason="POSIX symlinks and permission bits")
+@pytest.mark.parametrize("extension", [".json", ".yaml"])
+@pytest.mark.parametrize("link_kind", ["absolute", "relative", "chain"])
+def test_saving_through_symlink_updates_target(tmp_path, extension, link_kind):
+    shared = tmp_path / "shared"
+    shared.mkdir()
+    target = SimulatorConfig().save_preset(shared / ("preset" + extension))
+    target.chmod(0o640)
+    alias = tmp_path / ("alias" + extension)
+    if link_kind == "chain":
+        intermediate = shared / ("intermediate" + extension)
+        intermediate.symlink_to(target.name)
+        alias.symlink_to(intermediate.relative_to(tmp_path))
+    else:
+        alias.symlink_to(target if link_kind == "absolute" else target.relative_to(tmp_path))
+    original_link = alias.readlink()
+    updated = SimulatorConfig().with_display(gamma=1.5)
+
+    assert updated.save_preset(alias) == alias
+
+    assert alias.is_symlink()
+    assert alias.readlink() == original_link
+    assert SimulatorConfig.from_preset(alias) == updated
+    assert SimulatorConfig.from_preset(target) == updated
+    assert stat.S_IMODE(target.stat().st_mode) == 0o640
+    if link_kind == "chain":
+        assert intermediate.is_symlink()
+        assert intermediate.readlink() == Path(target.name)
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX symlinks and permission bits")
+@pytest.mark.parametrize("extension", [".json", ".yaml"])
+def test_saving_through_dangling_symlink_creates_target(tmp_path, extension):
+    shared = tmp_path / "shared"
+    shared.mkdir()
+    target = shared / ("new" + extension)
+    alias = tmp_path / ("alias" + extension)
+    alias.symlink_to(target.relative_to(tmp_path))
+    config = SimulatorConfig()
+
+    assert config.save_preset(alias) == alias
+
+    assert alias.is_symlink()
+    assert alias.readlink() == target.relative_to(tmp_path)
+    assert SimulatorConfig.from_preset(target) == config
+    assert stat.S_IMODE(target.stat().st_mode) & 0o077 == 0
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX symlinks and permission bits")
+@pytest.mark.parametrize("failure", ["chmod", "replace"])
+def test_failed_symlink_save_preserves_target_and_link(tmp_path, monkeypatch, failure):
+    shared = tmp_path / "shared"
+    shared.mkdir()
+    target = SimulatorConfig().save_preset(shared / "preset.json")
+    target.chmod(0o640)
+    original = target.read_bytes()
+    alias = tmp_path / "alias.json"
+    alias.symlink_to(target.relative_to(tmp_path))
+
+    def deny_write(*args, **kwargs):
+        raise PermissionError("cannot publish preset")
+
+    monkeypatch.setattr(Path if failure == "chmod" else os, failure, deny_write)
+    with pytest.raises(PermissionError, match="cannot publish preset"):
+        SimulatorConfig().with_display(gamma=1.5).save_preset(alias)
+
+    assert alias.is_symlink()
+    assert alias.readlink() == target.relative_to(tmp_path)
+    assert target.read_bytes() == original
+    assert stat.S_IMODE(target.stat().st_mode) == 0o640
+    assert set(tmp_path.iterdir()) == {shared, alias}
+    assert list(shared.iterdir()) == [target]
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX symlinks")
+@pytest.mark.parametrize("extension", [".json", ".yaml"])
+def test_symlink_name_selects_preset_format(tmp_path, extension):
+    target = tmp_path / "preset-data"
+    alias = tmp_path / ("alias" + extension)
+    alias.symlink_to(target.name)
+    config = SimulatorConfig()
+
+    config.save_preset(alias)
+
+    assert alias.is_symlink()
+    assert SimulatorConfig.from_preset(alias) == config
+    assert target.read_text().startswith("{" if extension == ".json" else "schema_version:")
+
+
 @pytest.mark.parametrize("name,polarity", [("fluoroscopy", "fluoro"), ("radiograph", "diagnostic")])
 def test_examples_match_public_schema(name, polarity):
     schema = get_preset_schema()
