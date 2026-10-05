@@ -651,6 +651,8 @@ class SimulatorConfig:
         output: Output settings for rendered frames.
         metrics: Performance metrics settings.
         backend: Rendering backend (currently only "slang" is supported).
+        preprocessing: HU clipping and transfer function; pass to VolumePreprocessor
+            when preparing a raw CT volume. Already preprocessed volumes retain their mapping.
 
     Example:
         >>> config = SimulatorConfig(
@@ -671,6 +673,7 @@ class SimulatorConfig:
     output: OutputSettings = field(default_factory=OutputSettings)
     metrics: MetricsSettings = field(default_factory=MetricsSettings)
     backend: Literal["slang"] = "slang"
+    preprocessing: PreprocessingSettings = field(default_factory=PreprocessingSettings)
 
     @classmethod
     def for_appearance(cls, preset: str, **kwargs) -> "SimulatorConfig":
@@ -685,6 +688,53 @@ class SimulatorConfig:
         """
         return cls(display=DisplaySettings.preset(preset), **kwargs)
 
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> SimulatorConfig:
+        """Validate and load a versioned preset dictionary without initializing a GPU.
+
+        The preset groups settings into modality, beam, geometry, detector, and
+        post_processing. Unknown keys, unsupported versions, and invalid values
+        raise ValueError. See docs/preset-schema.md for the complete v1 contract.
+        """
+        from .presets import config_from_dict
+
+        return config_from_dict(data)
+
+    def to_dict(self) -> dict[str, Any]:
+        """Return a validated v1 preset with all defaults explicit.
+
+        Deprecated physics.normalize/invert flags are resolved into display
+        settings, preserving their appearance while emitting the existing warning.
+        """
+        from .presets import config_to_dict
+
+        return config_to_dict(self)
+
+    @classmethod
+    def from_preset(cls, path: str | Path) -> SimulatorConfig:
+        """Load and validate a UTF-8 JSON or YAML preset file; no GPU is required.
+
+        Invalid syntax, duplicate keys, and invalid settings raise ValueError.
+        Filesystem errors propagate as OSError. Relative output_dir values retain
+        their existing meaning: relative to the simulator's working directory.
+        """
+        from .presets import load_preset
+
+        return load_preset(path)
+
+    def save_preset(self, path: str | Path) -> Path:
+        """Write a complete UTF-8 JSON or YAML preset and return its absolute path.
+
+        Symlinks are preserved; their resolved target is atomically replaced,
+        retaining any existing permission bits. The target's parent directory
+        must exist. The supplied path selects the format and is returned as an
+        absolute path. Validation finishes before writing. This saves
+        configuration only, not a volume or a pose.
+        """
+        from .presets import save_preset
+
+        return save_preset(self, path)
+
     def _replace(self, **kwargs) -> "SimulatorConfig":
         fields = {
             "geometry": self.geometry,
@@ -694,6 +744,7 @@ class SimulatorConfig:
             "output": self.output,
             "metrics": self.metrics,
             "backend": self.backend,
+            "preprocessing": self.preprocessing,
         }
         return SimulatorConfig(**{**fields, **kwargs})
 
@@ -712,6 +763,10 @@ class SimulatorConfig:
     def with_output(self, **kwargs) -> "SimulatorConfig":
         """Return a new config with updated output settings."""
         return self._replace(output=OutputSettings(**{**self.output.__dict__, **kwargs}))
+
+    def with_preprocessing(self, **kwargs) -> SimulatorConfig:
+        """Return a config with updated HU clipping or a HuToMuMapping instance."""
+        return self._replace(preprocessing=PreprocessingSettings(**{**self.preprocessing.__dict__, **kwargs}))
 
 
 def resolve_display_settings(

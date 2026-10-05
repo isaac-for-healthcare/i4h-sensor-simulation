@@ -100,7 +100,7 @@ A verification step confirms the output is valid (correct dtype, non-empty μ ra
 
 ### Alternative: The Cancer Imaging Archive (TCIA)
 
-Public datasets from [The Cancer Imaging Archive (TCIA)](https://www.cancerimagingarchive.net/) can also be used for testing.
+Public datasets from The Cancer Imaging Archive (TCIA) can also be used for testing. See the [NCI TCIA overview](https://dctd.cancer.gov/data-tools-biospecimens/data/tcia) for background and access to the archive.
 
 ---
 

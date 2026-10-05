@@ -180,6 +180,17 @@ print(trans.grad)  # ∂L/∂translation
 
 ### Key Methods
 
+**SimulatorConfig:**
+
+| Method | Description |
+| ------ | ----------- |
+| `from_preset(path)` | Load and validate a versioned JSON/YAML preset without initializing a GPU |
+| `save_preset(path)` | Validate and save all settings and defaults to JSON/YAML |
+| `from_dict(data)` / `to_dict()` | Convert between a preset document and the existing configuration classes |
+
+The package-level `get_preset_schema()` returns the bundled JSON Schema. See the
+[preset reference](preset-schema.md) for fields, units, defaults, and validation behavior.
+
 **VolumePreprocessor:**
 
 | Method | Description |
@@ -240,6 +251,9 @@ print(trans.grad)  # ∂L/∂translation
 ## Configuration
 
 ### SimulatorConfig
+
+Configurations can also be shared as [versioned JSON/YAML presets](preset-schema.md).
+`SimulatorConfig.from_preset(path)` returns the same configuration type used below.
 
 ```python
 from xray_simulator import SimulatorConfig, CarmGeometry, XrayPhysics, DisplaySettings, RealismSettings
