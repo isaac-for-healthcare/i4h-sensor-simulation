@@ -142,9 +142,9 @@ export I4H_VALIDATION_DATA_ROOT=/path/to/validation-data/fluoroscopy
 export OPENBLAS_NUM_THREADS=1
 export OMP_NUM_THREADS=1
 
-python xray-simulator/docs/reports/2026-10-05-deepfluoro-ljubljana/render_and_compare.py \
+python xray-simulator/docs/reports/deepfluoro-ljubljana/render_and_compare.py \
   --output /path/to/new-local-render-output
-python xray-simulator/docs/reports/2026-10-05-deepfluoro-ljubljana/build_local_report.py \
+python xray-simulator/docs/reports/deepfluoro-ljubljana/build_local_report.py \
   /path/to/new-local-render-output
 ```
 
