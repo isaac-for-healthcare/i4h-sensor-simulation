@@ -3,6 +3,10 @@
 Download data separately from source code and keep original dataset cards and
 licenses. The simulator's Apache license does not relicense third-party data.
 Keep dataset files, access tokens and generated patient images outside version control.
+The only exception is the attributed DeepFluoro sample figure in the
+[validation results](validation.md#deepfluoro-sample-comparisons), which that
+dataset's CC BY-NC 4.0 licence permits. Never commit images derived from
+Ljubljana (CC BY-NC-ND 4.0) or CT-RATE.
 
 | Dataset | Use | Needed for paired comparison |
 | --- | --- | --- |
