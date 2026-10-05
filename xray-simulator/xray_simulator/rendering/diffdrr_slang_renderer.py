@@ -86,6 +86,8 @@ from typing import Optional, Union
 
 import numpy as np
 
+from ..geometry import axis_aligned_voxel_to_world_mm, volume_center_xyz_mm
+
 # Optional dependencies
 try:
     import torch
@@ -170,6 +172,7 @@ class SlangDiffDRRRenderer:
         spacing_zyx_mm: tuple[float, float, float],
         origin_xyz_mm: tuple[float, float, float] = (0.0, 0.0, 0.0),
         cfg: SlangDiffDRRConfig = SlangDiffDRRConfig(),
+        voxel_to_world_mm: np.ndarray | None = None,
     ):
         """Initialize the Slang differentiable DRR renderer.
 
@@ -181,6 +184,9 @@ class SlangDiffDRRRenderer:
                 change the rendered image; it makes the render happen in the patient's
                 coordinate frame so that poses and translations can be expressed there.
             cfg: Renderer configuration.
+            voxel_to_world_mm: 4x4 affine from voxel-centre (x, y, z) indices to world mm.
+                Defaults to the axis-aligned grid given by spacing and origin; pass it for
+                oblique or flipped scans.
 
         Raises:
             RuntimeError: If Slang/slangpy is not available.
@@ -203,6 +209,11 @@ class SlangDiffDRRRenderer:
         # Convert spacing from ZYX to XYZ
         sz, sy, sx = spacing_zyx_mm
         self._spacing_xyz = (sx, sy, sz)
+
+        if voxel_to_world_mm is None:
+            voxel_to_world_mm = axis_aligned_voxel_to_world_mm(spacing_zyx_mm, origin_xyz_mm)
+        self._world_to_voxel = np.linalg.inv(np.asarray(voxel_to_world_mm, dtype=np.float64))
+        self._center_xyz = volume_center_xyz_mm(mu_volume.shape, spacing_zyx_mm, voxel_to_world_mm=voxel_to_world_mm)
 
         # Store volume as contiguous float32
         self._mu_volume = np.ascontiguousarray(mu_volume.astype(np.float32))
@@ -324,16 +335,17 @@ class SlangDiffDRRRenderer:
         translation: tuple[float, float, float],
     ) -> tuple[dict, dict, dict]:
         """Build parameter dictionaries for shader dispatch."""
-        sz, sy, sx = self._spacing_zyx
         z, y, x = self._vol_shape_zyx
         cfg = self._cfg
-
-        ox, oy, oz = self._origin_xyz
+        w2v = self._world_to_voxel
 
         vol_info = {
-            "spacing": slangpy.float3(sx, sy, sz),
             "dimensions": slangpy.int3(x, y, z),
-            "origin": slangpy.float3(ox, oy, oz),
+            "center": slangpy.float3(*self._center_xyz),
+            "worldToIndexRow0": slangpy.float3(*w2v[0, :3]),
+            "worldToIndexRow1": slangpy.float3(*w2v[1, :3]),
+            "worldToIndexRow2": slangpy.float3(*w2v[2, :3]),
+            "worldToIndexOffset": slangpy.float3(*w2v[:3, 3]),
         }
 
         carm = {

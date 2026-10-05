@@ -26,9 +26,19 @@ from pathlib import Path
 
 import numpy as np
 
+from . import scan_volume
 from .config import HuToMuMapping, PreprocessingSettings
 from .hu_mapping import hu_to_mu
+from .scan_volume import Conversion, ScanVolume
 from .volume import PreprocessedVolume, VolumeMetadata
+
+
+def ijk_to_lps_mm(scan: ScanVolume) -> np.ndarray:
+    """Return the 4x4 affine from a scan's voxel-centre (i, j, k) indices to LPS mm."""
+    t = np.diag([scan.meters_per_unit * 1000.0] * 3 + [1.0])
+    if scan.frame == "RAS":
+        t = np.diag([-1.0, -1.0, 1.0, 1.0]) @ t
+    return t @ scan.ijk_to_world
 
 
 class VolumePreprocessor:
@@ -58,6 +68,8 @@ class VolumePreprocessor:
         source: str | None = None,
         settings: PreprocessingSettings | None = None,
         anatomical_frame: str | None = None,
+        voxel_to_lps_mm: list | None = None,
+        scan_metadata: dict | None = None,
     ):
         """Initialize preprocessor with a loaded HU volume.
 
@@ -67,12 +79,9 @@ class VolumePreprocessor:
             origin_xyz_mm: Volume origin in mm (X, Y, Z).
             source: Source path for metadata.
             settings: Preprocessing settings.
-            anatomical_frame: Patient frame the volume axes are already in, recorded in the
-                metadata so the renderer can trust the anatomical view presets. This
-                preprocessor reads volumes as they come off disk and never reorients them,
-                so pass "LPS" only for data already in the canonical frame; leave it None
-                and use the digital-twin preprocessing to have arbitrary acquisitions
-                reoriented for you.
+            anatomical_frame: Physical frame for anatomical view presets.
+            voxel_to_lps_mm: Optional affine from voxel-centre (i, j, k) indices to LPS mm.
+            scan_metadata: Source geometry and conversion recipe, when available.
         """
         if hu_volume.ndim != 3:
             raise ValueError(f"Expected 3D volume, got shape {hu_volume.shape}")
@@ -83,86 +92,82 @@ class VolumePreprocessor:
         self._source = source
         self._settings = settings or PreprocessingSettings()
         self._anatomical_frame = anatomical_frame
+        self._voxel_to_lps_mm = voxel_to_lps_mm
+        self._scan_metadata = scan_metadata
+
+    @classmethod
+    def from_scan(
+        cls,
+        scan: ScanVolume,
+        settings: PreprocessingSettings | None = None,
+        source: str | None = None,
+    ) -> "VolumePreprocessor":
+        """Create a preprocessor from a native HU grid and its full affine.
+
+        The array is never reoriented; the renderer ray-marches through the voxel grid
+        using ``voxel_to_lps_mm``, so oblique and flipped acquisitions need no
+        caller-side flips.
+
+        Args:
+            scan: HU volume with its scan geometry.
+            settings: Preprocessing settings.
+            source: Source path for metadata.
+
+        Returns:
+            VolumePreprocessor instance ready for preprocessing.
+        """
+        affine = ijk_to_lps_mm(scan)
+        spacing_xyz = np.linalg.norm(affine[:3, :3], axis=0)
+        return cls(
+            scan.values_kji,
+            tuple(spacing_xyz[::-1]),
+            tuple(affine[:3, 3]),
+            source=source,
+            settings=settings,
+            anatomical_frame="LPS",
+            voxel_to_lps_mm=affine.tolist(),
+            scan_metadata=scan.metadata,
+        )
 
     @classmethod
     def from_dicom(
         cls,
         dicom_dir: str | Path,
         settings: PreprocessingSettings | None = None,
-        anatomical_frame: str | None = None,
+        series_uid: str | None = None,
+        conversion: Conversion | None = None,
     ) -> "VolumePreprocessor":
-        """Create a preprocessor from a DICOM series directory.
+        """Create a preprocessor from a regular, single-series DICOM CT directory.
 
         Args:
             dicom_dir: Path to directory containing DICOM files.
             settings: Preprocessing settings.
-            anatomical_frame: Patient frame the series is already in, if known. The series
-                is not reoriented; see the constructor.
+            series_uid: Series to load; required when the directory holds several.
+            conversion: Optional grid conversion, e.g. resampling to a new spacing.
 
         Returns:
             VolumePreprocessor instance ready for preprocessing.
-
-        Raises:
-            FileNotFoundError: If directory doesn't exist.
-            RuntimeError: If SimpleITK is not installed or no DICOM found.
         """
-        # Import the existing DICOM loader
-        from xray_simulator.ct.dicom_ingest import load_dicom_series_hu
-
-        dicom_dir = Path(dicom_dir)
-        if not dicom_dir.exists():
-            raise FileNotFoundError(f"DICOM directory not found: {dicom_dir}")
-
-        ct = load_dicom_series_hu(dicom_dir)
-
-        return cls(
-            hu_volume=ct.hu_zyx,
-            spacing_zyx_mm=ct.spacing_zyx_mm or (1.0, 1.0, 1.0),
-            origin_xyz_mm=ct.origin_xyz_mm,
-            source=str(dicom_dir),
-            settings=settings,
-            anatomical_frame=anatomical_frame,
-        )
+        scan = scan_volume.from_dicom(dicom_dir, series_uid=series_uid, conversion=conversion or Conversion())
+        return cls.from_scan(scan, settings, source=str(dicom_dir))
 
     @classmethod
     def from_nifti(
         cls,
         nifti_path: str | Path,
         settings: PreprocessingSettings | None = None,
-        anatomical_frame: str | None = None,
     ) -> "VolumePreprocessor":
-        """Create a preprocessor from a NIfTI file.
+        """Create a preprocessor from a NIfTI file (.nii or .nii.gz) and its affine."""
+        return cls.from_scan(scan_volume.from_nifti(nifti_path), settings, source=str(nifti_path))
 
-        Args:
-            nifti_path: Path to NIfTI file (.nii or .nii.gz).
-            settings: Preprocessing settings.
-            anatomical_frame: Patient frame the file is already in, if known. The volume is
-                not reoriented; see the constructor.
-
-        Returns:
-            VolumePreprocessor instance ready for preprocessing.
-
-        Raises:
-            FileNotFoundError: If file doesn't exist.
-            RuntimeError: If nibabel is not installed.
-        """
-        # Import the existing NIfTI loader
-        from xray_simulator.ct.dicom_ingest import load_nifti_hu
-
-        nifti_path = Path(nifti_path)
-        if not nifti_path.exists():
-            raise FileNotFoundError(f"NIfTI file not found: {nifti_path}")
-
-        ct = load_nifti_hu(nifti_path)
-
-        return cls(
-            hu_volume=ct.hu_zyx,
-            spacing_zyx_mm=ct.spacing_zyx_mm or (1.0, 1.0, 1.0),
-            origin_xyz_mm=ct.origin_xyz_mm,
-            source=str(nifti_path),
-            settings=settings,
-            anatomical_frame=anatomical_frame,
-        )
+    @classmethod
+    def from_artifact(
+        cls,
+        metadata_path: str | Path,
+        settings: PreprocessingSettings | None = None,
+    ) -> "VolumePreprocessor":
+        """Create a preprocessor from a saved volume.yaml and its hash-verified HU array."""
+        return cls.from_scan(scan_volume.load_artifact(metadata_path), settings, source=str(metadata_path))
 
     @classmethod
     def from_numpy(
@@ -218,6 +223,8 @@ class VolumePreprocessor:
             source=self._source,
             settings=replace(self._settings, hu_to_mu=mapping),
             anatomical_frame=self._anatomical_frame,
+            voxel_to_lps_mm=self._voxel_to_lps_mm,
+            scan_metadata=self._scan_metadata,
         )
 
     @property
@@ -281,6 +288,8 @@ class VolumePreprocessor:
             source=self._source,
             hu_to_mu=settings.hu_to_mu.to_dict(),
             anatomical_frame=self._anatomical_frame,
+            voxel_to_lps_mm=self._voxel_to_lps_mm,
+            scan_metadata=self._scan_metadata,
         )
 
         # Create volume

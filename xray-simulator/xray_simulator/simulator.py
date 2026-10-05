@@ -391,6 +391,7 @@ class xray_simulator:
                 spacing_zyx_mm=self._volume.spacing_zyx_mm,
                 origin_xyz_mm=self._volume.metadata.origin_xyz_mm or (0.0, 0.0, 0.0),
                 cfg=slang_cfg,
+                voxel_to_world_mm=self._volume.metadata.voxel_to_lps_mm,
             )
 
         except Exception as e:
@@ -632,6 +633,7 @@ class xray_simulator:
             self._volume.shape,
             self._volume.spacing_zyx_mm,
             self._volume.metadata.origin_xyz_mm or (0.0, 0.0, 0.0),
+            self._volume.metadata.voxel_to_lps_mm,
         )
 
     def _apply_realism(

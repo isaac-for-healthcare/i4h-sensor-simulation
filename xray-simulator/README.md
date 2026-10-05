@@ -2,6 +2,58 @@
 
 GPU-accelerated fluoroscopy (X-ray) simulation from CT volumes using differentiable ray marching.
 
+## HU input and attenuation presets
+
+DICOM CT and patient bundle `volume.yaml` inputs use the same full-affine path.
+This library owns HU → μ conversion and the internal LPS/mm rendering adapter;
+arrays do not need to be flipped or resampled by callers.
+
+```mermaid
+flowchart LR
+    D["DICOM CT"] --> S["Native ScanVolume + affine"]
+    A["volume.npy + volume.yaml"] --> S
+    N["NIfTI CT"] --> S
+    S --> M["HU → μ: linear or interventional"]
+    M --> R["Ray marching with full voxel affine"] --> F["Fluoroscopy image"]
+```
+
+```python
+from xray_simulator import HuToMuMapping, PreprocessingSettings, VolumePreprocessor
+from xray_simulator.scan_volume import Conversion, export_ct, replay
+
+conversion = Conversion(world_frame="RAS", world_unit="m", array_axes="kji")
+recipe = export_ct("dicom/", "ct_artifact", options=conversion)
+settings = PreprocessingSettings(hu_to_mu=HuToMuMapping.preset("interventional"), clip_hu=False)
+
+# Equivalent volumes; use either as the simulator input.
+volume = VolumePreprocessor.from_dicom(
+    "dicom/", conversion=conversion, settings=settings,
+).preprocess()
+from_bundle = VolumePreprocessor.from_artifact(recipe, settings=settings).preprocess()
+replay(recipe, "dicom/", "reproduced_ct")
+```
+
+Install `[dicom]` for regular single-frame DICOM CT or `[nifti]` for NIfTI.
+Select `series_uid=` if a DICOM directory contains multiple series. The copied
+`scan_volume` helper is identical to patient-digital-twin's helper. Its YAML records
+source hashes, conversion options, array axes, physical frame/units, full affines,
+and versions. Defaults preserve spacing and origin; `spacing_ijk_mm=(...)`
+explicitly requests resampling, and `origin="source_center"` requests centering.
+Irregular stacks and enhanced multi-frame DICOM need explicit prior conversion.
+
+With the same conversion, attenuation, C-arm pose, and display/noise settings,
+direct DICOM and its saved artifact produce the same image. Oblique geometry is
+handled by the affine during ray marching; no canonical-array conversion is required.
+
+`linear` is the default: −1000–3000 HU → 0–0.02 mm⁻¹. `interventional` uses
+piecewise-linear tissue/contrast/implant control points through 8000 HU →
+0.044 mm⁻¹. Both clamp outside their endpoint knots. Custom
+`HuToMuMapping(control_points=...)` remains supported. HU values are clipped to
+`[hu_clip_min, hu_clip_max]` before mapping by default; pass `clip_hu=False` to
+keep implant and contrast values above 3071 HU.
+The spacing-only `from_numpy` API remains available; use `scan_volume.from_array`
+with `VolumePreprocessor.from_scan` when the array has a full physical affine.
+
 ## Overview
 
 The `xray_simulator` package generates realistic simulated X-ray images from CT volumes using Beer-Lambert physics and GPU-accelerated rendering via NVIDIA Slang with automatic differentiation.
@@ -144,9 +196,9 @@ frame = simulator.render_frame(
 )
 ```
 
-The presets assume the volume is in the canonical patient frame (`+X` Left, `+Y` Posterior,
-`+Z` Superior), which is what the digital-twin preprocessing produces and records in
-`metadata.anatomical_frame`. All of them put the head at the top of the image; AP shows the
+The presets use physical LPS coordinates (`+X` Left, `+Y` Posterior, `+Z` Superior).
+The DICOM, NIfTI, and artifact adapters supply this frame internally and record it
+in `metadata.anatomical_frame`, preserving the acquired array grid. All of them put the head at the top of the image; AP shows the
 patient's left on the viewer's right, and the laterals are named by the side the detector is
 on.
 

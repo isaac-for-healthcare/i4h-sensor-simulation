@@ -38,18 +38,25 @@ import argparse
 import os
 from pathlib import Path
 
-from xray_simulator import PreprocessedVolume, VolumePreprocessor
+from xray_simulator import (
+    DEFAULT_HU_TO_MU_PRESET,
+    HU_TO_MU_PRESETS,
+    HuToMuMapping,
+    PreprocessedVolume,
+    PreprocessingSettings,
+    VolumePreprocessor,
+)
 
 SCRIPT_DIR = Path(__file__).resolve().parent.parent
 OUTPUT_DIR = Path(os.environ.get("xray_simulator_OUTPUT_DIR", str(SCRIPT_DIR / "output"))).expanduser()
 DEFAULT_CACHE = Path(os.environ.get("xray_simulator_CACHE_DIR", str(OUTPUT_DIR / "cache"))).expanduser()
 
 
-def preprocess_dicom(dicom_path: Path, output_dir: Path) -> PreprocessedVolume:
+def preprocess_dicom(dicom_path: Path, output_dir: Path, settings: PreprocessingSettings) -> PreprocessedVolume:
     """Preprocess a DICOM series."""
     print(f"\n[DICOM] Loading from: {dicom_path}")
 
-    preprocessor = VolumePreprocessor.from_dicom(dicom_path)
+    preprocessor = VolumePreprocessor.from_dicom(dicom_path, settings)
 
     print(f"  Volume shape (Z, Y, X): {preprocessor.shape}")
     print(f"  Voxel spacing (mm):     {preprocessor.spacing_zyx_mm}")
@@ -61,11 +68,11 @@ def preprocess_dicom(dicom_path: Path, output_dir: Path) -> PreprocessedVolume:
     return volume
 
 
-def preprocess_nifti(nifti_path: Path, output_dir: Path) -> PreprocessedVolume:
+def preprocess_nifti(nifti_path: Path, output_dir: Path, settings: PreprocessingSettings) -> PreprocessedVolume:
     """Preprocess a NIfTI file."""
     print(f"\n[NIfTI] Loading from: {nifti_path}")
 
-    preprocessor = VolumePreprocessor.from_nifti(nifti_path)
+    preprocessor = VolumePreprocessor.from_nifti(nifti_path, settings)
 
     print(f"  Volume shape (Z, Y, X): {preprocessor.shape}")
     print(f"  Voxel spacing (mm):     {preprocessor.spacing_zyx_mm}")
@@ -77,7 +84,7 @@ def preprocess_nifti(nifti_path: Path, output_dir: Path) -> PreprocessedVolume:
     return volume
 
 
-def preprocess_synthetic(output_dir: Path) -> PreprocessedVolume:
+def preprocess_synthetic(output_dir: Path, settings: PreprocessingSettings) -> PreprocessedVolume:
     """Create and preprocess a synthetic test volume."""
     import numpy as np
 
@@ -100,7 +107,8 @@ def preprocess_synthetic(output_dir: Path) -> PreprocessedVolume:
 
     preprocessor = VolumePreprocessor.from_numpy(
         hu_volume,
-        spacing_zyx_mm=(1.0, 0.5, 0.5)
+        spacing_zyx_mm=(1.0, 0.5, 0.5),
+        settings=settings,
     )
 
     print("\n[Synthetic] Converting HU → μ...")
@@ -171,7 +179,9 @@ def main():
         help=f"Output directory for cached volume (default: {DEFAULT_CACHE})",
     )
 
+    parser.add_argument("--hu-to-mu", choices=tuple(HU_TO_MU_PRESETS), default=DEFAULT_HU_TO_MU_PRESET)
     args = parser.parse_args()
+    settings = PreprocessingSettings(hu_to_mu=HuToMuMapping.preset(args.hu_to_mu))
 
     print("=" * 60)
     print("CT Preprocessing Pipeline")
@@ -182,22 +192,22 @@ def main():
         if not args.dicom.exists():
             print(f"Error: DICOM path not found: {args.dicom}")
             return
-        volume = preprocess_dicom(args.dicom, args.output)
+        volume = preprocess_dicom(args.dicom, args.output, settings)
 
     elif args.nifti:
         if not args.nifti.exists():
             print(f"Error: NIfTI path not found: {args.nifti}")
             return
-        volume = preprocess_nifti(args.nifti, args.output)
+        volume = preprocess_nifti(args.nifti, args.output, settings)
 
     elif args.synthetic:
-        volume = preprocess_synthetic(args.output)
+        volume = preprocess_synthetic(args.output, settings)
 
     else:
         # Default: try to find data or use synthetic
         print("\nNo input specified. Using synthetic test volume.")
         print("  Use --dicom, --nifti, or --synthetic to specify input.")
-        volume = preprocess_synthetic(args.output)
+        volume = preprocess_synthetic(args.output, settings)
 
     # Verify the output
     verify_volume(volume)

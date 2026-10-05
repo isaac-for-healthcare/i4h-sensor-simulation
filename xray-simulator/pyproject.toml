@@ -11,9 +11,12 @@ requires-python = ">=3.10"
 dependencies = [
     "numpy",
     "scipy",
+    "PyYAML>=6.0",
 ]
 
 [project.optional-dependencies]
+dicom = ["SimpleITK>=2.3.0"]
+nifti = ["nibabel>=5.0.0"]
 all = [
     "matplotlib>=3.9.0",
     "nibabel>=5.0.0",

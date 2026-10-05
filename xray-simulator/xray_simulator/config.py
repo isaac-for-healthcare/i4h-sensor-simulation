@@ -289,6 +289,9 @@ DISPLAY_PRESETS: dict[str, DisplaySettings] = {
 }
 
 
+DEFAULT_HU_TO_MU_PRESET = "linear"
+
+
 @dataclass(frozen=True)
 class HuToMuMapping:
     """Piecewise-linear Hounsfield Unit to linear attenuation coefficient mapping.
@@ -406,6 +409,14 @@ class HuToMuMapping:
     def slope(self) -> float:
         """Return the end-to-end gradient (μ per HU) across the ramp."""
         return (self.mu_max - self.mu_min) / self.window_width
+
+    @classmethod
+    def preset(cls, name: str = DEFAULT_HU_TO_MU_PRESET) -> "HuToMuMapping":
+        """Select the named linear or interventional attenuation curve."""
+        try:
+            return HU_TO_MU_PRESETS[name]
+        except KeyError as exc:
+            raise ValueError(f"Unknown HU-to-mu preset: {name!r}; choose {tuple(HU_TO_MU_PRESETS)}") from exc
 
     @classmethod
     def from_window_level(
@@ -619,6 +630,18 @@ class MetricsSettings:
     track_jitter: bool = True
 
 
+# Shared by patient-volume consumers and the preprocessing CLI.
+LINEAR = HuToMuMapping()
+INTERVENTIONAL = HuToMuMapping(
+    control_points=(
+        (-1000.0, 0.0), (-300.0, 0.0), (100.0, 0.0008),
+        (300.0, 0.0028), (500.0, 0.006), (900.0, 0.009),
+        (1500.0, 0.012), (3000.0, 0.02), (8000.0, 0.044),
+    )
+)
+HU_TO_MU_PRESETS = {"linear": LINEAR, "interventional": INTERVENTIONAL}
+
+
 @dataclass(frozen=True)
 class PreprocessingSettings:
     """CT preprocessing settings.
@@ -626,7 +649,8 @@ class PreprocessingSettings:
     Attributes:
         hu_clip_min: Minimum HU value for clipping.
         hu_clip_max: Maximum HU value for clipping.
-        clip_hu: If True, clip HU values to [hu_clip_min, hu_clip_max].
+        clip_hu: If True, clip HU values to [hu_clip_min, hu_clip_max]. Set False to keep
+            high-HU contrast and implants above hu_clip_max, e.g. for the interventional preset.
         hu_to_mu: HU to μ mapping configuration.
     """
 

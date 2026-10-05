@@ -20,6 +20,9 @@ from pathlib import Path
 
 import numpy as np
 
+from ..preprocessor import ijk_to_lps_mm
+from ..scan_volume import ScanVolume, from_dicom, from_nifti
+
 
 @dataclass(frozen=True)
 class CtVolume:
@@ -50,114 +53,22 @@ class CtVolume:
         return d
 
 
-def load_dicom_series_hu(dicom_dir: str | Path) -> CtVolume:
-    """Load a DICOM series directory into a HU volume.
-
-    Reads clinical CT/CTA volumes and normalizes them into a consistent
-    `(Z,Y,X)` numpy array for downstream HU→μ conversion and rendering.
-
-    Uses SimpleITK for DICOM series reading (lightweight and stable).
-    """
-    try:
-        import SimpleITK as sitk  # type: ignore
-    except Exception as e:  # pragma: no cover
-        raise RuntimeError(
-            "SimpleITK is required to load DICOM series. Install it with:\n"
-            "  pip install SimpleITK"
-        ) from e
-
-    ddir = Path(dicom_dir)
-    if not ddir.exists() or not ddir.is_dir():
-        raise FileNotFoundError(f"DICOM directory not found: {ddir}")
-
-    reader = sitk.ImageSeriesReader()
-    series_ids = list(reader.GetGDCMSeriesIDs(str(ddir)))
-    if not series_ids:
-        raise RuntimeError(f"No DICOM series found under: {ddir}")
-
-    # If multiple series exist, pick the first. You can extend this to choose by SeriesDescription.
-    series_uid = series_ids[0]
-    file_names = reader.GetGDCMSeriesFileNames(str(ddir), series_uid)
-    reader.SetFileNames(file_names)
-    reader.MetaDataDictionaryArrayUpdateOn()
-    reader.LoadPrivateTagsOn()
-
-    img = reader.Execute()
-
-    # SimpleITK returns arrays in (Z,Y,X) already.
-    arr_zyx = sitk.GetArrayFromImage(img).astype(np.float32, copy=False)
-
-    # Convert to HU if rescale tags exist (common for CT).
-    # Tags:
-    # - (0028,1052) RescaleIntercept
-    # - (0028,1053) RescaleSlope
-    intercept = None
-    slope = None
-    try:
-        if reader.HasMetaDataKey(0, "0028|1052"):
-            intercept = float(reader.GetMetaData(0, "0028|1052"))
-        if reader.HasMetaDataKey(0, "0028|1053"):
-            slope = float(reader.GetMetaData(0, "0028|1053"))
-    except Exception:
-        intercept = None
-        slope = None
-
-    if slope is not None and intercept is not None:
-        arr_zyx = arr_zyx * float(slope) + float(intercept)
-
-    spacing_xyz = tuple(float(x) for x in img.GetSpacing())  # (X,Y,Z)
-    spacing_zyx = (spacing_xyz[2], spacing_xyz[1], spacing_xyz[0])
-    origin_xyz = tuple(float(x) for x in img.GetOrigin())
-    direction = tuple(float(x) for x in img.GetDirection())  # 9 floats, row-major
-
+def _ct(scan: ScanVolume) -> CtVolume:
+    affine = ijk_to_lps_mm(scan)
+    spacing_xyz = np.linalg.norm(affine[:3, :3], axis=0)
     return CtVolume(
-        hu_zyx=arr_zyx,
-        spacing_zyx_mm=spacing_zyx,
-        origin_xyz_mm=origin_xyz,
-        direction=direction,
+        hu_zyx=scan.values_kji,
+        spacing_zyx_mm=tuple(spacing_xyz[::-1]),
+        origin_xyz_mm=tuple(affine[:3, 3]),
+        direction=tuple((affine[:3, :3] / spacing_xyz).ravel()),
     )
+
+
+def load_dicom_series_hu(dicom_dir: str | Path) -> CtVolume:
+    """Load a DICOM CT series in LPS mm; prefer VolumePreprocessor.from_dicom for full geometry."""
+    return _ct(from_dicom(dicom_dir))
 
 
 def load_nifti_hu(nifti_path: str | Path) -> CtVolume:
-    """Load a NIfTI file into a HU volume.
-
-    This supports loading CT volumes stored in NIfTI format (.nii or .nii.gz),
-    which is common for research datasets like ImageCAS, ASOCA, etc.
-
-    The NIfTI file is assumed to contain HU values directly (no rescaling needed).
-    """
-    try:
-        import nibabel as nib  # type: ignore
-    except Exception as e:  # pragma: no cover
-        raise RuntimeError(
-            "nibabel is required to load NIfTI files. Install it with:\n"
-            "  pip install nibabel"
-        ) from e
-
-    nifti_path = Path(nifti_path)
-    if not nifti_path.exists():
-        raise FileNotFoundError(f"NIfTI file not found: {nifti_path}")
-
-    img = nib.load(nifti_path)
-    arr = img.get_fdata().astype(np.float32)
-
-    # NIfTI convention is typically (X, Y, Z), we need (Z, Y, X)
-    arr_zyx = np.transpose(arr, (2, 1, 0))
-
-    # Get spacing from affine or header
-    spacing_xyz = tuple(float(x) for x in img.header.get_zooms()[:3])
-    spacing_zyx = (spacing_xyz[2], spacing_xyz[1], spacing_xyz[0])
-
-    # Get origin from affine
-    affine = img.affine
-    origin_xyz = (float(affine[0, 3]), float(affine[1, 3]), float(affine[2, 3]))
-
-    # Direction cosines from affine (simplified - just the rotation part)
-    direction = tuple(float(x) for x in affine[:3, :3].flatten())
-
-    return CtVolume(
-        hu_zyx=arr_zyx,
-        spacing_zyx_mm=spacing_zyx,
-        origin_xyz_mm=origin_xyz,
-        direction=direction,
-    )
+    """Load a NIfTI CT in LPS mm; prefer VolumePreprocessor.from_nifti for full geometry."""
+    return _ct(from_nifti(nifti_path))

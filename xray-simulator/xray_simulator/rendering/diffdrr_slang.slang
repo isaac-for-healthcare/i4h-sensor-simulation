@@ -43,9 +43,12 @@ struct CarmGeometry
 
 struct VolumeInfo
 {
-    float3 spacing;     // Voxel spacing (X, Y, Z) in mm
-    int3 dimensions;    // Volume dimensions (X, Y, Z) in voxels
-    float3 origin;      // Volume origin in world coordinates (mm)
+    int3 dimensions;            // Volume dimensions (X, Y, Z) in voxels
+    float3 center;              // World position of the volume center (mm)
+    float3 worldToIndexRow0;    // Rows of the world-mm to voxel-index affine;
+    float3 worldToIndexRow1;    // integer indices are voxel centres
+    float3 worldToIndexRow2;
+    float3 worldToIndexOffset;
 };
 
 // ============================================================================
@@ -94,6 +97,26 @@ float3 transformPoint(float3 localPoint, float3x3 R, float3 translation)
  * Ray-box intersection using slab method.
  * Returns (tNear, tFar). If tFar < tNear, ray misses box.
  */
+/**
+ * Map a world direction (mm) into voxel-index space.
+ */
+[Differentiable]
+float3 worldToIndexDir(VolumeInfo volInfo, float3 dir)
+{
+    return float3(dot(volInfo.worldToIndexRow0, dir),
+                  dot(volInfo.worldToIndexRow1, dir),
+                  dot(volInfo.worldToIndexRow2, dir));
+}
+
+/**
+ * Map a world point (mm) to a voxel index; integer indices are voxel centres.
+ */
+[Differentiable]
+float3 worldToIndex(VolumeInfo volInfo, float3 point)
+{
+    return worldToIndexDir(volInfo, point) + volInfo.worldToIndexOffset;
+}
+
 [Differentiable]
 float2 rayBoxIntersect(float3 rayOrigin, float3 rayDir, float3 boxMin, float3 boxMax)
 {
@@ -197,7 +220,6 @@ float rayMarchIntegral(
     float stepMM
 )
 {
-    float3 volumeSize = float3(volInfo.dimensions) * volInfo.spacing;
     float integral = 0.0f;
 
     float rayLength = tEnd - tStart;
@@ -213,7 +235,7 @@ float rayMarchIntegral(
             break;
 
         float3 worldPos = rayOrigin + rayDir * t;
-        float3 uvw = (worldPos - volInfo.origin) / volumeSize;
+        float3 uvw = (worldToIndex(volInfo, worldPos) + 0.5f) / float3(volInfo.dimensions);
 
         float mu = trilinearSample(volume, sampler, uvw, volInfo.dimensions);
         integral += mu * stepMM;
@@ -249,7 +271,7 @@ float computePixelIntensity(
     float3x3 R = eulerToRotationMatrix(rotation);
 
     // Volume center (isocenter)
-    float3 volumeCenter = volInfo.origin + float3(volInfo.dimensions) * volInfo.spacing * 0.5f;
+    float3 volumeCenter = volInfo.center;
 
     // Source position in world coordinates
     float3 sourceLocal = float3(0.0f, 0.0f, -carm.sid);
@@ -268,12 +290,11 @@ float computePixelIntensity(
     // Ray direction (normalized)
     float3 rayDir = normalize(detectorWorld - sourceWorld);
 
-    // Volume bounding box
-    float3 boxMin = volInfo.origin;
-    float3 boxMax = volInfo.origin + float3(volInfo.dimensions) * volInfo.spacing;
-
-    // Ray-box intersection
-    float2 tHit = rayBoxIntersect(sourceWorld, rayDir, boxMin, boxMax);
+    // Intersect in voxel coordinates without normalizing the transformed ray.
+    // Its parameter remains physical millimetres, including for oblique/sheared grids.
+    // The volume spans voxel indices [-0.5, dimensions - 0.5].
+    float2 tHit = rayBoxIntersect(worldToIndex(volInfo, sourceWorld), worldToIndexDir(volInfo, rayDir),
+                                  float3(-0.5f), float3(volInfo.dimensions) - 0.5f);
 
     // Check for valid intersection
     if (tHit.x > tHit.y || tHit.y < 0.0f)
