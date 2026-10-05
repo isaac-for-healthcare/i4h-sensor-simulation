@@ -37,5 +37,20 @@
       ],
       "gamma": 1
     }
+  },
+  "preprocessing": {
+    "clip_hu": true,
+    "hu_clip_min": -1024,
+    "hu_clip_max": 3071,
+    "hu_to_mu": {
+      "hu_min": -1000,
+      "hu_max": 3000,
+      "mu_min": 0,
+      "mu_max": 0.02
+    }
+  },
+  "output": {
+    "format": "npy",
+    "keep_intensity": true
   }
 }

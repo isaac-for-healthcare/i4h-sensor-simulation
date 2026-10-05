@@ -1,8 +1,8 @@
 # X-ray Preset Schema & API
 
-Presets are versioned JSON documents describing an X-ray/fluoroscopy simulator
+Presets are versioned JSON or YAML documents describing an X-ray/fluoroscopy simulator
 configuration. They cover modality, beam, geometry, detector, and post-processing,
-and can also store output and metrics settings. The
+and can also store HU preprocessing, output, and metrics settings. The
 [v1 JSON Schema](../xray_simulator/schemas/preset-v1.schema.json) is bundled with the
 Python package and uses JSON Schema Draft 2020-12.
 
@@ -17,7 +17,7 @@ Run the following from `xray-simulator/`:
 ```python
 from xray_simulator import SimulatorConfig
 
-config = SimulatorConfig.from_preset("examples/presets/fluoroscopy.json")
+config = SimulatorConfig.from_preset("examples/presets/fluoroscopy.yaml")
 config = config.with_geometry(detector_width_px=256, detector_height_px=256)
 saved_path = config.save_preset("custom-preset.json")
 assert SimulatorConfig.from_preset(saved_path) == config
@@ -37,20 +37,27 @@ frame = simulator.render_frame(pose=Pose.ap())
 The [fluoroscopy example](../examples/presets/fluoroscopy.json) enables noise and blur
 with dark dense structures. The [radiograph example](../examples/presets/radiograph.json)
 disables realism and displays dense structures brightly. Both use `modality: "xray"`.
-They are illustrative simulation settings, not calibrated scanner protocols.
+Equivalent YAML files are provided for
+[fluoroscopy](../examples/presets/fluoroscopy.yaml) and
+[radiography](../examples/presets/radiograph.yaml). These are illustrative simulation
+settings, not calibrated scanner protocols. The optional [launcher](cli.md) accepts
+any of these files through `--config`.
 
 ## API contract
 
 | API | Result and behavior |
 | --- | --- |
-| `SimulatorConfig.from_preset(path)` | Read a UTF-8 `.json` file, validate it, fill v1 defaults, and return a `SimulatorConfig`. |
+| `SimulatorConfig.from_preset(path)` | Read a UTF-8 `.json`, `.yaml`, or `.yml` file, validate it, fill v1 defaults, and return a `SimulatorConfig`. |
 | `config.save_preset(path)` | Validate the configuration, write all settings including defaults, and return an absolute `Path`. |
 | `SimulatorConfig.from_dict(data)` | Validate a JSON-compatible dictionary and fill defaults without modifying the input. |
 | `config.to_dict()` | Return a fresh JSON-compatible dictionary with all fields explicit; display windows are arrays. |
 | `xray_simulator.get_preset_schema()` | Return a fresh dictionary containing the bundled v1 schema, also available in installed wheels. |
 
-Paths accept `str` or `pathlib.Path`. File APIs require the `.json` extension
-(case-insensitive); YAML is not supported. Saving validates before writing, then
+Paths accept `str` or `pathlib.Path`. File APIs select JSON or YAML from the
+`.json`, `.yaml`, or `.yml` extension (case-insensitive). Both formats use the same
+schema, defaults, and semantic validation. YAML uses a safe data-only loader and
+rejects duplicate/non-string keys, custom object tags, merge keys, multiple
+documents, and values that cannot be represented in JSON. Saving validates before writing, then
 atomically replaces the destination. The parent directory must already exist.
 Malformed documents, duplicate keys, unsupported versions, and invalid values raise
 `ValueError`; validation messages identify the relevant field or section. File
@@ -118,9 +125,9 @@ this schema. Future incompatible formats must use a new schema version.
 
 The current renderer takes an attenuation volume. It does not model tube voltage,
 energy spectra, filtration, or tube current/exposure, so fields such as `kvp` and
-`mas` are rejected. `i0` is not a dose or tube-voltage setting. Volume paths, HU-to-μ
-mapping, patient orientation, acquisition poses, and cine timing are supplied
-through their existing APIs separately from a configuration preset.
+`mas` are rejected. `i0` is not a dose or tube-voltage setting. Volume paths, patient orientation, acquisition poses, and cine timing are supplied
+through their existing APIs separately from a configuration preset. HU-to-μ mapping
+is configured by the optional `preprocessing` section.
 
 ### Geometry
 
@@ -162,9 +169,10 @@ mapping follows realism. When disabled, all realism operations are skipped.
 | `blur_sigma_px` | Number ≥ 0 | `0.0` | Gaussian blur standard deviation in pixels; zero disables it. |
 | `seed` | Integer ≥ 0 or `null` | `0` | Random seed, or fresh randomness when null. |
 
-The existing realism implementation creates a random generator for each frame.
-A fixed seed therefore repeats the random sequence for each invocation, rather
-than advancing one generator across a cine sequence. Presets preserve that behavior.
+The realism implementation creates a random generator for each frame. Repeated
+`render_frame()` calls with the same seed repeat the noise realization.
+`render_cine()` and the launcher advance the seed per frame, so a fixed seed
+reproduces the complete sequence while giving its frames independent draws.
 
 ### Post-processing: display
 
@@ -189,6 +197,59 @@ as the canonical polarity `"diagnostic"`. The preset format accepts only canonic
 polarities. Deprecated `physics.normalize` and `physics.invert` are not preset
 fields; saving a legacy configuration resolves them into effective display settings
 and emits the existing deprecation warning. Loading sets the legacy flags to `None`.
+
+### HU preprocessing
+
+`preprocessing` maps to `config.preprocessing`, a `PreprocessingSettings` instance.
+Pass it to `VolumePreprocessor` when preparing raw CT data:
+
+```python
+from xray_simulator import SimulatorConfig, VolumePreprocessor, xray_simulator
+
+config = SimulatorConfig.from_preset("examples/presets/fluoroscopy.yaml")
+volume = VolumePreprocessor.from_nifti(
+    "ct.nii.gz", settings=config.preprocessing
+).preprocess()
+simulator = xray_simulator(volume, config=config)
+```
+
+`xray_simulator` receives an attenuation volume and does not reapply preprocessing.
+The config-file launcher passes these settings automatically for raw input and
+rejects nondefault preprocessing settings with a cached attenuation volume.
+
+| Field | Type / constraint | Default | Meaning |
+| --- | --- | --- | --- |
+| `preprocessing.clip_hu` | Boolean | `true` | Clip HU before mapping to attenuation. |
+| `preprocessing.hu_clip_min` | Number < upper bound | `-1024` | Lower clipping bound in HU. |
+| `preprocessing.hu_clip_max` | Number > lower bound | `3071` | Upper clipping bound in HU. |
+| `preprocessing.hu_to_mu.hu_min` | Number < `hu_max` | `-1000` | Lower HU endpoint of a linear ramp. |
+| `preprocessing.hu_to_mu.hu_max` | Number > `hu_min` | `3000` | Upper HU endpoint. |
+| `preprocessing.hu_to_mu.mu_min` | Number ≥ 0 | `0.0` | Attenuation at/below the lower endpoint, in mm⁻¹. |
+| `preprocessing.hu_to_mu.mu_max` | Number ≥ 0 | `0.02` | Attenuation at/above the upper endpoint, in mm⁻¹. |
+| `preprocessing.hu_to_mu.window_center` | Number; requires `window_width` | — | Alternative ramp center in HU. |
+| `preprocessing.hu_to_mu.window_width` | Number > 0; requires `window_center` | — | Alternative ramp width in HU. |
+| `preprocessing.hu_to_mu.control_points` | At least two `[HU, mu]` pairs | — | Piecewise-linear curve with strictly increasing HU and nonnegative attenuation. |
+
+Choose ramp endpoints, window/level (optionally with `mu_min`/`mu_max`), or control
+points. Conflicting definitions are rejected. Saving a window/level definition
+normalizes it to ramp endpoints; control-point definitions retain their knots.
+Clipping bounds must be ordered even when clipping is disabled.
+
+For example, this optional section changes soft-tissue contrast:
+
+```yaml
+preprocessing:
+  clip_hu: true
+  hu_to_mu:
+    window_center: 100
+    window_width: 800
+    mu_min: 0
+    mu_max: 0.02
+```
+
+The Python equivalent is
+`config.with_preprocessing(hu_to_mu=HuToMuMapping.from_window_level(100, 800))`.
+Import `HuToMuMapping` from `xray_simulator`.
 
 ### Optional runtime settings
 
@@ -232,6 +293,6 @@ config = SimulatorConfig.from_dict(document)  # Fill defaults and check field re
 
 Standard schema validators do not insert defaults. Portable JSON Schema also does
 not express `SID < SDD` or compare the two window entries; these checks run in the
-Python API. The API additionally rejects non-finite values, and the file loader
+Python API together with HU clipping and transfer-function ordering checks. The API additionally rejects non-finite values, and the file loader
 rejects duplicate keys that a typical JSON parser would silently overwrite. Use
 `SimulatorConfig.from_preset()` for complete file validation before rendering.

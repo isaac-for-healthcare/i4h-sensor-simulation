@@ -12,9 +12,17 @@ dependencies = [
     "numpy",
     "scipy",
     "jsonschema>=4.18",
+    "PyYAML>=6.0",
 ]
 
+[project.scripts]
+xray-simulator = "xray_simulator.cli:main"
+
 [project.optional-dependencies]
+cli = [
+    "pillow>=10.0.0",
+]
+
 all = [
     "matplotlib>=3.9.0",
     "nibabel>=5.0.0",

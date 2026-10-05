@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Versioned JSON presets backing SimulatorConfig's serialization API.
+"""Versioned JSON/YAML presets backing SimulatorConfig's serialization API.
 
 The packaged JSON Schema defines fields, constraints, and v1 defaults. Loading
 never imports or initializes a GPU backend. Cross-field geometry and display
@@ -32,11 +32,15 @@ from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING, Any, cast
 
+import yaml
+
 from .config import (
     CarmGeometry,
     DisplaySettings,
+    HuToMuMapping,
     MetricsSettings,
     OutputSettings,
+    PreprocessingSettings,
     RealismSettings,
     SimulatorConfig,
     XrayPhysics,
@@ -104,6 +108,13 @@ def config_from_dict(data: dict[str, Any]) -> SimulatorConfig:
     realism = post["realism"]
     if realism["seed"] is not None:
         realism["seed"] = int(realism["seed"])
+    preprocessing = document["preprocessing"]
+    if preprocessing["hu_clip_min"] >= preprocessing["hu_clip_max"]:
+        raise ValueError("preprocessing.hu_clip_min must be smaller than hu_clip_max")
+    try:
+        mapping = HuToMuMapping.from_dict(preprocessing["hu_to_mu"])
+    except ValueError as exc:
+        raise ValueError(f"preprocessing.hu_to_mu: {exc}") from exc
     return SimulatorConfig(
         geometry=CarmGeometry(
             **geometry,
@@ -117,6 +128,7 @@ def config_from_dict(data: dict[str, Any]) -> SimulatorConfig:
         output=OutputSettings(**document["output"]),
         metrics=MetricsSettings(**document["metrics"]),
         backend=document["backend"],
+        preprocessing=PreprocessingSettings(**{**preprocessing, "hu_to_mu": mapping}),
     )
 
 
@@ -126,6 +138,11 @@ def config_to_dict(config: SimulatorConfig) -> dict[str, Any]:
     output = asdict(config.output)
     if isinstance(output["output_dir"], Path):
         output["output_dir"] = str(output["output_dir"])
+    preprocessing = asdict(config.preprocessing)
+    mapping = config.preprocessing.hu_to_mu
+    preprocessing["hu_to_mu"] = (
+        {"control_points": mapping.control_points} if mapping.control_points is not None else mapping.to_dict()
+    )
     data = {
         "schema_version": 1,
         "modality": "xray",
@@ -143,6 +160,7 @@ def config_to_dict(config: SimulatorConfig) -> dict[str, Any]:
         "backend": config.backend,
         "output": output,
         "metrics": asdict(config.metrics),
+        "preprocessing": preprocessing,
     }
     # Validate direct dataclass instances too, before any file can be overwritten.
     config_from_dict(data)
@@ -158,27 +176,50 @@ def _unique_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
     return result
 
 
-def _json_path(path: str | Path) -> Path:
+class _UniqueKeyLoader(yaml.SafeLoader):
+    """Read data-only YAML and reject duplicate/non-string mapping keys."""
+
+    def construct_mapping(self, node, deep=False):
+        pairs = []
+        for key_node, value_node in node.value:
+            key = self.construct_object(key_node, deep=deep)
+            if not isinstance(key, str):
+                raise ValueError("YAML preset keys must be strings")
+            pairs.append((key, self.construct_object(value_node, deep=deep)))
+        return _unique_keys(pairs)
+
+
+def _preset_path(path: str | Path) -> Path:
     result = Path(path).expanduser().absolute()
-    if result.suffix.lower() != ".json":
-        raise ValueError("Preset files must use the .json extension")
+    if result.suffix.lower() not in (".json", ".yaml", ".yml"):
+        raise ValueError("Preset files must use the .json, .yaml, or .yml extension")
     return result
 
 
 def load_preset(path: str | Path) -> SimulatorConfig:
-    """Implementation of SimulatorConfig.from_preset; reject duplicate JSON keys."""
-    path = _json_path(path)
+    """Read JSON or safe YAML, rejecting duplicate keys before schema validation."""
+    path = _preset_path(path)
     text = path.read_text(encoding="utf-8")
     try:
-        return config_from_dict(json.loads(text, object_pairs_hook=_unique_keys))
-    except ValueError as exc:
+        document = (
+            json.loads(text, object_pairs_hook=_unique_keys)
+            if path.suffix.lower() == ".json"
+            else yaml.load(text, Loader=_UniqueKeyLoader)
+        )
+        return config_from_dict(document)
+    except (ValueError, yaml.YAMLError) as exc:
         raise ValueError(f"Invalid preset {path}: {exc}") from exc
 
 
 def save_preset(config: SimulatorConfig, path: str | Path) -> Path:
     """Implementation of SimulatorConfig.save_preset; publish only a complete document."""
-    path = _json_path(path)
-    text = json.dumps(config_to_dict(config), indent=2, allow_nan=False) + "\n"
+    path = _preset_path(path)
+    document = config_to_dict(config)
+    text = (
+        json.dumps(document, indent=2, allow_nan=False) + "\n"
+        if path.suffix.lower() == ".json"
+        else yaml.safe_dump(document, sort_keys=False)
+    )
     temporary = None
     try:
         with NamedTemporaryFile(mode="w", encoding="utf-8", dir=path.parent, delete=False) as stream:

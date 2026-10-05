@@ -651,6 +651,8 @@ class SimulatorConfig:
         output: Output settings for rendered frames.
         metrics: Performance metrics settings.
         backend: Rendering backend (currently only "slang" is supported).
+        preprocessing: HU clipping and transfer function; pass to VolumePreprocessor
+            when preparing a raw CT volume. Already preprocessed volumes retain their mapping.
 
     Example:
         >>> config = SimulatorConfig(
@@ -671,6 +673,7 @@ class SimulatorConfig:
     output: OutputSettings = field(default_factory=OutputSettings)
     metrics: MetricsSettings = field(default_factory=MetricsSettings)
     backend: Literal["slang"] = "slang"
+    preprocessing: PreprocessingSettings = field(default_factory=PreprocessingSettings)
 
     @classmethod
     def for_appearance(cls, preset: str, **kwargs) -> "SimulatorConfig":
@@ -709,9 +712,9 @@ class SimulatorConfig:
 
     @classmethod
     def from_preset(cls, path: str | Path) -> SimulatorConfig:
-        """Load and validate a UTF-8 JSON preset file; no GPU is required.
+        """Load and validate a UTF-8 JSON or YAML preset file; no GPU is required.
 
-        Invalid JSON, duplicate keys, and invalid settings raise ValueError.
+        Invalid syntax, duplicate keys, and invalid settings raise ValueError.
         Filesystem errors propagate as OSError. Relative output_dir values retain
         their existing meaning: relative to the simulator's working directory.
         """
@@ -720,7 +723,7 @@ class SimulatorConfig:
         return load_preset(path)
 
     def save_preset(self, path: str | Path) -> Path:
-        """Write a complete UTF-8 JSON preset and return its absolute path.
+        """Write a complete UTF-8 JSON or YAML preset and return its absolute path.
 
         The parent directory must exist. Validation finishes before an existing
         file is replaced. This saves configuration only, not a volume or a pose.
@@ -738,6 +741,7 @@ class SimulatorConfig:
             "output": self.output,
             "metrics": self.metrics,
             "backend": self.backend,
+            "preprocessing": self.preprocessing,
         }
         return SimulatorConfig(**{**fields, **kwargs})
 
@@ -756,6 +760,10 @@ class SimulatorConfig:
     def with_output(self, **kwargs) -> "SimulatorConfig":
         """Return a new config with updated output settings."""
         return self._replace(output=OutputSettings(**{**self.output.__dict__, **kwargs}))
+
+    def with_preprocessing(self, **kwargs) -> SimulatorConfig:
+        """Return a config with updated HU clipping or a HuToMuMapping instance."""
+        return self._replace(preprocessing=PreprocessingSettings(**{**self.preprocessing.__dict__, **kwargs}))
 
 
 def resolve_display_settings(

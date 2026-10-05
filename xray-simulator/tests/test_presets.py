@@ -28,6 +28,7 @@ from jsonschema import Draft202012Validator
 from xray_simulator import (
     CarmGeometry,
     DisplaySettings,
+    HuToMuMapping,
     MetricsSettings,
     OutputSettings,
     RealismSettings,
@@ -182,7 +183,7 @@ def test_invalid_json_file(contents, match, tmp_path):
 
 def test_file_errors_and_output_paths(tmp_path):
     with pytest.raises(ValueError, match=".json"):
-        SimulatorConfig.from_preset(tmp_path / "preset.yaml")
+        SimulatorConfig.from_preset(tmp_path / "preset.toml")
     with pytest.raises(FileNotFoundError):
         SimulatorConfig.from_preset(tmp_path / "absent.json")
     config = SimulatorConfig(output=OutputSettings(save_to_disk=True, output_dir=tmp_path / "frames"))
@@ -262,3 +263,71 @@ def test_preset_reaches_renderer_and_postprocessing(monkeypatch, tmp_path):
     assert initialized[1].det_width_px == 12 and initialized[1].i0 == 2
     np.testing.assert_array_equal(loaded_frame.image, reference_frame.image)
     np.testing.assert_array_equal(loaded_frame.intensity, reference_frame.intensity)
+
+
+@pytest.mark.parametrize("extension", [".json", ".yaml", ".yml", ".YAML"])
+def test_preprocessing_and_yaml_roundtrip(extension, tmp_path):
+    mapping = HuToMuMapping(control_points=((-1000, 0), (0, 0.01), (1000, 0.05)))
+    config = SimulatorConfig().with_preprocessing(clip_hu=False, hu_to_mu=mapping)
+    path = config.save_preset(tmp_path / ("preset" + extension))
+    assert SimulatorConfig.from_preset(path) == config
+    # Other helpers must retain preprocessing settings.
+    assert config.with_geometry(detector_width_px=128).preprocessing == config.preprocessing
+
+
+@pytest.mark.parametrize(
+    "text,match",
+    [
+        ("schema_version: 1\nschema_version: 2", "duplicate"),
+        ("beam:\n  i0: 1\n  i0: 2", "duplicate"),
+        ("1: value", "keys must be strings"),
+        ("modality: [xray", "Invalid preset"),
+        ("!!python/object/apply:builtins.str [unsafe]", "Invalid preset"),
+        ("---\nmodality: xray\n---\nmodality: xray", "Invalid preset"),
+        ("beam: &beam\n  recursive: *beam", "finite JSON"),
+    ],
+)
+def test_invalid_yaml_is_rejected(text, match, tmp_path):
+    path = tmp_path / "bad.yaml"
+    path.write_text(text)
+    with pytest.raises(ValueError, match=match):
+        SimulatorConfig.from_preset(path)
+
+
+@pytest.mark.parametrize(
+    "mapping",
+    [
+        {"hu_min": 100, "hu_max": 0},
+        {"mu_max": -1},
+        {"window_width": 0, "window_center": 100},
+        {"window_center": 100},
+        {"window_center": 100, "window_width": 200, "hu_min": 0},
+        {"control_points": [[0, 0], [0, 1]]},
+        {"control_points": [[0, 0], [1, -1]]},
+        {"control_points": [[0, 0], [1, 1]], "mu_max": 1},
+        {"unknown": 1},
+    ],
+)
+def test_invalid_hu_mapping(mapping):
+    data = minimal()
+    data["preprocessing"] = {"hu_to_mu": mapping}
+    with pytest.raises(ValueError, match="preprocessing"):
+        SimulatorConfig.from_dict(data)
+
+
+def test_hu_window_level_and_clip_validation():
+    data = minimal()
+    data["preprocessing"] = {"hu_to_mu": {"window_center": 100, "window_width": 200}}
+    config = SimulatorConfig.from_dict(data)
+    assert config.preprocessing.hu_to_mu.hu_min == 0
+    assert config.preprocessing.hu_to_mu.hu_max == 200
+    assert SimulatorConfig.from_dict(config.to_dict()) == config
+    data["preprocessing"].update(hu_clip_min=10, hu_clip_max=0)
+    with pytest.raises(ValueError, match="hu_clip_min"):
+        SimulatorConfig.from_dict(data)
+
+
+def test_yaml_and_json_examples_are_equivalent():
+    for name in ("fluoroscopy", "radiograph"):
+        yaml_path = EXAMPLES / f"{name}.yaml"
+        assert SimulatorConfig.from_preset(yaml_path) == SimulatorConfig.from_preset(EXAMPLES / f"{name}.json")

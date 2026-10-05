@@ -184,8 +184,8 @@ print(trans.grad)  # ∂L/∂translation
 
 | Method | Description |
 | ------ | ----------- |
-| `from_preset(path)` | Load and validate a versioned JSON preset without initializing a GPU |
-| `save_preset(path)` | Validate and save all settings and defaults to JSON |
+| `from_preset(path)` | Load and validate a versioned JSON/YAML preset without initializing a GPU |
+| `save_preset(path)` | Validate and save all settings and defaults to JSON/YAML |
 | `from_dict(data)` / `to_dict()` | Convert between a preset document and the existing configuration classes |
 
 The package-level `get_preset_schema()` returns the bundled JSON Schema. See the
@@ -252,7 +252,7 @@ The package-level `get_preset_schema()` returns the bundled JSON Schema. See the
 
 ### SimulatorConfig
 
-Configurations can also be shared as [versioned JSON presets](preset-schema.md).
+Configurations can also be shared as [versioned JSON/YAML presets](preset-schema.md).
 `SimulatorConfig.from_preset(path)` returns the same configuration type used below.
 
 ```python

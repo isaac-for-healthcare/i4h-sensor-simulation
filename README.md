@@ -36,6 +36,10 @@ Key features:
 - Realism post-processing: Poisson noise, Gaussian noise, blur
 - High performance: ~5ms/frame at 512×512 on modern GPUs
 
+Configure X-ray scanner parameters through the Python API or a validated
+[JSON/YAML preset](./xray-simulator/docs/preset-schema.md). The optional
+[config-file launcher](./xray-simulator/docs/cli.md) runs preprocessing and rendering.
+
 [Learn more about the X-ray Simulator](./xray-simulator/README.md)
 
 ## Getting Started
