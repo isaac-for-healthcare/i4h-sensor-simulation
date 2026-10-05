@@ -58,7 +58,10 @@ Paths accept `str` or `pathlib.Path`. File APIs select JSON or YAML from the
 schema, defaults, and semantic validation. YAML uses a safe data-only loader and
 rejects duplicate/non-string keys, custom object tags, merge keys, multiple
 documents, and values that cannot be represented in JSON. Saving validates before writing, then
-atomically replaces the destination. The parent directory must already exist.
+atomically replaces the destination, preserving an existing file's permission bits.
+New files use owner-only permissions. If copying the permissions fails, saving
+raises the file-system error and leaves the original file intact.
+The parent directory must already exist.
 Malformed documents, duplicate keys, unsupported versions, and invalid values raise
 `ValueError`; validation messages identify the relevant field or section. File
 loading also includes the preset path in validation errors. File-system failures

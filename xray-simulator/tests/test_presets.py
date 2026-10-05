@@ -16,6 +16,8 @@
 """Preset validation, portable serialization, and CPU-only simulator integration."""
 
 import json
+import os
+import stat
 import subprocess
 import sys
 from copy import deepcopy
@@ -77,6 +79,47 @@ def test_nondefault_config_file_roundtrip(tmp_path):
     assert document["detector"] == {"width_px": 640, "height_px": 480, "pixel_spacing_mm": 0.2}
     assert document["output"]["output_dir"] == "relative-frames"
     assert SimulatorConfig.from_dict(document).to_dict() == document
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX permission bits")
+@pytest.mark.parametrize("extension", [".json", ".yaml"])
+@pytest.mark.parametrize("mode", [0o644, 0o664, 0o640, 0o600])
+def test_overwriting_preset_preserves_permissions(tmp_path, extension, mode):
+    config = SimulatorConfig()
+    path = config.save_preset(tmp_path / ("shared" + extension))
+    path.chmod(mode)
+    updated = config.with_display(gamma=1.5)
+
+    assert updated.save_preset(path) == path
+
+    assert stat.S_IMODE(path.stat().st_mode) == mode
+    assert SimulatorConfig.from_preset(path) == updated
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX permission bits")
+@pytest.mark.parametrize("extension", [".json", ".yaml"])
+def test_new_preset_has_private_permissions(tmp_path, extension):
+    path = SimulatorConfig().save_preset(tmp_path / ("new" + extension))
+    assert stat.S_IMODE(path.stat().st_mode) & 0o077 == 0
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX permission bits")
+def test_permission_copy_failure_preserves_original_file(tmp_path, monkeypatch):
+    config = SimulatorConfig()
+    path = config.save_preset(tmp_path / "shared.json")
+    path.chmod(0o644)
+    original = path.read_bytes()
+
+    def deny_chmod(self, mode, **kwargs):
+        raise PermissionError("cannot preserve permissions")
+
+    monkeypatch.setattr(Path, "chmod", deny_chmod)
+    with pytest.raises(PermissionError, match="cannot preserve permissions"):
+        config.with_display(gamma=1.5).save_preset(path)
+
+    assert path.read_bytes() == original
+    assert stat.S_IMODE(path.stat().st_mode) == 0o644
+    assert list(tmp_path.iterdir()) == [path]  # The unpublished temporary file is removed.
 
 
 @pytest.mark.parametrize("name,polarity", [("fluoroscopy", "fluoro"), ("radiograph", "diagnostic")])

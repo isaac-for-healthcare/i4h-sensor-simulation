@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import json
 import os
+import stat
 from copy import deepcopy
 from dataclasses import asdict
 from functools import lru_cache
@@ -212,7 +213,7 @@ def load_preset(path: str | Path) -> SimulatorConfig:
 
 
 def save_preset(config: SimulatorConfig, path: str | Path) -> Path:
-    """Implementation of SimulatorConfig.save_preset; publish only a complete document."""
+    """Atomically save a validated preset, preserving existing permission bits."""
     path = _preset_path(path)
     document = config_to_dict(config)
     text = (
@@ -220,11 +221,18 @@ def save_preset(config: SimulatorConfig, path: str | Path) -> Path:
         if path.suffix.lower() == ".json"
         else yaml.safe_dump(document, sort_keys=False)
     )
+    existing_mode: int | None = None
+    try:
+        existing_mode = stat.S_IMODE(path.stat().st_mode)
+    except FileNotFoundError:
+        pass  # New presets retain the temporary file's private permissions.
     temporary = None
     try:
         with NamedTemporaryFile(mode="w", encoding="utf-8", dir=path.parent, delete=False) as stream:
             temporary = Path(stream.name)
             stream.write(text)
+        if existing_mode is not None:
+            temporary.chmod(existing_mode)
         os.replace(temporary, path)
     finally:
         if temporary is not None:
