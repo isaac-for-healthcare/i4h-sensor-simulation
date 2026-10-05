@@ -45,9 +45,12 @@ class CarmGeometry:
         detector_height_px: Detector height in pixels.
         pixel_spacing_mm: Horizontal detector pixel pitch (mm); also vertical by default.
         pixel_spacing_y_mm: Vertical pitch, or None to use the horizontal pitch.
-        detector_offset_xy_mm: Detector center displacement along its column/row axes,
-            relative to the central beam. Positive offsets move the principal point
-            toward smaller pixel indices. Defaults preserve a centered detector.
+        principal_point_px: ``(column, row)`` where the ray perpendicular to the detector
+            lands, in the pixel coordinates returned by
+            :func:`~xray_simulator.geometry.project_point_to_detector` (pixel centers at
+            integers, ``image[row, column]``). None centers it at
+            ``((width - 1) / 2, (height - 1) / 2)``. Calibrated cameras set this from
+            their intrinsic matrix (``cx``, ``cy``).
 
     Vendor-Specific Configuration:
         Different C-arm vendors (GE, Siemens, Philips, Ziehm, etc.) have distinct
@@ -119,13 +122,32 @@ class CarmGeometry:
     detector_height_px: int = 512
     pixel_spacing_mm: float = 0.5
     pixel_spacing_y_mm: float | None = None
-    detector_offset_xy_mm: tuple[float, float] = (0.0, 0.0)
+    principal_point_px: tuple[float, float] | None = None
 
     @property
     def pixel_spacing_xy_mm(self) -> tuple[float, float]:
         """Horizontal and vertical detector pitch in mm."""
         dy = self.pixel_spacing_mm if self.pixel_spacing_y_mm is None else self.pixel_spacing_y_mm
         return (self.pixel_spacing_mm, dy)
+
+    @property
+    def principal_point_xy_px(self) -> tuple[float, float]:
+        """Principal point ``(column, row)``, defaulting to the detector center."""
+        if self.principal_point_px is None:
+            return ((self.detector_width_px - 1) / 2, (self.detector_height_px - 1) / 2)
+        cx, cy = self.principal_point_px
+        return (float(cx), float(cy))
+
+    @property
+    def detector_offset_xy_mm(self) -> tuple[float, float]:
+        """Detector center displacement from the perpendicular ray along its column/row axes (mm).
+
+        Derived from :attr:`principal_point_px` for the renderer; the principal point
+        moves opposite to the detector.
+        """
+        cx, cy = self.principal_point_xy_px
+        dx, dy = self.pixel_spacing_xy_mm
+        return (((self.detector_width_px - 1) / 2 - cx) * dx, ((self.detector_height_px - 1) / 2 - cy) * dy)
 
     @property
     def detector_size_mm(self) -> tuple[float, float]:

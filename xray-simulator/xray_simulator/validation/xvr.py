@@ -178,8 +178,11 @@ def adapt_xvr_camera(pose, intrinsics: Mapping, volume_frame: XvrVolumeFrame, *,
     """Convert an xvr pose/intrinsics companion to simulator geometry and pose.
 
     ``pose`` must be the stored 4x4 matrix, not Euler angles or the original
-    DeepFluoro HDF5 extrinsics. Intrinsic x0/y0 are the *stored* detector offsets
-    in mm (DiffDRR's property getters use the opposite sign).
+    DeepFluoro HDF5 extrinsics. Intrinsic x0/y0 are the stored principal-point
+    offsets in mm from the image center, along image columns and rows: the
+    principal point is at ``((width - 1) / 2 + x0 / delx, (height - 1) / 2 + y0 / dely)``.
+    This matches xvr's registration, which negates x0 before passing it to DiffDRR
+    (xvr commit 4c68e0c); DiffDRR's constructor flips the horizontal offset only.
     Binning preserves physical FOV and the center of each b-by-b reference block.
     """
     pose = np.asarray(pose, dtype=np.float64)
@@ -222,7 +225,10 @@ def adapt_xvr_camera(pose, intrinsics: Mapping, volume_frame: XvrVolumeFrame, *,
         detector_height_px=height // binning,
         pixel_spacing_mm=values["delx"] * binning,
         pixel_spacing_y_mm=values["dely"] * binning,
-        detector_offset_xy_mm=(values["x0"], -values["y0"]),
+        principal_point_px=(
+            (width // binning - 1) / 2 + values["x0"] / (values["delx"] * binning),
+            (height // binning - 1) / 2 + values["y0"] / (values["dely"] * binning),
+        ),
     )
     return XvrCamera(geometry, adapted_pose, volume_frame, binning)
 

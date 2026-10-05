@@ -115,7 +115,8 @@ class SlangDiffDRRConfig:
         det_width_px: Detector width in pixels.
         pixel_spacing_mm: Pixel pitch on detector (mm).
         pixel_spacing_y_mm: Vertical pitch; None uses pixel_spacing_mm.
-        detector_offset_xy_mm: Detector center displacement in local X/Y (mm).
+        detector_offset_xy_mm: Detector center displacement in local X/Y (mm); set from
+            ``CarmGeometry.detector_offset_xy_mm``, which derives it from the principal point.
         source_to_detector_mm: Source-to-detector distance (mm).
         source_to_isocenter_mm: Source-to-isocenter distance (mm).
         step_mm: Ray-marching step size (mm). Smaller = more accurate but slower.

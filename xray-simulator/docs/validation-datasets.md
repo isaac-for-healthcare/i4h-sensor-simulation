@@ -133,16 +133,22 @@ and the camera/volume conventions of [DiffDRR 0.6.0](https://pypi.org/project/di
   sample center. Source location is preserved exactly. SID is chosen as SDD/2
   solely to parameterize the same source/detector pose; it is not inferred
   patient distance.
-- Stored `x0/y0` values are detector offsets in mm. The simulator uses
-  `(x0, -y0)` with separate horizontal/vertical pitches. Positive simulator
-  offsets move the principal point toward smaller image indices. DiffDRR's
-  getter properties negate its stored offsets, so do not substitute those
-  getters for the companion file values.
+- Stored `x0/y0` values are principal-point offsets in mm from the image
+  center, along image columns and rows. The adapter sets
+  `principal_point_px = ((width-1)/2 + x0/dx, (height-1)/2 + y0/dy)` with
+  separate horizontal/vertical pitches. This matches xvr's registration, which
+  negates `x0` (only) before constructing DiffDRR's detector
+  ([xvr commit 4c68e0c](https://github.com/eigenvivek/xvr/commit/4c68e0cebc6d2c0f8e04690ff054951a4299f90f)):
+  DiffDRR 0.6.0's detector grid reverses the row axis but not the column axis
+  before adding its constructor offsets, so the raw stored values place the
+  principal point correctly in Y but mirrored in X. DeepFluoro's offsets are
+  half a native pixel and cannot distinguish the two; Ljubljana's horizontal
+  offsets reach 28 mm and the GPU data test checks them.
 - DeepFluoro references lose exactly 50 pixels on each edge to match the
   companion's 1436×1436 grid. No further principal-point shift is applied to the
   already-cropped calibration. Ljubljana references use the supplied grid.
 - Integer binning must divide both dimensions. It multiplies detector pitches,
-  keeps physical offsets and FOV fixed, and block-averages stored reference
+  keeps the physical principal point and FOV fixed, and block-averages stored reference
   values. It does not model detector blur or average simulated subpixel rays.
 - Coordinates returned by `camera.project` place the first pixel center at
   `(0, 0)`. DiffDRR's continuous intrinsic projection uses pixel-boundary
@@ -156,10 +162,13 @@ or nonidentity rescale transforms require explicit preparation.
 For centered-RAS points, the independent pinhole equation used by the tests is
 `[u, v, 1] ~ K * inverse(P * AP) * [X, Y, Z, 1]`, with
 `fx = SDD/dx`, `fy = -SDD/dy`,
-`cx = (width-1)/2 - x0/dx`, `cy = (height-1)/2 + y0/dy`.
+`cx = (width-1)/2 + x0/dx`, `cy = (height-1)/2 + y0/dy`.
 CPU tests cover this equation, voxel-center placement, oblique affines, cropping,
 binning, exclusions and invalid geometry. A `gpu` test projects a synthetic bead
-through the actual shader with nonzero offsets and unequal detector pitches.
+through the actual shader with an off-center principal point and unequal detector
+pitches. With `XVR_DATA_ROOT` set to a local xvr-data download, a `gpu`/`slow`
+test renders all 20 primary Ljubljana views and requires the vessel edges to lie
+within one binned pixel of the reference angiograms.
 
 ## DRR-RATE and CT-RATE
 

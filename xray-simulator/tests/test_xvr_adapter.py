@@ -15,6 +15,7 @@
 
 """Independent camera equations and voxel-index checks; no patient data needed."""
 
+import os
 from dataclasses import asdict
 from pathlib import Path
 
@@ -73,7 +74,7 @@ def test_projection_against_independent_pinhole_matrix(binning, handedness):
     dx, dy = intr["delx"] * binning, intr["dely"] * binning
     k = np.array(
         [
-            [intr["sdd"] / dx, 0, (intr["width"] / binning - 1) / 2 - intr["x0"] / dx],
+            [intr["sdd"] / dx, 0, (intr["width"] / binning - 1) / 2 + intr["x0"] / dx],
             [0, -intr["sdd"] / dy, (intr["height"] / binning - 1) / 2 + intr["y0"] / dy],
             [0, 0, 1],
         ]
@@ -99,11 +100,24 @@ def test_binning_preserves_block_centers():
 
 
 def test_literal_off_center_rectangular_detector():
-    g = CarmGeometry(1000, 500, 100, 80, 0.5, 0.25, (10, -5))
-    # At isocenter magnification is 2: x=5 -> column 49.5; y=-2.5 -> row 39.5.
+    g = CarmGeometry(1000, 500, 100, 80, 0.5, 0.25, principal_point_px=(29.5, 59.5))
+    # At isocenter magnification is 2: x=5 -> 20 columns right; y=-2.5 -> 20 rows up.
     assert project_point_to_detector((5, -2.5, 0), (0, 0, 0), (0, 0, 0), **asdict(g)) == (49.5, 39.5)
     assert g.detector_size_mm == (50.0, 20.0)
-    assert project_point_to_detector((0, 0, 0), (0, 0, 0), (0, 0, 0), **asdict(g)) == (29.5, 59.5)
+    assert g.detector_offset_xy_mm == (10.0, -5.0)
+
+
+@pytest.mark.parametrize("principal_point", [None, (12.25, 70.0), (-3.0, 7.5)])
+def test_perpendicular_ray_lands_on_principal_point(principal_point):
+    g = CarmGeometry(1000, 400, 100, 80, 0.5, 0.25, principal_point_px=principal_point)
+    rotation, translation = (0.3, -0.2, 0.7), (4.0, -9.0, 2.0)
+    axis = euler_zxy_to_matrix(rotation)[:, 2]
+    # Points along the central axis, from near the source to the detector.
+    for depth in (-300.0, 0.0, 500.0):
+        point = np.asarray(translation) + depth * axis
+        pixel = project_point_to_detector(point, rotation, translation, **asdict(g))
+        np.testing.assert_allclose(pixel, g.principal_point_xy_px, atol=1e-9)
+    assert CarmGeometry(principal_point_px=None).principal_point_xy_px == (255.5, 255.5)
 
 
 def test_default_detector_compatibility():
@@ -170,20 +184,54 @@ def test_optional_file_loaders(tmp_path):
 
 
 @pytest.mark.gpu
-def test_gpu_detector_offset_and_pixel_pitch():
+def test_gpu_principal_point_and_pixel_pitch():
     from xray_simulator import SimulatorConfig, xray_simulator
     from xray_simulator.config import XrayPhysics
     from xray_simulator.volume import PreprocessedVolume, VolumeMetadata
 
-    # A compact symmetric attenuation bead. Projection shifts are literal values:
-    # detector offset (+4, -6) / pitch (1, 2) => image shift (-4, +3).
+    # A compact symmetric attenuation bead at the isocenter projects onto the principal
+    # point, here off center on a rectangular detector with unequal pitches.
     z, y, x = np.mgrid[:24, :24, :24] - 11.5
     mu = np.exp(-(x * x + y * y + z * z) / 2).astype(np.float32) * 0.05
     volume = PreprocessedVolume(mu, VolumeMetadata(mu.shape, (1.0, 1.0, 1.0), (-12.0, -12.0, -12.0)))
-    geometry = CarmGeometry(1000, 500, 64, 48, 1.0, 2.0, (4.0, -6.0))
+    geometry = CarmGeometry(1000, 500, 64, 48, 1.0, 2.0, principal_point_px=(27.5, 26.5))
     config = SimulatorConfig(geometry=geometry, physics=XrayPhysics(step_mm=0.1)).with_output(keep_intensity=True)
     simulator = xray_simulator(volume, config)
     a = -np.log(simulator.render_frame().intensity)
     yy, xx = np.indices(a.shape)
     centroid = np.array([(xx * a).sum(), (yy * a).sum()]) / a.sum()
     np.testing.assert_allclose(centroid, [27.5, 26.5], atol=0.05)
+
+
+@pytest.mark.gpu
+@pytest.mark.slow
+@pytest.mark.skipif("XVR_DATA_ROOT" not in os.environ, reason="set XVR_DATA_ROOT to a local xvr-data download")
+@pytest.mark.parametrize("subject", [f"subject{i:02d}" for i in range(1, 11)])
+def test_ljubljana_renders_align_with_references(subject):
+    """Rendered vessels land on the angiograms; Ljubljana's horizontal offsets reach 28 mm."""
+    from scipy.ndimage import gaussian_filter, sobel
+    from skimage.registration import phase_cross_correlation
+    from xray_simulator import SimulatorConfig, xray_simulator
+    from xray_simulator.volume import PreprocessedVolume, VolumeMetadata
+
+    def edges(a):
+        a = gaussian_filter(np.asarray(a, dtype=np.float64), 1.5)
+        return np.hypot(sobel(a, 0), sobel(a, 1))
+
+    root = Path(os.environ["XVR_DATA_ROOT"]) / "ljubljana" / subject
+    values, f = load_xvr_volume(root / "volume.nii.gz")
+    # Uncalibrated vessel-contrast proxy; only edge locations are compared.
+    mu = np.maximum(values, 0) * np.float32(5e-6)
+    volume = PreprocessedVolume(mu, VolumeMetadata(mu.shape, f.spacing_zyx_mm, f.origin_xyz_mm))
+    for view_name in ("frontal", "lateral"):
+        view = load_xvr_view(root, view_name, dataset="ljubljana")
+        camera = view.camera(f, binning=4)
+        simulator = xray_simulator(volume, SimulatorConfig(geometry=camera.geometry).with_output(keep_intensity=True))
+        rendered = -np.log(simulator.render_frame(pose=camera.pose).intensity)
+        reference = view.load_reference(binning=4)
+        h, w = reference.shape
+        roi = np.s_[h // 20 : h - h // 20, w // 20 : w - w // 20]
+        shift, _, _ = phase_cross_correlation(
+            edges(reference)[roi], edges(rendered)[roi], upsample_factor=20, normalization=None
+        )
+        assert np.abs(shift).max() < 1.0, f"{view_name}: render offset (row, column) = {shift} binned px"
