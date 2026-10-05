@@ -8,7 +8,11 @@ This is evaluation tooling, not a claim that the simulator reproduces a clinical
 scanner. The repository includes analytical metric tests and a
 [paired DeepFluoro/Ljubljana comparison report](reports/deepfluoro-ljubljana/README.md)
 covering 382 matched views. The report separates current-branch results from an
-exploratory Ljubljana detector-offset diagnostic. Dataset images remain local;
+exploratory Ljubljana detector-offset diagnostic. A separate
+[DRR-RATE X-ray comparison report](reports/drr-rate/README.md) covers 40 AP/lateral
+views from 20 CT subjects against an independent synthetic renderer, with both
+the matched DRR-RATE signal model and the stock simulator HU mapping. It includes
+misposed controls and integration-step checks. Dataset images remain local;
 these structural comparisons do not establish physical or clinical validation.
 
 ## Install and run
