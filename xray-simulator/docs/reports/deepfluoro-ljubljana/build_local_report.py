@@ -33,26 +33,24 @@ def csv_file(path, rows):
         writer.writerows(rows)
 
 
-def flat(r, diagnostic=False):
-    c = r['offset_diagnostic'] if diagnostic else r
-    raw, shape, control = c['scores']['as_configured'], c['scores']['shape_only'], c['misposed_scores']['as_configured']
-    vessel = c.get('vessel_roi_scores', {}).get('as_configured', {})
+def flat(r):
+    raw, shape, control = r['scores']['as_configured'], r['scores']['shape_only'], r['misposed_scores']['as_configured']
+    vessel = r.get('vessel_roi_scores', {}).get('as_configured', {})
     return {
         'dataset': r['dataset'], 'subject': r['subject'], 'view': r['view'],
-        'variant': 'horizontal_offset_sign_diagnostic' if diagnostic else 'branch_as_is',
+        'variant': 'branch_as_is',
         'ncc': raw['ncc'], 'gradient_ncc': raw['gradient_ncc'], 'mi_nats': raw['mi_nats'],
         'proxy_ssim_raw': raw['ssim'], 'proxy_rmse_raw': raw['rmse'],
         'shape_ssim': shape['ssim'], 'shape_rmse': shape['rmse'], 'shape_wasserstein': shape['wasserstein'],
         'misposed_ncc': control['ncc'], 'misposed_gradient_ncc': control['gradient_ncc'],
         'gradient_ncc_gap': raw['gradient_ncc'] - control['gradient_ncc'],
         'vessel_roi_ncc': vessel.get('ncc'), 'vessel_roi_gradient_ncc': vessel.get('gradient_ncc'),
-        'fluoro_default_ssim': None if diagnostic else r['display_scores']['fluoro_default']['as_configured']['ssim'],
-        'fluoro_default_rmse': None if diagnostic else r['display_scores']['fluoro_default']['as_configured']['rmse'],
-        'fluoro_subject_window_ssim': None if diagnostic else r['display_scores']['fluoro_subject_window']['as_configured']['ssim'],
-        'fluoro_subject_window_rmse': None if diagnostic else r['display_scores']['fluoro_subject_window']['as_configured']['rmse'],
-        'xray_default_ssim': None if diagnostic else r['display_scores']['xray_default']['as_configured']['ssim'],
-        'xray_subject_window_ssim': None if diagnostic else r['display_scores']['xray_subject_window']['as_configured']['ssim'],
-        'column_shift_px': c.get('predicted_column_shift_px', 0),
+        'fluoro_default_ssim': r['display_scores']['fluoro_default']['as_configured']['ssim'],
+        'fluoro_default_rmse': r['display_scores']['fluoro_default']['as_configured']['rmse'],
+        'fluoro_subject_window_ssim': r['display_scores']['fluoro_subject_window']['as_configured']['ssim'],
+        'fluoro_subject_window_rmse': r['display_scores']['fluoro_subject_window']['as_configured']['rmse'],
+        'xray_default_ssim': r['display_scores']['xray_default']['as_configured']['ssim'],
+        'xray_subject_window_ssim': r['display_scores']['xray_subject_window']['as_configured']['ssim'],
         'directory': r['directory'],
     }
 
@@ -88,30 +86,27 @@ def summaries(rows):
 
 def plots(out, rows, subjects, records):
     plt.rcParams.update({'font.size': 10, 'axes.spines.top': False, 'axes.spines.right': False})
-    fig, axes = plt.subplots(1, 3, figsize=(13.8, 4.7), constrained_layout=True)
-    groups = [('deepfluoro', 'branch_as_is', 'DeepFluoro\ncurrent branch'),
-              ('ljubljana', 'branch_as_is', 'Ljubljana\ncurrent branch'),
-              ('ljubljana', 'horizontal_offset_sign_diagnostic', 'Ljubljana\noffset-sign diagnostic')]
+    fig, axes = plt.subplots(1, 3, figsize=(12, 4.7), constrained_layout=True)
+    groups = [('deepfluoro', 'branch_as_is', 'DeepFluoro'), ('ljubljana', 'branch_as_is', 'Ljubljana')]
     for axis, key, title in zip(axes, ['ncc', 'gradient_ncc', 'shape_ssim'], ['Intensity structure (NCC)', 'Edge structure (gradient NCC)', 'SSIM after affine intensity fit']):
         for i, (dataset, variant, label) in enumerate(groups):
             selected = [r for r in subjects if r['dataset'] == dataset and r['variant'] == variant]
             values = np.array([r[f'{key}_median'] for r in selected])
-            axis.scatter(i + np.linspace(-.1, .1, len(values)), values, color=['#1666b0', '#d3603f', '#218776'][i], s=32)
+            axis.scatter(i + np.linspace(-.1, .1, len(values)), values, color=['#1666b0', '#d3603f'][i], s=32)
             axis.plot([i - .18, i + .18], [np.median(values)] * 2, color='black', linewidth=2)
-        axis.set_xticks(range(3), [g[2] for g in groups], fontsize=9)
+        axis.set_xticks(range(len(groups)), [g[2] for g in groups], fontsize=9)
+        axis.set_xlim(-.6, len(groups) - .4)
         axis.set_title(title)
         axis.set_ylim(-.1, 1.03)
         axis.grid(axis='y', alpha=.2)
-    fig.suptitle('Paired dataset comparison — one dot per subject median\nBlack bars: median across subjects; diagnostic variant is exploratory', fontsize=12)
+    fig.suptitle('Paired dataset comparison — one dot per subject median\nBlack bars: median across subjects', fontsize=12)
     fig.savefig(out / 'comparison_summary.png', dpi=160)
     fig.savefig(out / 'comparison_summary.pdf')
     plt.close(fig)
     fig, axes = plt.subplots(1, 2, figsize=(10, 4.5), constrained_layout=True)
     for axis, dataset in zip(axes, ['deepfluoro', 'ljubljana']):
-        for variant, color, label in [('branch_as_is', '#1666b0', 'Current branch'), ('horizontal_offset_sign_diagnostic', '#218776', 'Offset-sign diagnostic')]:
-            group = [r for r in rows if r['dataset'] == dataset and r['variant'] == variant]
-            if group:
-                axis.scatter([r['misposed_gradient_ncc'] for r in group], [r['gradient_ncc'] for r in group], s=18, alpha=.7, c=color, label=label)
+        group = [r for r in rows if r['dataset'] == dataset]
+        axis.scatter([r['misposed_gradient_ncc'] for r in group], [r['gradient_ncc'] for r in group], s=18, alpha=.7, c='#1666b0', label='Matched view')
         axis.plot([-.1, 1], [-.1, 1], 'k--', linewidth=1)
         axis.set(xlim=(-.1, 1), ylim=(-.1, 1), xlabel='Misposed control gradient NCC', ylabel='Matched view gradient NCC', title=dataset.title())
         axis.legend(fontsize=8)
@@ -124,15 +119,12 @@ def plots(out, rows, subjects, records):
         selected = []
         for subject in sorted({r['subject'] for r in records if r['dataset'] == dataset}):
             selected.append(next(r for r in records if r['dataset'] == dataset and r['subject'] == subject))
-        columns = 4 if dataset == 'ljubljana' else 3
+        columns = 3
         fig, axes = plt.subplots(len(selected), columns, figsize=(columns * 3, len(selected) * 2.5), squeeze=False)
         for row, record in enumerate(selected):
             p = out / record['directory']
             names = ['reference_contrast_preview.png', 'fluoro_subject_window.png', 'xray_subject_window.png']
             titles = ['Real reference (contrast preview)', 'Our fluoro (subject window)', 'Our X-ray (subject window)']
-            if dataset == 'ljubljana':
-                names = ['reference_contrast_preview.png', 'fluoro_subject_window.png', 'offset_diagnostic_fluoro.png', 'offset_diagnostic_xray.png']
-                titles = ['Real reference (contrast preview)', 'Our fluoro: current branch', 'Our fluoro: offset diagnostic', 'Our X-ray: offset diagnostic']
             for col, (name, title) in enumerate(zip(names, titles)):
                 axes[row, col].imshow(plt.imread(p / name), cmap='gray', vmin=0, vmax=1)
                 axes[row, col].axis('off')
@@ -155,7 +147,7 @@ def main():
     assert len({(r['dataset'], r['subject'], r['view']) for r in records}) == 382
     assert all((out / d / s / 'completed.json').is_file() for d, s in {(r['dataset'], r['subject']) for r in records})
     assert not json.loads((out / 'run_status.json').read_text())['failures']
-    rows = [flat(r) for r in records] + [flat(r, True) for r in records if 'offset_diagnostic' in r]
+    rows = [flat(r) for r in records]
     for r in rows:
         for key in ['ncc', 'gradient_ncc', 'shape_ssim', 'shape_rmse', 'misposed_gradient_ncc']:
             assert np.isfinite(r[key]), (r['dataset'], r['subject'], r['view'], key)
@@ -178,17 +170,16 @@ def main():
     plots(out, rows, subjects, records)
     pretty = {'deepfluoro': 'DeepFluoro', 'ljubljana': 'Ljubljana'}
     def num(v): return '—' if v is None else f'{v:.3f}'
-    summary_rows = ''.join('<tr>' + ''.join(f'<td>{v}</td>' for v in [pretty[r['dataset']], 'Current branch' if r['variant']=='branch_as_is' else 'Offset-sign diagnostic',
+    summary_rows = ''.join('<tr>' + ''.join(f'<td>{v}</td>' for v in [pretty[r['dataset']],
                        r['subjects'],r['views'],num(r['ncc_median_subject']),num(r['gradient_ncc_median_subject']),num(r['shape_ssim_median_subject']),f'{r["aligned_beats_misposed"]}/{r["views"]}']) + '</tr>' for r in datasets)
-    subject_rows = ''.join('<tr>' + ''.join(f'<td>{v}</td>' for v in [pretty[r['dataset']],r['subject'],'Current branch' if r['variant']=='branch_as_is' else 'Offset diagnostic',r['views'],num(r['ncc_median']),num(r['gradient_ncc_median']),num(r['shape_ssim_median']),num(r['shape_rmse_median'])]) + '</tr>' for r in subjects)
+    subject_rows = ''.join('<tr>' + ''.join(f'<td>{v}</td>' for v in [pretty[r['dataset']],r['subject'],r['views'],num(r['ncc_median']),num(r['gradient_ncc_median']),num(r['shape_ssim_median']),num(r['shape_rmse_median'])]) + '</tr>' for r in subjects)
     spec_rows = ''.join(f'<dt>{html.escape(k.replace("_", " ").capitalize())}</dt><dd>{html.escape(str(protocol[k]))}</dd>' for k in [
         'binning','integration_step_mm','deepfluoro_volume','ljubljana_volume','primary_roi','secondary_ljubljana_roi','reference_display',
         'deepfluoro_reference_proxy','ljubljana_reference_proxy','proxy_evaluation','display_evaluation','controls','integration_check','statistics'])
     galleries = []
     for r in records:
         item = {k:r[k] for k in ['dataset','subject','view','directory']}
-        item['native'] = flat(r)
-        item['diagnostic'] = flat(r, True) if 'offset_diagnostic' in r else None
+        item['scores'] = flat(r)
         galleries.append(item)
     max_integration = max(r['relative_l2'] for r in integrations)
     template = '''<!DOCTYPE html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -198,17 +189,17 @@ body{font-family:system-ui,sans-serif;margin:0;background:#f4f6f8;color:#192632;
 <h1>Our simulator against DeepFluoro and Ljubljana</h1>
 <p class="lead">Generated both X-ray and fluoroscopy appearances using each dataset's own volume and camera pose. All 362 eligible DeepFluoro views and all 20 primary Ljubljana views completed; four upstream-flagged DeepFluoro poses were excluded.</p>
 <p class="small">Source: public sensor-simulation PR #73, commit <code>@@COMMIT@@</code>. Output includes 1,528 primary generated PNGs (two appearances × two display windows × 382 views), raw intensity/attenuation arrays, real reference arrays, masks, independent misposed renders, and complete per-view measurements.</p>
-<div class="note"><strong>Ljubljana exposed a detector-offset discrepancy.</strong> The current branch's first frontal view was displaced horizontally by approximately 81 pixels, matching twice its stored detector offset divided by the binned pitch. All 20 views were additionally rendered with the horizontal offset sign reversed. This exploratory geometry diagnostic is listed separately; the simulator source and primary results remain unchanged. No image translation, registration, or pose optimization was applied.</div>
+<div class="note"><strong>Geometry conventions.</strong> The dataset adapter places each view's principal point from the stored offsets, and places DeepFluoro voxels where that release's poses expect them (half a voxel along each index axis; Ljubljana poses expect voxel centers). Both are fixed conventions applied to every view. No image translation, registration, or pose optimization was applied.</div>
 <h2>Measured agreement</h2><p>Each number below is the median of per-subject medians, giving every subject equal weight. NCC and gradient NCC measure structural agreement. Shape SSIM follows a per-image nonnegative gain/bias fit and therefore does not establish brightness or physical calibration. No pass/fail threshold was set.</p>
-<div class="scroll card"><table><thead><tr><th>Dataset</th><th>Geometry</th><th>Subjects</th><th>Views</th><th>NCC</th><th>Gradient NCC</th><th>Shape SSIM</th><th>Aligned &gt; misposed</th></tr></thead><tbody>@@SUMMARY@@</tbody></table></div>
+<div class="scroll card"><table><thead><tr><th>Dataset</th><th>Subjects</th><th>Views</th><th>NCC</th><th>Gradient NCC</th><th>Shape SSIM</th><th>Aligned &gt; misposed</th></tr></thead><tbody>@@SUMMARY@@</tbody></table></div>
 <img class="plot" src="comparison_summary.png" alt="Per-subject structural agreement"><p><a href="comparison_summary.pdf">Exportable PDF figure</a> · <a href="per_view_metrics.csv">All per-view scores (CSV)</a> · <a href="per_subject_summary.csv">Subject summaries (CSV)</a> · <a href="report.json">Full report (JSON)</a></p>
-<h2>Inspect every matched view</h2><div class="card"><div class="controls"><label>Dataset<br><select id="dataset"></select></label><label>Subject<br><select id="subject"></select></label><label>View<br><select id="view"></select></label><label>Render geometry<br><select id="geometry"><option value="native">Current branch</option><option value="diagnostic">Horizontal offset diagnostic</option></select></label><label>Generated display<br><select id="display"><option value="subject_window">Frozen subject window</option><option value="default">Default window [0,6]</option></select></label><label>Reference display<br><select id="reference"><option value="contrast">Contrast preview</option><option value="stored">Stored 16-bit scale</option></select></label></div><p id="scores"></p><div class="grid"><figure><figcaption>Dataset reference — fluoroscopy polarity</figcaption><img id="refimg"></figure><figure><figcaption>Our fluoroscopy render</figcaption><img id="fluoroimg"></figure><figure><figcaption>Our X-ray render — opposite polarity</figcaption><img id="xrayimg"></figure></div><p class="small">Contrast previews rescale the real reference for viewing only. The generated subject window is derived from the first simulated view and frozen for the subject. Scores use the saved protocol. X-ray and fluoroscopy share the same simulated transport; these are still images, without temporal or dose-specific effects.</p><a id="pairlink">View this pair's full measurements and geometry</a></div>
-<h2>Per-subject results</h2><details class="card"><summary>Show all subject summaries</summary><div class="scroll"><table><thead><tr><th>Dataset</th><th>Subject</th><th>Geometry</th><th>Views</th><th>NCC</th><th>Gradient NCC</th><th>Shape SSIM</th><th>Shape RMSE</th></tr></thead><tbody>@@SUBJECTS@@</tbody></table></div></details>
+<h2>Inspect every matched view</h2><div class="card"><div class="controls"><label>Dataset<br><select id="dataset"></select></label><label>Subject<br><select id="subject"></select></label><label>View<br><select id="view"></select></label><label>Generated display<br><select id="display"><option value="subject_window">Frozen subject window</option><option value="default">Default window [0,6]</option></select></label><label>Reference display<br><select id="reference"><option value="contrast">Contrast preview</option><option value="stored">Stored 16-bit scale</option></select></label></div><p id="scores"></p><div class="grid"><figure><figcaption>Dataset reference — fluoroscopy polarity</figcaption><img id="refimg"></figure><figure><figcaption>Our fluoroscopy render</figcaption><img id="fluoroimg"></figure><figure><figcaption>Our X-ray render — opposite polarity</figcaption><img id="xrayimg"></figure></div><p class="small">Contrast previews rescale the real reference for viewing only. The generated subject window is derived from the first simulated view and frozen for the subject. Scores use the saved protocol. X-ray and fluoroscopy share the same simulated transport; these are still images, without temporal or dose-specific effects.</p><a id="pairlink">View this pair's full measurements and geometry</a></div>
+<h2>Per-subject results</h2><details class="card"><summary>Show all subject summaries</summary><div class="scroll"><table><thead><tr><th>Dataset</th><th>Subject</th><th>Views</th><th>NCC</th><th>Gradient NCC</th><th>Shape SSIM</th><th>Shape RMSE</th></tr></thead><tbody>@@SUBJECTS@@</tbody></table></div></details>
 <h2>Pose and integration checks</h2><img class="plot" src="pose_controls.png"><p>The control adds 5 mm along simulator X and 5° about world Z, then re-renders. It uses the same reference and ROI. The first eligible view of each subject also completed a 0.25 mm integration check against the standard 0.5 mm render. Maximum relative L2 difference: <strong>@@INTEGRATION@@</strong>. This is numerical consistency, not external validation. <a href="integration_checks.csv">All integration checks</a>.</p>
-<h2>All-subject image sheets</h2><p>These sheets show the first eligible view for every subject, selected before scoring.</p><details class="card"><summary>DeepFluoro: all six subjects</summary><img class="plot" src="deepfluoro_all_subjects.png"></details><details class="card"><summary>Ljubljana: all ten subjects and offset diagnostic</summary><img class="plot" src="ljubljana_all_subjects.png"></details>
+<h2>All-subject image sheets</h2><p>These sheets show the first eligible view for every subject, selected before scoring.</p><details class="card"><summary>DeepFluoro: all six subjects</summary><img class="plot" src="deepfluoro_all_subjects.png"></details><details class="card"><summary>Ljubljana: all ten subjects</summary><img class="plot" src="ljubljana_all_subjects.png"></details>
 <h2>Interpretation and limits</h2><p>The test measures agreement for matched anatomy and poses. The broad detector ROI retains residual instruments, collimation and background; an additional model-defined vessel ROI is available for Ljubljana in the JSON and CSV. Ljubljana uses an explicitly uncalibrated vessel-contrast model. Reference signal preparation is documented; neither the raw proxy errors nor the fitted shape scores establish calibrated attenuation. Default and frozen-subject-window display scores are reported separately.</p><p>Acquisition independence is not established, so no confidence interval is fabricated from repeated views. No scanner calibration, registration refinement, temporal detector behavior, motion, or stochastic noise was fitted. All dataset images and generated images remain local.</p>
 <h2>Reproduce the run</h2><p><a href="protocol.json">Exact protocol, source hashes and versions</a> · <a href="render_and_compare.py">Rendering/comparison script</a> · <a href="build_report.py">Report builder</a> · <a href="run_status.json">Completion status</a></p><details class="card"><summary>Methods and parameters</summary><dl>@@METHODS@@</dl></details><p class="small">Data: <a href="https://huggingface.co/datasets/eigenvivek/xvr-data">xvr-data (pinned revision in protocol)</a>. Original datasets: <a href="https://github.com/rg2/DeepFluoroLabeling-IPCAI2020">DeepFluoro</a> and <a href="https://lit.fe.uni-lj.si/en/research/resources/3D-2D-GS-CA/">Ljubljana 3D-2D-GS-CA</a>. Reference preprocessing: <a href="https://github.com/eigenvivek/xvr/blob/caa55cc8096294cf70a218126bf16008dee0dec7/src/xvr/io/xray.py">xvr source</a>.</p></main>
-<script>const pairs=@@PAIRS@@;const $=x=>document.getElementById(x);function options(id,values){$(id).innerHTML='';for(const value of values){const o=document.createElement('option');o.value=value;o.textContent=value;$(id).appendChild(o)}}function datasets(){options('dataset',[...new Set(pairs.map(x=>x.dataset))]);subjects()}function subjects(){options('subject',[...new Set(pairs.filter(x=>x.dataset===$('dataset').value).map(x=>x.subject))]);views()}function views(){options('view',pairs.filter(x=>x.dataset===$('dataset').value&&x.subject===$('subject').value).map(x=>x.view));show()}function show(){const p=pairs.find(x=>x.dataset===$('dataset').value&&x.subject===$('subject').value&&x.view===$('view').value);$('geometry').options[1].disabled=!p.diagnostic;if(!p.diagnostic)$('geometry').value='native';const diag=$('geometry').value==='diagnostic';const r=diag?p.diagnostic:p.native;const window=$('display').value;$('display').disabled=diag;const source=p.directory+'/';$('refimg').src=source+($('reference').value==='contrast'?'reference_contrast_preview.png':'reference_stored_display.png');$('fluoroimg').src=source+(diag?'offset_diagnostic_fluoro.png':'fluoro_'+window+'.png');$('xrayimg').src=source+(diag?'offset_diagnostic_xray.png':'xray_'+window+'.png');$('scores').textContent='NCC '+r.ncc.toFixed(3)+' · Gradient NCC '+r.gradient_ncc.toFixed(3)+' · Shape SSIM '+r.shape_ssim.toFixed(3)+' · Misposed gradient NCC '+r.misposed_gradient_ncc.toFixed(3)+(diag?' · Exploratory offset-sign variant':'');$('pairlink').href=source+'comparison.json'}$('dataset').onchange=subjects;$('subject').onchange=views;['view','geometry','display','reference'].forEach(x=>$(x).onchange=show);datasets();</script></html>'''
+<script>const pairs=@@PAIRS@@;const $=x=>document.getElementById(x);function options(id,values){$(id).innerHTML='';for(const value of values){const o=document.createElement('option');o.value=value;o.textContent=value;$(id).appendChild(o)}}function datasets(){options('dataset',[...new Set(pairs.map(x=>x.dataset))]);subjects()}function subjects(){options('subject',[...new Set(pairs.filter(x=>x.dataset===$('dataset').value).map(x=>x.subject))]);views()}function views(){options('view',pairs.filter(x=>x.dataset===$('dataset').value&&x.subject===$('subject').value).map(x=>x.view));show()}function show(){const p=pairs.find(x=>x.dataset===$('dataset').value&&x.subject===$('subject').value&&x.view===$('view').value);const r=p.scores;const window=$('display').value;const source=p.directory+'/';$('refimg').src=source+($('reference').value==='contrast'?'reference_contrast_preview.png':'reference_stored_display.png');$('fluoroimg').src=source+'fluoro_'+window+'.png';$('xrayimg').src=source+'xray_'+window+'.png';$('scores').textContent='NCC '+r.ncc.toFixed(3)+' · Gradient NCC '+r.gradient_ncc.toFixed(3)+' · Shape SSIM '+r.shape_ssim.toFixed(3)+' · Misposed gradient NCC '+r.misposed_gradient_ncc.toFixed(3);$('pairlink').href=source+'comparison.json'}$('dataset').onchange=subjects;$('subject').onchange=views;['view','display','reference'].forEach(x=>$(x).onchange=show);datasets();</script></html>'''
     for key, value in {'COMMIT': protocol['simulator_commit'][:12], 'SUMMARY': summary_rows, 'SUBJECTS': subject_rows, 'METHODS': spec_rows,
                        'INTEGRATION': f'{max_integration:.3%}', 'PAIRS': json.dumps(galleries, allow_nan=False)}.items():
         template = template.replace('@@' + key + '@@', value)
@@ -216,7 +207,7 @@ body{font-family:system-ui,sans-serif;margin:0;background:#f4f6f8;color:#192632;
     shutil.copy2(__file__, out / 'build_report.py')
     dump(out / 'verification.json', {'paired_views': len(records), 'primary_generated_pngs': 4 * len(records),
         'unique_pairs': True, 'expected_counts_met': True, 'finite_equal_shape_arrays': True,
-        'subject_completions': 16, 'offset_diagnostic_views': 20, 'integration_checks': len(integrations),
+        'subject_completions': 16, 'integration_checks': len(integrations),
         'renderer_source_changed': False})
     print(json.dumps({'output': str(out / 'REPORT.html'), 'dataset_summary': datasets, 'max_relative_integration_l2': max_integration}, indent=2))
 

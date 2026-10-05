@@ -62,7 +62,7 @@ def protocol():
         'display_evaluation': 'fixed default log window [0,6] and separately a subject window derived solely from the first eligible generated view (1st/99th attenuation percentiles), then frozen. Both X-ray and fluoro use the same transport with opposite polarity.',
         'controls': 'independent render with +5 mm along simulator X and +5 degrees about simulator world Z; all masks/reference preparation unchanged',
         'integration_check': 'first eligible view per subject also rendered at 0.25 mm; compare line integral with 0.5 mm (numerical consistency, not external validation)',
-        'ljubljana_offset_diagnostic': 'additional exploratory render negates only the horizontal detector offset from the current adapter. The pilot had an approximately 81-pixel horizontal displacement, equal to twice the stored x offset / binned pitch. Keep branch-as-is results primary; use this deterministic metadata-sign variant without image registration or pose fitting, with its own misposed control. This is not a source-code patch or a validated convention correction.',
+        'geometry_conventions': 'xvr adapter: stored x0/y0 are principal-point offsets from the image center along columns/rows (principal_point_px = ((W-1)/2 + x0/dx, (H-1)/2 + y0/dy)); DeepFluoro poses expect voxel ijk at affine @ (ijk + 1/2) and Ljubljana poses at affine @ ijk (POSE_VOXEL_ORIGIN). Both are fixed adapter conventions; no image registration, translation or pose fitting.',
         'statistics': 'per-view and per-subject median/IQR; dataset summary median across subject medians. No acquisition bootstrap because independence metadata is not established.',
         'limitations': ['No patient images are published or committed.', 'No physical scanner calibration, noise/dose model, detector lag, temporal sequence or registration refinement.', 'Unmatched instruments, collimation, truncation and acquisition processing can affect scores.', 'Ljubljana vessel volume and reference contrast filling may differ.'],
         'sources': [
@@ -196,28 +196,6 @@ def worker(args):
             arrays['vessel_roi'] = vessel_roi
             record['vessel_roi_scores'] = evaluate_pair(reference_proxy, attenuation / 6, vessel_roi, domain='attenuation_proxy', data_range=1., histogram_range=(0., 1.))
             record['vessel_roi_misposed_scores'] = evaluate_pair(reference_proxy, control_a / 6, vessel_roi, domain='attenuation_proxy', data_range=1., histogram_range=(0., 1.))
-            xoff, yoff = cam.geometry.detector_offset_xy_mm
-            diagnostic_geometry = replace(cam.geometry, detector_offset_xy_mm=(-xoff, yoff))
-            diagnostic = xray_simulator(volume, replace(config, geometry=diagnostic_geometry))
-            diagnostic_frame = diagnostic.render_frame(pose=cam.pose)
-            diagnostic_a = attenuation_from_intensity(diagnostic_frame.intensity, diagnostic_frame.i0).astype(np.float32)
-            diagnostic_control = diagnostic.render_frame(pose=control_pose)
-            diagnostic_control_a = attenuation_from_intensity(diagnostic_control.intensity, diagnostic_control.i0).astype(np.float32)
-            diagnostic_roi = mask & binary_dilation(diagnostic_a > 1e-4, structure=np.ones((21, 21), bool))
-            record['offset_diagnostic'] = {
-                'geometry': asdict(diagnostic_geometry),
-                'predicted_column_shift_px': float(2 * xoff / cam.geometry.pixel_spacing_mm),
-                'scores': evaluate_pair(reference_proxy, diagnostic_a / 6, mask, domain='attenuation_proxy', data_range=1., histogram_range=(0., 1.)),
-                'misposed_scores': evaluate_pair(reference_proxy, diagnostic_control_a / 6, mask, domain='attenuation_proxy', data_range=1., histogram_range=(0., 1.)),
-                'vessel_roi_scores': evaluate_pair(reference_proxy, diagnostic_a / 6, diagnostic_roi, domain='attenuation_proxy', data_range=1., histogram_range=(0., 1.)),
-            }
-            arrays.update(offset_diagnostic_attenuation=diagnostic_a, offset_diagnostic_misposed_attenuation=diagnostic_control_a,
-                          offset_diagnostic_vessel_roi=diagnostic_roi)
-            display_images.update(offset_diagnostic_fluoro=diagnostic_frame.with_appearance(calibrated).image,
-                                  offset_diagnostic_xray=diagnostic_frame.with_appearance(replace(calibrated, polarity='diagnostic')).image)
-            arrays.update({k: v for k, v in display_images.items() if k.startswith('offset_diagnostic')})
-            del diagnostic, diagnostic_frame, diagnostic_control
-            gc.collect()
         if index == 0:
             fine = xray_simulator(volume, replace(config, physics=XrayPhysics(step_mm=0.25)))
             fine_frame = fine.render_frame(pose=cam.pose)
