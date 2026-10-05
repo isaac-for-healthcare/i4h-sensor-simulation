@@ -24,7 +24,14 @@ import pytest
 from scipy.spatial.transform import Rotation
 from xray_simulator.config import CarmGeometry
 from xray_simulator.geometry import euler_zxy_to_matrix, project_point_to_detector
-from xray_simulator.validation.xvr import XvrView, XvrVolumeFrame, adapt_xvr_camera, load_xvr_view, load_xvr_volume
+from xray_simulator.validation.xvr import (
+    EXCLUDED_VIEWS,
+    XvrView,
+    XvrVolumeFrame,
+    adapt_xvr_camera,
+    load_xvr_view,
+    load_xvr_volume,
+)
 
 
 def intrinsics(**updates):
@@ -97,6 +104,26 @@ def test_binning_preserves_block_centers():
     full = adapt_xvr_camera(p, intrinsics(), f).project(points)
     binned = adapt_xvr_camera(p, intrinsics(), f, binning=4).project(points)
     np.testing.assert_allclose(binned, (full + 0.5) / 4 - 0.5)
+
+
+@pytest.mark.parametrize("pose_voxel_origin,index_shift", [("center", 0.0), ("corner", 0.5)])
+def test_pose_voxel_origin_places_voxels(pose_voxel_origin, index_shift):
+    f, p = frame(-1, oblique=True), np.eye(4)
+    p[:3, 3] = [10, 700, 30]
+    camera = adapt_xvr_camera(p, intrinsics(), f, pose_voxel_origin=pose_voxel_origin)
+    g = asdict(camera.geometry)
+    for ijk in ([0, 0, 0], [6, 8, 10], [2, 7, 3]):
+        # Where the renderer samples voxel ijk: the volume box is centered on the simulator origin.
+        target = np.array(ijk)
+        if f.flip_y:
+            target[1] = f.shape_xyz[1] - 1 - target[1]
+        sampled = np.array(f.origin_xyz_mm) + (target + 0.5) * f.spacing_xyz_mm
+        rendered = project_point_to_detector(sampled, camera.pose.rotation, camera.pose.translation, **g)
+        # Where the poses' world frame puts that voxel.
+        world = f.affine_ras[:3, :3] @ (np.array(ijk) + index_shift) + f.affine_ras[:3, 3] - f.center_ras_mm
+        np.testing.assert_allclose(rendered, camera.project(world[None])[0], atol=1e-9)
+    with pytest.raises(ValueError, match="pose_voxel_origin"):
+        adapt_xvr_camera(p, intrinsics(), f, pose_voxel_origin="edge")
 
 
 def test_literal_off_center_rectangular_detector():
@@ -203,35 +230,62 @@ def test_gpu_principal_point_and_pixel_pitch():
     np.testing.assert_allclose(centroid, [27.5, 26.5], atol=0.05)
 
 
-@pytest.mark.gpu
-@pytest.mark.slow
-@pytest.mark.skipif("XVR_DATA_ROOT" not in os.environ, reason="set XVR_DATA_ROOT to a local xvr-data download")
-@pytest.mark.parametrize("subject", [f"subject{i:02d}" for i in range(1, 11)])
-def test_ljubljana_renders_align_with_references(subject):
-    """Rendered vessels land on the angiograms; Ljubljana's horizontal offsets reach 28 mm."""
+def _render_offsets(dataset, subject, views):
+    """Edge-based (row, column) shift, in binned pixels, from each render to its reference."""
     from scipy.ndimage import gaussian_filter, sobel
     from skimage.registration import phase_cross_correlation
     from xray_simulator import SimulatorConfig, xray_simulator
+    from xray_simulator.config import HuToMuMapping, PreprocessingSettings
+    from xray_simulator.preprocessor import VolumePreprocessor
     from xray_simulator.volume import PreprocessedVolume, VolumeMetadata
 
     def edges(a):
         a = gaussian_filter(np.asarray(a, dtype=np.float64), 1.5)
         return np.hypot(sobel(a, 0), sobel(a, 1))
 
-    root = Path(os.environ["XVR_DATA_ROOT"]) / "ljubljana" / subject
+    root = Path(os.environ["XVR_DATA_ROOT"]) / dataset / subject
     values, f = load_xvr_volume(root / "volume.nii.gz")
-    # Uncalibrated vessel-contrast proxy; only edge locations are compared.
-    mu = np.maximum(values, 0) * np.float32(5e-6)
-    volume = PreprocessedVolume(mu, VolumeMetadata(mu.shape, f.spacing_zyx_mm, f.origin_xyz_mm))
-    for view_name in ("frontal", "lateral"):
-        view = load_xvr_view(root, view_name, dataset="ljubljana")
+    if dataset == "deepfluoro":
+        settings = PreprocessingSettings(hu_to_mu=HuToMuMapping.from_window_level(200, 1600, 0.05))
+        volume = VolumePreprocessor(values, f.spacing_zyx_mm, origin_xyz_mm=f.origin_xyz_mm, settings=settings).preprocess()
+    else:
+        # Uncalibrated vessel-contrast proxy; only edge locations are compared.
+        mu = np.maximum(values, 0) * np.float32(5e-6)
+        volume = PreprocessedVolume(mu, VolumeMetadata(mu.shape, f.spacing_zyx_mm, f.origin_xyz_mm))
+    simulator, offsets = None, {}
+    for view_name in views:
+        view = load_xvr_view(root, view_name, dataset=dataset)
         camera = view.camera(f, binning=4)
-        simulator = xray_simulator(volume, SimulatorConfig(geometry=camera.geometry).with_output(keep_intensity=True))
+        if simulator is None or simulator.config.geometry != camera.geometry:
+            simulator = xray_simulator(volume, SimulatorConfig(geometry=camera.geometry).with_output(keep_intensity=True))
         rendered = -np.log(simulator.render_frame(pose=camera.pose).intensity)
         reference = view.load_reference(binning=4)
         h, w = reference.shape
         roi = np.s_[h // 20 : h - h // 20, w // 20 : w - w // 20]
-        shift, _, _ = phase_cross_correlation(
+        offsets[view_name], _, _ = phase_cross_correlation(
             edges(reference)[roi], edges(rendered)[roi], upsample_factor=20, normalization=None
         )
+    return offsets
+
+
+@pytest.mark.gpu
+@pytest.mark.slow
+@pytest.mark.skipif("XVR_DATA_ROOT" not in os.environ, reason="set XVR_DATA_ROOT to a local xvr-data download")
+@pytest.mark.parametrize("subject", [f"subject{i:02d}" for i in range(1, 11)])
+def test_ljubljana_renders_align_with_references(subject):
+    """Rendered vessels land on the angiograms; Ljubljana's horizontal offsets reach 28 mm."""
+    for view_name, shift in _render_offsets("ljubljana", subject, ("frontal", "lateral")).items():
         assert np.abs(shift).max() < 1.0, f"{view_name}: render offset (row, column) = {shift} binned px"
+
+
+@pytest.mark.gpu
+@pytest.mark.slow
+@pytest.mark.skipif("XVR_DATA_ROOT" not in os.environ, reason="set XVR_DATA_ROOT to a local xvr-data download")
+@pytest.mark.parametrize("subject", [f"subject{i:02d}" for i in range(1, 7)])
+def test_deepfluoro_renders_align_with_references(subject):
+    """Bone edges land on the fluoroscopy; without the corner voxel origin they sit ~1 px off."""
+    paths = sorted((Path(os.environ["XVR_DATA_ROOT"]) / "deepfluoro" / subject / "xrays").glob("*.pt"))
+    views = [p.stem for p in paths if (subject, p.stem) not in EXCLUDED_VIEWS][::5][:8]
+    shifts = np.array(list(_render_offsets("deepfluoro", subject, views).values()))
+    median = np.median(shifts, axis=0)
+    assert np.abs(median).max() < 0.5, f"median render offset (row, column) = {median} binned px"

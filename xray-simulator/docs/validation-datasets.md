@@ -133,6 +133,15 @@ and the camera/volume conventions of [DiffDRR 0.6.0](https://pypi.org/project/di
   sample center. Source location is preserved exactly. SID is chosen as SDD/2
   solely to parameterize the same source/detector pose; it is not inferred
   patient distance.
+- The DeepFluoro poses in this release expect voxel `ijk` at
+  `affine @ (ijk + 1/2)`, i.e. NIfTI indices treated as voxel corners, as
+  DiffDRR does with `voxel_shift=0` (which xvr's registration uses). Rendered
+  with voxel centers at `affine @ ijk`, all six subjects sit about one binned
+  pixel off their references, with the same direction in every subject; a
+  fitted 3D shift is +0.53/+0.46/+0.50 voxels along i/j/k. Ljubljana poses
+  expect voxel centers: the same half-voxel shift worsens all 20 views.
+  `POSE_VOXEL_ORIGIN` records this per dataset and `XvrView.camera` applies it by
+  offsetting the camera, so `camera.project` and the render stay consistent.
 - Stored `x0/y0` values are principal-point offsets in mm from the image
   center, along image columns and rows. The adapter sets
   `principal_point_px = ((width-1)/2 + x0/dx, (height-1)/2 + y0/dy)` with
@@ -168,7 +177,9 @@ binning, exclusions and invalid geometry. A `gpu` test projects a synthetic bead
 through the actual shader with an off-center principal point and unequal detector
 pitches. With `XVR_DATA_ROOT` set to a local xvr-data download, a `gpu`/`slow`
 test renders all 20 primary Ljubljana views and requires the vessel edges to lie
-within one binned pixel of the reference angiograms.
+within one binned pixel of the reference angiograms, and renders eight views per
+DeepFluoro subject, requiring the median bone-edge offset to stay below half a
+binned pixel.
 
 ## DRR-RATE and CT-RATE
 

@@ -39,6 +39,10 @@ from ..simulator import Pose
 XVR_DATA_REVISION = "a17273e3eadbd793bd861f3598a80ce4590c1124"
 XVR_CODE_REVISION = "caa55cc8096294cf70a218126bf16008dee0dec7"
 EXCLUDED_VIEWS = frozenset({("subject01", "003"), ("subject01", "050"), ("subject04", "002"), ("subject04", "004")})
+# Where each release's poses expect voxel samples: "center" places voxel ijk at affine @ ijk
+# (the NIfTI convention); "corner" at affine @ (ijk + 1/2), as DiffDRR does with
+# voxel_shift=0. Measured on all 362 DeepFluoro and 20 Ljubljana views at this revision.
+POSE_VOXEL_ORIGIN = {"deepfluoro": "corner", "ljubljana": "center"}
 _AP = np.array([[1.0, 0.0, 0.0], [0.0, 0.0, -1.0], [0.0, 1.0, 0.0]])
 _IMAGE_AXES = np.diag([1.0, -1.0, 1.0])
 
@@ -127,6 +131,10 @@ class XvrVolumeFrame:
             points = points - self.center_ras_mm
         return points @ self.simulator_to_centered_ras
 
+    def index_offset_to_simulator(self, offset_ijk) -> np.ndarray:
+        """Convert a displacement in NIfTI voxel-index units to simulator mm."""
+        return self.simulator_to_centered_ras.T @ self.affine_ras[:3, :3] @ np.asarray(offset_ijk, dtype=np.float64)
+
     def to_dict(self) -> dict:
         return {
             "shape_xyz": list(self.shape_xyz),
@@ -141,6 +149,14 @@ class XvrVolumeFrame:
         }
 
 
+def _world_offset_mm(frame: XvrVolumeFrame, pose_voxel_origin: str) -> np.ndarray:
+    # Corner-convention poses see voxel ijk at affine @ (ijk + 1/2); the renderer samples it
+    # at affine @ ijk, so the pose frame's origin sits half a voxel back along each index axis.
+    if pose_voxel_origin == "center":
+        return np.zeros(3)
+    return -frame.index_offset_to_simulator(np.full(3, 0.5))
+
+
 @dataclass(frozen=True)
 class XvrCamera:
     """A calibrated view consumable directly by SimulatorConfig and render_frame."""
@@ -149,10 +165,16 @@ class XvrCamera:
     pose: Pose
     volume_frame: XvrVolumeFrame
     binning: int
+    pose_voxel_origin: str = "center"
+
+    @property
+    def world_offset_mm(self) -> np.ndarray:
+        """Simulator position of the pose frame's origin; nonzero for corner-convention poses."""
+        return _world_offset_mm(self.volume_frame, self.pose_voxel_origin)
 
     def project(self, centered_ras_points) -> np.ndarray:
         """Project dataset fiducials to zero-based (column, row) pixel centers."""
-        points = self.volume_frame.points_to_simulator(centered_ras_points)
+        points = self.volume_frame.points_to_simulator(centered_ras_points) + self.world_offset_mm
         if points.ndim != 2:
             raise ValueError("Expected points with shape (N, 3)")
         pixels = []
@@ -168,13 +190,16 @@ class XvrCamera:
             "binning": self.binning,
             "volume_frame": self.volume_frame.to_dict(),
             "convention": "xvr centered RAS; AP; reverse_x_axis=False",
+            "pose_voxel_origin": self.pose_voxel_origin,
             "sid_note": "SDD/2 is a pose parameterization choice, not measured patient distance",
             "supported_data_revision": XVR_DATA_REVISION,
             "reference_code_revision": XVR_CODE_REVISION,
         }
 
 
-def adapt_xvr_camera(pose, intrinsics: Mapping, volume_frame: XvrVolumeFrame, *, binning: int = 1) -> XvrCamera:
+def adapt_xvr_camera(
+    pose, intrinsics: Mapping, volume_frame: XvrVolumeFrame, *, binning: int = 1, pose_voxel_origin: str = "center"
+) -> XvrCamera:
     """Convert an xvr pose/intrinsics companion to simulator geometry and pose.
 
     ``pose`` must be the stored 4x4 matrix, not Euler angles or the original
@@ -184,7 +209,12 @@ def adapt_xvr_camera(pose, intrinsics: Mapping, volume_frame: XvrVolumeFrame, *,
     This matches xvr's registration, which negates x0 before passing it to DiffDRR
     (xvr commit 4c68e0c); DiffDRR's constructor flips the horizontal offset only.
     Binning preserves physical FOV and the center of each b-by-b reference block.
+    ``pose_voxel_origin`` states where the poses expect voxel samples (see
+    ``POSE_VOXEL_ORIGIN``); "corner" moves the anatomy half a voxel along each
+    index axis relative to the camera. ``XvrView.camera`` selects it per dataset.
     """
+    if pose_voxel_origin not in ("center", "corner"):
+        raise ValueError('pose_voxel_origin must be "center" or "corner"')
     pose = np.asarray(pose, dtype=np.float64)
     if pose.shape == (1, 4, 4):
         pose = pose[0]
@@ -213,7 +243,7 @@ def adapt_xvr_camera(pose, intrinsics: Mapping, volume_frame: XvrVolumeFrame, *,
     rotation = u @ vt
     world_to_sim = volume_frame.simulator_to_centered_ras.T
     camera_rotation = world_to_sim @ rotation @ _AP @ _IMAGE_AXES
-    source = world_to_sim @ pose[:3, 3]
+    source = world_to_sim @ pose[:3, 3] + _world_offset_mm(volume_frame, pose_voxel_origin)
     sid = values["sdd"] / 2
     adapted_pose = Pose(
         rotation=matrix_to_euler_zxy(camera_rotation), translation=tuple(source + sid * camera_rotation[:, 2])
@@ -230,7 +260,7 @@ def adapt_xvr_camera(pose, intrinsics: Mapping, volume_frame: XvrVolumeFrame, *,
             (height // binning - 1) / 2 + values["y0"] / (values["dely"] * binning),
         ),
     )
-    return XvrCamera(geometry, adapted_pose, volume_frame, binning)
+    return XvrCamera(geometry, adapted_pose, volume_frame, binning, pose_voxel_origin)
 
 
 def load_xvr_volume(filename: str | Path) -> tuple[np.ndarray, XvrVolumeFrame]:
@@ -266,7 +296,9 @@ class XvrView:
     intrinsics: Mapping
 
     def camera(self, frame: XvrVolumeFrame, *, binning: int = 1) -> XvrCamera:
-        return adapt_xvr_camera(self.pose, self.intrinsics, frame, binning=binning)
+        return adapt_xvr_camera(
+            self.pose, self.intrinsics, frame, binning=binning, pose_voxel_origin=POSE_VOXEL_ORIGIN[self.dataset]
+        )
 
     def prepare_reference(self, raw_pixels: np.ndarray, *, binning: int = 1) -> np.ndarray:
         """Crop the release's collimator border and block-average; no tone fitting."""
