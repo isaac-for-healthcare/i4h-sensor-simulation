@@ -2,15 +2,18 @@
 
 This report records 382 matched projections generated with the CUDA/Slang X-ray
 simulator from [PR #73](https://github.com/isaac-for-healthcare/i4h-sensor-simulation/pull/73),
-at commit `8b3753f555314179835b8dd266ccaeb60b83c203`. The run finished on
+at commit `9ebb85e0e0c8e919bd28650f7f9f4171f6499cb1`. The run finished on
 2026-10-05 UTC with no failed subjects: 362 eligible DeepFluoro views from six
 subjects and 20 primary Ljubljana views from ten subjects.
 
-DeepFluoro shows strong structural agreement. Ljubljana exposes a likely
-horizontal detector-offset convention issue: a separate sign-reversal diagnostic
-improves agreement on all 20 views. The diagnostic is exploratory and is not a
-verified adapter fix. These results do not establish physical scanner calibration
-or independently validate X-ray and fluoroscopy realism.
+Both datasets show strong structural agreement. This run uses the dataset
+adapter's corrected geometry: the principal point is placed from the stored
+offsets with the correct horizontal sign, and DeepFluoro voxels are placed where
+that release's poses expect them. The previous version of this report found the
+Ljubljana horizontal displacement that led to the first correction; see
+[Changes since the previous report](#changes-since-the-previous-report). These
+results do not establish physical scanner calibration or independently validate
+X-ray and fluoroscopy realism.
 
 ## Results
 
@@ -19,11 +22,14 @@ Higher NCC and gradient NCC indicate better structural agreement. Shape SSIM
 includes an in-sample nonnegative gain/bias fit and does not establish calibrated
 intensity. No acceptance threshold was specified.
 
-| Dataset and geometry | Subjects | Views | NCC | Gradient NCC | Shape SSIM | Matched beats misposed |
+| Dataset | Subjects | Views | NCC | Gradient NCC | Shape SSIM | Matched beats misposed |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| DeepFluoro, current branch | 6 | 362 | 0.936 | 0.623 | 0.836 | 362/362 |
-| Ljubljana, current branch | 10 | 20 | 0.253 | 0.219 | 0.570 | 15/20 |
-| Ljubljana, offset-sign diagnostic | 10 | 20 | 0.840 | 0.737 | 0.641 | 20/20 |
+| DeepFluoro | 6 | 362 | 0.939 | 0.681 | 0.850 | 362/362 |
+| Ljubljana | 10 | 20 | 0.840 | 0.737 | 0.641 | 20/20 |
+
+Per-subject gradient NCC ranges from 0.536 to 0.755 for DeepFluoro and from
+0.698 to 0.799 for Ljubljana. On Ljubljana's model-defined vessel ROI the median
+NCC is 0.858 and gradient NCC 0.737.
 
 “Matched beats misposed” compares gradient NCC against an independently rendered
 control with an additional 5 mm translation along simulator X and 5° rotation
@@ -31,14 +37,39 @@ about simulator world Z, using the same reference and detector ROI.
 
 ![Subject-level structural agreement](comparison_summary.png)
 
-The Ljubljana pilot's first frontal view was displaced horizontally by about
-81 binned pixels. This matches twice the supplied horizontal detector offset
-divided by the binned detector pitch. Negating only that offset improved gradient
-NCC for every Ljubljana view. Camera pose, vertical offset, image alignment and
-other renderer settings were held fixed. No registration, image translation or
-pose optimization was applied. The current branch remains the primary result.
-
 ![Matched views versus misposed controls](pose_controls.png)
+
+## Changes since the previous report
+
+The previous version of this report (simulator commit `8b3753f`) rendered the
+same views with the same protocol. Two adapter conventions have since been
+corrected; the renderer and the metrics are unchanged.
+
+| Dataset | Report | NCC | Gradient NCC | Shape SSIM | Matched beats misposed |
+| --- | --- | ---: | ---: | ---: | ---: |
+| DeepFluoro | previous | 0.936 | 0.623 | 0.836 | 362/362 |
+| DeepFluoro | this run | 0.939 | 0.681 | 0.850 | 362/362 |
+| Ljubljana | previous | 0.253 | 0.219 | 0.570 | 15/20 |
+| Ljubljana | this run | 0.840 | 0.737 | 0.641 | 20/20 |
+
+1. **Principal-point sign.** The stored `x0/y0` are principal-point offsets from
+   the image centre along image columns and rows. The previous adapter mirrored
+   the horizontal offset, displacing each Ljubljana render by `2·x0/pitch` (up to
+   92 binned pixels); the previous report's offset-sign diagnostic is this
+   correction, and its Ljubljana scores equal this run's. Geometry is now set by
+   `CarmGeometry.principal_point_px`. DeepFluoro's offsets are half a native pixel,
+   so its renders move by only a quarter of a binned pixel.
+2. **DeepFluoro voxel origin.** The DeepFluoro poses in this release treat NIfTI
+   indices as voxel corners (voxel `ijk` at `affine @ (ijk + 1/2)`). Rendered with
+   voxel centres at `affine @ ijk`, every subject sat about one binned pixel off its
+   references in the same direction. Ljubljana poses expect voxel centres. The
+   adapter records this per dataset in `POSE_VOXEL_ORIGIN`.
+
+Residual misalignment, measured by edge-based phase correlation between each
+render and its reference, is now 0.19 binned pixels RMS for DeepFluoro and 0.26
+for Ljubljana, with no systematic shift. The evidence for both conventions is in
+the [dataset guide](../../validation-datasets.md#coordinate-contract). The
+offset-sign diagnostic render was removed from the scripts.
 
 ## Numerical checks
 
@@ -46,10 +77,10 @@ pose optimization was applied. The current branch remains the primary result.
   reference/generated arrays.
 - The first eligible view of each of the 16 subjects was also rendered with a
   0.25 mm integration step, compared with the main 0.5 mm run. The maximum relative
-  L2 difference in attenuation was **0.429%**. This is a numerical consistency
+  L2 difference in attenuation was **0.428%**. This is a numerical consistency
   check, not an external accuracy measurement.
-- All 18 simulator source hashes matched the pre-run snapshot. No simulator
-  source was changed for this experiment or its offset diagnostic.
+- The run used a clean checkout. All 18 simulator source hashes recorded before
+  the run match the committed sources.
 
 ## Methods
 
@@ -57,6 +88,7 @@ pose optimization was applied. The current branch remains the primary result.
 | --- | --- |
 | Input release | `eigenvivek/xvr-data`, revision `a17273e3eadbd793bd861f3598a80ce4590c1124` |
 | Pairing | Matching subject volume, supplied pose and per-view detector intrinsics through `xray_simulator.validation.xvr` |
+| Geometry conventions | Principal point at `((W-1)/2 + x0/dx, (H-1)/2 + y0/dy)`; DeepFluoro voxel `ijk` at `affine @ (ijk + 1/2)`, Ljubljana at `affine @ ijk`. Fixed per dataset; no registration or pose fitting |
 | Sampling | 4×4 detector binning; 0.5 mm ray integration step |
 | DeepFluoro crop | 50 pixels from each edge before binning: 1536×1536 to 1436×1436, then 359×359 |
 | Exclusions | Upstream-flagged DeepFluoro subject01 `003`/`050` and subject04 `002`/`004`; Ljubljana uses frontal/lateral primary views, excluding `_max` images |
@@ -85,10 +117,12 @@ simulator source hashes. Metric definitions are in the
 
 ## Interpretation and limits
 
-The evidence supports anatomical and projection-structure agreement on
-DeepFluoro. Ljubljana needs verification of the detector-offset convention and a
-validated adapter correction before equivalent claims can be made for the
-current branch.
+The evidence supports anatomical and projection-structure agreement on both
+datasets with the supplied poses and calibrations. The two geometry conventions
+were identified from these same views; the Ljubljana sign follows an exact
+`2·x0/pitch` relationship and matches upstream xvr's own correction, while the
+DeepFluoro voxel origin is an empirical property of this data release that has
+not been confirmed by its authors.
 
 Both X-ray and fluoroscopy appearances use the same simulated transport with
 opposite display polarity. These are still images, not independent simulations
@@ -103,12 +137,12 @@ subjects and evaluated on held-out subjects.
 
 - [Dataset summaries](dataset_summary.csv).
 - [Per-subject summaries, including quartiles](per_subject_summary.csv).
-- [Per-view metrics](per_view_metrics.csv): 382 primary rows plus 20 explicitly
-  labeled Ljubljana diagnostic rows. The `directory` column identifies the pair
-  within the local rendering output; it is not a link to public patient imagery.
+- [Per-view metrics](per_view_metrics.csv): 382 rows. The `directory` column
+  identifies the pair within the local rendering output; it is not a link to
+  public patient imagery.
 - [Full numerical report index](report.json): `pair_files` links to the numerical
-  measurements and geometry for all 382 pairs, including diagnostic and display
-  measurements. Pair contents are unchanged from the local report.
+  measurements and geometry for all 382 pairs, including display measurements.
+  Pair contents are unchanged from the local report.
 - [Integration checks](integration_checks.csv), [completion status](run_status.json)
   and [run verification](verification.json).
 - [PDF summary figure](comparison_summary.pdf).
@@ -117,19 +151,19 @@ subjects and evaluated on held-out subjects.
 
 The public report contains numerical measurements and metric plots. Source
 volumes, reference/generated anatomy images, raw arrays and the interactive image
-gallery remain in the local run directory
-`xray-simulator/output/paired_deepfluoro_ljubljana_20261005_032129/`.
-This follows the [dataset guide](../../validation-datasets.md): DeepFluoro is
-CC BY-NC 4.0; Ljubljana is CC BY-NC-ND 4.0, with the xvr remix hosted by permission.
-The simulator's license does not relicense those datasets or derived imagery.
+gallery remain in the local run directory. This follows the
+[dataset guide](../../validation-datasets.md): DeepFluoro is CC BY-NC 4.0;
+Ljubljana is CC BY-NC-ND 4.0, with the xvr remix hosted by permission. The
+simulator's license does not relicense those datasets or derived imagery.
 
 ## Reproduce locally
 
 The [rendering script](render_and_compare.py) preserves the run logic, with local
 paths configured through environment variables. Its optional inventory hash is
-recorded when a `manifest.json` exists above the fluoroscopy data directory.
-The [report builder](build_local_report.py) reconstructs the local image gallery,
-plots and CSVs from a complete rendering output. Generated images remain local.
+recorded when a `manifest.json` exists above the data directory; this run had
+none. The [report builder](build_local_report.py) reconstructs the local image
+gallery, plots and CSVs from a complete rendering output. Generated images remain
+local.
 
 Use the pinned simulator commit above and obtain the dataset separately following
 the dataset guide. Install the rendering/validation extras and Matplotlib in a
@@ -138,7 +172,7 @@ From a checkout containing these report scripts:
 
 ```bash
 export I4H_SENSOR_SIMULATION_REPO=/path/to/simulator-at-recorded-commit
-export I4H_VALIDATION_DATA_ROOT=/path/to/validation-data/fluoroscopy
+export I4H_VALIDATION_DATA_ROOT=/path/to/xvr-data
 export OPENBLAS_NUM_THREADS=1
 export OMP_NUM_THREADS=1
 
@@ -148,10 +182,12 @@ python xray-simulator/docs/reports/deepfluoro-ljubljana/build_local_report.py \
   /path/to/new-local-render-output
 ```
 
-Use a new output directory. The full run requires the six DeepFluoro and ten
-Ljubljana subject volumes and their primary DICOM/PT view companions. The scripts
-do not download datasets or publish outputs. Host-specific protocol paths are
-replaced by placeholders in this public snapshot; measurements are unchanged.
+`I4H_VALIDATION_DATA_ROOT` is the directory containing `deepfluoro/` and
+`ljubljana/`. Use a new output directory. The full run requires the six
+DeepFluoro and ten Ljubljana subject volumes and their primary DICOM/PT view
+companions. The scripts do not download datasets or publish outputs.
+Host-specific protocol paths are replaced by placeholders in this public
+snapshot; measurements are unchanged.
 
 ## Sources
 
@@ -162,3 +198,4 @@ replaced by placeholders in this public snapshot; measurements are unchanged.
 - [Ljubljana 3D-2D-GS-CA](https://lit.fe.uni-lj.si/en/research/resources/3D-2D-GS-CA/):
   Mitrović et al., [3D-2D registration of cerebral angiograms: A method and evaluation on clinical images](https://ieeexplore.ieee.org/abstract/document/6507588), 2013.
 - [Pinned xvr reference preprocessing](https://github.com/eigenvivek/xvr/blob/caa55cc8096294cf70a218126bf16008dee0dec7/src/xvr/io/xray.py).
+- [xvr x0 sign correction](https://github.com/eigenvivek/xvr/commit/4c68e0cebc6d2c0f8e04690ff054951a4299f90f).

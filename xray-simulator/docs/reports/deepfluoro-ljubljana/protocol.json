@@ -1,11 +1,11 @@
 {
-  "created_utc": "2026-10-05T03:37:34.881202+00:00",
+  "created_utc": "2026-10-05T19:45:58.976774+00:00",
   "simulator_repository": "<repository-root>",
-  "simulator_commit": "8b3753f555314179835b8dd266ccaeb60b83c203",
+  "simulator_commit": "9ebb85e0e0c8e919bd28650f7f9f4171f6499cb1",
   "source_dirty": false,
-  "data_root": "<validation-data>/fluoroscopy",
+  "data_root": "<xvr-data>",
   "data_revision": "a17273e3eadbd793bd861f3598a80ce4590c1124",
-  "dataset_inventory_sha256": "55c64ac85707c1cf7402635026a04669a74ce3f3be93de815aba03e7e23fa475",
+  "dataset_inventory_sha256": null,
   "backend": "public xray_simulator.xray_simulator / SlangDiffDRRRenderer, CUDA",
   "binning": 4,
   "integration_step_mm": 0.5,
@@ -22,7 +22,7 @@
   "display_evaluation": "fixed default log window [0,6] and separately a subject window derived solely from the first eligible generated view (1st/99th attenuation percentiles), then frozen. Both X-ray and fluoro use the same transport with opposite polarity.",
   "controls": "independent render with +5 mm along simulator X and +5 degrees about simulator world Z; all masks/reference preparation unchanged",
   "integration_check": "first eligible view per subject also rendered at 0.25 mm; compare line integral with 0.5 mm (numerical consistency, not external validation)",
-  "ljubljana_offset_diagnostic": "additional exploratory render negates only the horizontal detector offset from the current adapter. The pilot had an approximately 81-pixel horizontal displacement, equal to twice the stored x offset / binned pitch. Keep branch-as-is results primary; use this deterministic metadata-sign variant without image registration or pose fitting, with its own misposed control. This is not a source-code patch or a validated convention correction.",
+  "geometry_conventions": "xvr adapter: stored x0/y0 are principal-point offsets from the image center along columns/rows (principal_point_px = ((W-1)/2 + x0/dx, (H-1)/2 + y0/dy)); DeepFluoro poses expect voxel ijk at affine @ (ijk + 1/2) and Ljubljana poses at affine @ ijk (POSE_VOXEL_ORIGIN). Both are fixed adapter conventions; no image registration, translation or pose fitting.",
   "statistics": "per-view and per-subject median/IQR; dataset summary median across subject medians. No acquisition bootstrap because independence metadata is not established.",
   "limitations": [
     "No patient images are published or committed.",
@@ -36,34 +36,33 @@
     "https://lit.fe.uni-lj.si/en/research/resources/3D-2D-GS-CA/"
   ],
   "packages": {
-    "numpy": "2.4.0",
-    "scipy": "1.16.3",
-    "torch": "2.13.0",
-    "slangpy": "0.40.1",
-    "scikit-image": "0.26.0",
-    "nibabel": "5.3.3",
-    "pydicom": "3.0.1",
-    "pillow": "12.1.0"
+    "numpy": "2.2.6",
+    "scipy": "1.15.3",
+    "torch": "2.14.1",
+    "slangpy": "0.43.1",
+    "scikit-image": "0.25.2",
+    "nibabel": "5.4.2",
+    "pydicom": "3.0.2",
+    "pillow": "12.3.0"
   },
   "source_hashes": {
     "xray-simulator/xray_simulator/__init__.py": "61e28e5c094287485e5119348b4c3421c5026f96872629e23bc565294b0503d5",
-    "xray-simulator/xray_simulator/config.py": "3aa30082995d4ecf04a788509c9bf9136c22cb0b5ad9cb152927812c713525f8",
+    "xray-simulator/xray_simulator/config.py": "47a128459ee854826b69b5136e0e85973bed043edd309f7ea044c3372f745110",
     "xray-simulator/xray_simulator/ct/__init__.py": "427a32035ac48933857c55a9353ff3311995a7ad9cd2fd1bf6424c241491562c",
     "xray-simulator/xray_simulator/ct/dicom_ingest.py": "19635c5b9506b4c7f85337f6df487557f6de26dce909f263a0c7666b92d361ab",
     "xray-simulator/xray_simulator/display.py": "3fe36e95e1d6e46a24c0e44cb659935e67725fa9b0ec79d4d5819236c6be94ac",
-    "xray-simulator/xray_simulator/geometry.py": "476f4ab6150a682fcbc3202d18e357d283e3f54ed785b935c319fd2baff1562c",
+    "xray-simulator/xray_simulator/geometry.py": "0b89c5812d7823ad3b4d89b8c40485ba5d39cc58c8c964fe0059bc2df077668b",
     "xray-simulator/xray_simulator/hu_mapping.py": "82635e722ca2b9683a88fe263546d27cba0fc58f6d4f48efe34b78430867a673",
     "xray-simulator/xray_simulator/preprocessor.py": "1aff2d6a69433563c2c500fb5d2b8352196c5a44ea6c582c4e8e7774f8085046",
     "xray-simulator/xray_simulator/rendering/__init__.py": "387a32b75f1f0392a08be40da4b93d739cfe3bcd3d0406aa94f2e2f35a557812",
     "xray-simulator/xray_simulator/rendering/diffdrr_slang.slang": "7a93d90e4561ab820230b458617b4360ffab2493f21a5e028bd02525c7206279",
-    "xray-simulator/xray_simulator/rendering/diffdrr_slang_renderer.py": "8852a3da07ec6a57d4e08f1e12af6c00d4d3d4fd8d54bb70299bed7e6bfb93b4",
+    "xray-simulator/xray_simulator/rendering/diffdrr_slang_renderer.py": "c41510b1f1b912f3a9e808778088bdbfb73716636658ced81e36c2c6c0ad3b17",
     "xray-simulator/xray_simulator/rendering/realism.py": "62ba15527cfc5488ff9ef6112ec0cbe579871a8779983625d6bde217a0162bfd",
     "xray-simulator/xray_simulator/simulator.py": "17fd2fb0ac1d6c934c5069f37002d1652077426fd782010d047ce3aa331d567b",
     "xray-simulator/xray_simulator/validation/__init__.py": "8f420a44f70d23766551d45832ddce40d6b4d42a0b21566a9fab416992803a66",
     "xray-simulator/xray_simulator/validation/__main__.py": "006ba7d5d59cdf2e6678a87b9a4a758d16dbb896c9ecf43f6715a3f9930bab75",
     "xray-simulator/xray_simulator/validation/metrics.py": "9c81d818be03ea62aefe5a6f0651d19466713c41d05ea9b8ab14ff2059e4e2f5",
-    "xray-simulator/xray_simulator/validation/xvr.py": "232be5c3cc22a47fd151e878833c94b7ab48bfe695012a750abb37ccd1b8868a",
+    "xray-simulator/xray_simulator/validation/xvr.py": "b1fedbd7665fa88c57dcea0a976aca6d27d1a8d385543a0af8ccc13aa0b9f1aa",
     "xray-simulator/xray_simulator/volume.py": "1c910e79ab43f6212d5555dd793f26939e240e0b9c3b3db9f6d5f0f7daadf60a"
-  },
-  "publication_note": "Host-specific paths are replaced by placeholders. Dataset imagery and raw arrays are retained locally. Measurements and source hashes are unchanged."
+  }
 }

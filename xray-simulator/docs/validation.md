@@ -7,8 +7,8 @@ does not require a renderer, GPU, network connection or downloaded dataset.
 This is evaluation tooling, not a claim that the simulator reproduces a clinical
 scanner. The repository includes analytical metric tests and a
 [paired DeepFluoro/Ljubljana comparison report](reports/deepfluoro-ljubljana/README.md)
-covering 382 matched views. The report separates current-branch results from an
-exploratory Ljubljana detector-offset diagnostic. A separate
+covering 382 matched views, with the dataset geometry conventions it relies on
+and the changes since its previous version. A separate
 [DRR-RATE X-ray comparison report](reports/drr-rate/README.md) covers 40 AP/lateral
 views from 20 CT subjects against an independent synthetic renderer, with both
 the matched DRR-RATE signal model and the stock simulator HU mapping. It includes

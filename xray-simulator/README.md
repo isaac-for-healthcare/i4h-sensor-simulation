@@ -26,7 +26,7 @@ The `xray_simulator` package generates realistic simulated X-ray images from CT 
 4. [Examples & Test Data](docs/examples-and-test-data.md) — test datasets, example scripts, running the examples
 5. [Preset Schema & API](docs/preset-schema.md) — versioned JSON/YAML configuration, validation, field reference
 6. [Image validation](docs/validation.md) — paired X-ray/fluoroscopy metrics, reference datasets, and evaluation protocol
-7. [DeepFluoro/Ljubljana comparison report](docs/reports/deepfluoro-ljubljana/README.md) — 382 matched views, measured agreement, and the exploratory detector-offset diagnostic
+7. [DeepFluoro/Ljubljana comparison report](docs/reports/deepfluoro-ljubljana/README.md) — 382 matched views, measured agreement, and the dataset geometry conventions
 8. [DRR-RATE X-ray comparison report](docs/reports/drr-rate/README.md) — 40 matched views from 20 CT subjects, both signal mappings, and pose/integration controls
 
 ---
