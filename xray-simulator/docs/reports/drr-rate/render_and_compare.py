@@ -1,3 +1,18 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """Compare the public i4h X-ray renderer with matched published DRR-RATE views."""
 from __future__ import annotations
 
@@ -89,7 +104,11 @@ def worker(args):
     assert args.case + '.nii.gz' not in (DATA / 'ct_rate/dataset/metadata/no_chest_valid.txt').read_text()
     directory = args.output / args.case
     directory.mkdir()
-    image = nib.load(DATA / pair['ct_local_path'])
+    ct_path = DATA / pair['ct_local_path']
+    ct_sha256 = digest(ct_path)
+    if ct_sha256 != pair['ct_sha256']:
+        raise ValueError(f"{args.case}: local CT sha256 {ct_sha256} does not match the cohort's {pair['ct_sha256']}")
+    image = nib.load(ct_path)
     hu = image.get_fdata(dtype=np.float32, caching='unchanged')
     hu *= float(meta['RescaleSlope'])
     hu += float(meta['RescaleIntercept'])
@@ -105,7 +124,7 @@ def worker(args):
     rr, cc = np.mgrid[:512, :512]
     detector_local = np.stack([(cc-255.5)*.51, (rr-255.5)*.51, np.full((512, 512), 1000.)], axis=-1)
     raylength = np.linalg.norm(detector_local, axis=-1)
-    dump(directory / 'input.json', {'case': args.case, 'subject': pair['subject'], 'ct_sha256': pair['ct_sha256'], 'ct_revision': pair['ct_revision'],
+    dump(directory / 'input.json', {'case': args.case, 'subject': pair['subject'], 'ct_sha256': ct_sha256, 'ct_revision': pair['ct_revision'],
         'shape_xyz': shape.tolist(), 'nifti_affine_before_metadata': image.affine.tolist(), 'spacing_xyz_mm': spacing.tolist(), 'origin_xyz_mm': origin.tolist(),
         'rescale_slope': float(meta['RescaleSlope']), 'rescale_intercept': float(meta['RescaleIntercept']), 'hu_range': [float(hu.min()), float(hu.max())]})
 
@@ -160,7 +179,7 @@ def worker(args):
             arrays = {'reference': reference, 'intensity': frame.intensity, 'attenuation': attenuation,
                       'misposed_attenuation': control_a, 'mask': mask, 'xray_default': frame.image, 'xray_contrast_preview': preview}
             record = {'case': args.case, 'subject': pair['subject'], 'view': view, 'model': model, 'directory': str(out.relative_to(args.output)),
-                'reference_sha256': digest(path), 'ct_sha256': pair['ct_sha256'], 'scores': scores, 'misposed_scores': misposed,
+                'reference_sha256': digest(path), 'ct_sha256': ct_sha256, 'scores': scores, 'misposed_scores': misposed,
                 'gradient_ncc_gap': scores['as_configured']['gradient_ncc']-misposed['as_configured']['gradient_ncc'],
                 'default_display_scores': metric(reference, frame.image, 'display'), 'geometry': asdict(geometry), 'pose': pose.to_dict(),
                 'control_pose': control_pose.to_dict(), 'step_capacity': capacity, 'floor_transmission_fraction': float(np.mean(frame.intensity <= 1e-8))}
