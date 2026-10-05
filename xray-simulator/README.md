@@ -29,31 +29,7 @@ The `xray_simulator` package generates realistic simulated X-ray images from CT 
 
 ## Installation
 
-### Option 1: Using the I4H CLI (Recommended)
-
-The `./i4h` CLI builds and runs inside a Docker container with all dependencies pre-installed.
-Each step is a separate mode; the cached preprocessed volume persists between runs in `xray-simulator/output/`.
-
-```bash
-# Synthetic data workflow (no real CT data needed)
-./i4h run xray-simulator preprocess_synthetic
-./i4h run xray-simulator demo
-
-# Real CT data workflow
-./i4h run xray-simulator download_data
-./i4h run xray-simulator preprocess_dicom
-./i4h run xray-simulator demo
-
-# List available modes
-./i4h modes xray-simulator
-
-# Launch an interactive shell inside the container
-./i4h run-container xray-simulator
-```
-
-Set `xray_simulator_OUTPUT_DIR` or `xray_simulator_CACHE_DIR` to override the default output paths.
-
-### Option 2: Docker
+### Option 1: Docker
 
 ```bash
 cd xray-simulator
@@ -77,7 +53,7 @@ python examples/preprocess_ct.py --dicom excellent/excellent/0
 python examples/xray_simulator_demo.py
 ```
 
-### Option 3: Bare Metal Installation
+### Option 2: Bare Metal Installation
 
 ```bash
 cd xray-simulator
