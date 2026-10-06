@@ -38,7 +38,8 @@ struct CarmGeometry
     float sid;              // Source-to-Isocenter Distance (mm)
     float2 detectorSize;    // Detector physical size (mm)
     int2 detectorPixels;    // Detector resolution (pixels)
-    float pixelSpacing;     // Pixel pitch (mm)
+    float2 pixelSpacing;    // Horizontal/vertical pixel pitch (mm)
+    float2 detectorOffset;  // Detector center displacement in local X/Y (mm)
 };
 
 struct VolumeInfo
@@ -258,9 +259,9 @@ float computePixelIntensity(
     // Detector pixel position in world coordinates
     float detZ = carm.sdd - carm.sid;
     float2 pixelOffset = float2(
-        (float(pixelCoord.x) + 0.5f - float(carm.detectorPixels.x) * 0.5f) * carm.pixelSpacing,
-        (float(pixelCoord.y) + 0.5f - float(carm.detectorPixels.y) * 0.5f) * carm.pixelSpacing
-    );
+        (float(pixelCoord.x) + 0.5f - float(carm.detectorPixels.x) * 0.5f) * carm.pixelSpacing.x,
+        (float(pixelCoord.y) + 0.5f - float(carm.detectorPixels.y) * 0.5f) * carm.pixelSpacing.y
+    ) + carm.detectorOffset;
 
     float3 detectorLocal = float3(pixelOffset.x, pixelOffset.y, detZ);
     float3 detectorWorld = transformPoint(detectorLocal, R, translation + volumeCenter);

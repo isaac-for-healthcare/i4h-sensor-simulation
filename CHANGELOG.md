@@ -1,5 +1,11 @@
 # Isaac for Healthcare - Sensor Simulation - Changelog
 
+## Unreleased
+
+- Removed the `i4h` CLI wrapper. Run the X-ray simulator through its Python examples,
+  the `xray-simulator` config-file launcher or its Dockerfile, and the ultrasound
+  simulator through `build_and_run.sh`
+
 ## Version 0.6.0
 
 - `i4h` CLI minor update to pin CLI to a specific commit for reproducibility

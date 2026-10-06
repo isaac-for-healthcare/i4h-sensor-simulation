@@ -66,5 +66,10 @@ COPY examples/ ./examples/
 # Install kaggle
 RUN pip install --break-system-packages kaggle
 
-# Install xray_simulator with all dependencies
-RUN pip install --break-system-packages -e ".[all]"
+# The dataset tools need PyTorch only to read xvr-data .pt calibration files. The CPU
+# wheel avoids a multi-GB CUDA download; the simulator itself renders through Slang
+# (the optional TorchSlangDiffDRR wrapper needs a CUDA PyTorch build instead).
+RUN pip install --break-system-packages torch --index-url https://download.pytorch.org/whl/cpu
+
+# Install xray_simulator with all dependencies, including the dataset and validation tools
+RUN pip install --break-system-packages -e ".[all,datasets,validation]"

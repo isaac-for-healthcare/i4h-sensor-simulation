@@ -23,11 +23,23 @@ cli = [
     "pillow>=10.0.0",
 ]
 
+datasets = [
+    "nibabel>=5.0.0",
+    "pydicom>=2.4.0",
+    "torch>=2.6",
+]
+
+validation = [
+    "scikit-image>=0.21",
+    "pillow>=10.0.0",
+]
+
 all = [
     "matplotlib>=3.9.0",
     "nibabel>=5.0.0",
     "pillow>=11.0.0",
     "pydicom>=2.4.0",
+    "scikit-image>=0.21",
     "SimpleITK>=2.3.0",
     "slangpy>=0.40",
     "tqdm>=4.67.1",

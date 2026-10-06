@@ -1,0 +1,15 @@
+{
+  "original_run": "report-regen",
+  "original_protocol_sha256": "5e591194afece321947147b92072fccaeb03472537342ec6b9c66b0fece26adc",
+  "original_report_sha256": "8b56fcbf0bff6259bec938a5ae46d7d7c08935e88ce52e171c064ec258a00113",
+  "original_render_script_sha256": "aa2ec47116f233625d0429aa605f0174a35573684bc7b9b42bbb10a54db659c8",
+  "original_report_builder_sha256": "85dd761c55119c151a1c59408d5a886a7bc0a0811a8cc7c2d08a4a2563f2a752",
+  "changes_for_publication": [
+    "Publish the report as GitHub-readable Markdown, numerical JSON/CSV, and metric plots.",
+    "Split the unchanged pairs array into files indexed by report.json.",
+    "Replace two host-specific protocol paths with placeholders.",
+    "Retain source volumes, reference/generated images, raw arrays, and the interactive image gallery locally, following the dataset guide.",
+    "Normalize CSV line endings to LF; all field values are unchanged.",
+    "After publication, add the Apache-2.0 license header to both scripts and make render_and_compare.py --resume verify the recorded protocol and each completed subject's input hashes; the rendering and scoring logic is unchanged."
+  ]
+}

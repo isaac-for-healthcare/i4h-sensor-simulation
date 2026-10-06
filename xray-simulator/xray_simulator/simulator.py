@@ -378,6 +378,8 @@ class xray_simulator:
                 det_height_px=cfg.geometry.detector_height_px,
                 det_width_px=cfg.geometry.detector_width_px,
                 pixel_spacing_mm=cfg.geometry.pixel_spacing_mm,
+                pixel_spacing_y_mm=cfg.geometry.pixel_spacing_y_mm,
+                detector_offset_xy_mm=cfg.geometry.detector_offset_xy_mm,
                 source_to_detector_mm=cfg.geometry.source_to_detector_mm,
                 source_to_isocenter_mm=cfg.geometry.source_to_isocenter_mm,
                 step_mm=cfg.physics.step_mm,
