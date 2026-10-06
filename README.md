@@ -40,6 +40,10 @@ Configure X-ray scanner parameters through the Python API or a validated
 [JSON/YAML preset](./xray-simulator/docs/preset-schema.md). The optional
 [config-file launcher](./xray-simulator/docs/cli.md) runs preprocessing and rendering.
 
+[Validation results](./xray-simulator/docs/validation.md#latest-results) compare
+the simulator with real DeepFluoro fluoroscopy and Ljubljana angiography, and with
+synthetic DRR-RATE chest projections, for matched poses and calibrations.
+
 [Learn more about the X-ray Simulator](./xray-simulator/README.md)
 
 ## Getting Started

@@ -1,3 +1,18 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """Render matched xvr-data views with the public i4h simulator and retain comparisons."""
 from __future__ import annotations
 
@@ -223,6 +238,33 @@ def worker(args):
     write_json(out / 'completed.json', {'views': len(all_records), 'views_list': [r['view'] for r in all_records]})
 
 
+# A resumed run must match the recorded code, environment and data release; only
+# created_utc and host paths may differ.
+RESUME_PROTOCOL_KEYS = ('simulator_commit', 'source_dirty', 'source_hashes', 'data_revision',
+                        'dataset_inventory_sha256', 'packages')
+
+
+def check_resume_protocol(output):
+    recorded, current = json.loads((output / 'protocol.json').read_text()), protocol()
+    changed = [key for key in RESUME_PROTOCOL_KEYS if recorded.get(key) != current.get(key)]
+    if changed:
+        raise ValueError(f'Resume requires the recorded protocol; changed: {changed}. Use a new output directory.')
+
+
+def completed_inputs_unchanged(output, dataset, subject):
+    """Compare a completed subject's recorded volume, reference and calibration hashes with the data."""
+    sub, out = DATA / dataset / subject, output / dataset / subject
+    if json.loads((out / 'subject.json').read_text())['volume_sha256'] != digest(sub / 'volume.nii.gz'):
+        return False
+    for path in out.glob('*/comparison.json'):
+        record = json.loads(path.read_text())
+        view = sub / 'xrays' / record['view']
+        if (record['reference_sha256'] != digest(view.with_suffix('.dcm'))
+                or record['calibration_sha256'] != digest(view.with_suffix('.pt'))):
+            return False
+    return True
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output', type=Path, required=True)
@@ -239,6 +281,7 @@ def main():
     if args.resume:
         if digest(__file__) != digest(args.output / 'render_and_compare.py'):
             raise ValueError('Resume requires the unchanged benchmark script')
+        check_resume_protocol(args.output)
     else:
         write_json(args.output / 'protocol.json', protocol())
         shutil.copy2(__file__, args.output / 'render_and_compare.py')
@@ -248,6 +291,8 @@ def main():
         subjects = [args.subject] if args.subject else [p.name for p in sorted((DATA / dataset).glob('subject*'))]
         for subject in subjects:
             if args.resume and (args.output / dataset / subject / 'completed.json').exists():
+                if not completed_inputs_unchanged(args.output, dataset, subject):
+                    raise ValueError(f'{dataset}/{subject} inputs changed since it completed; use a new output directory')
                 print(f'SKIP completed {dataset}/{subject}', flush=True)
                 continue
             cmd = [sys.executable, '-u', __file__, '--output', str(args.output), '--dataset', dataset, '--subject', subject, '--worker']

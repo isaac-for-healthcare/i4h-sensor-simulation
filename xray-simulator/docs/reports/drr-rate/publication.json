@@ -9,6 +9,7 @@
     "Split the unchanged pairs array by case into files indexed in report.json.",
     "Replace the simulator_repository host path with a placeholder in the protocol and add a publication note.",
     "Configure the archived renderer with two environment variables and adjacent cohort/selection manifests; rename the archived report builder build_local_report.py; apply repository lint formatting.",
-    "Retain source volumes, reference/generated anatomy images, raw arrays, anatomy sheets, and the interactive image gallery locally, following the dataset guide."
+    "Retain source volumes, reference/generated anatomy images, raw arrays, anatomy sheets, and the interactive image gallery locally, following the dataset guide.",
+    "After publication, add the Apache-2.0 license header to both scripts and make render_and_compare.py verify each CT's sha256 against the cohort before rendering; the rendering and scoring logic is unchanged."
   ]
 }

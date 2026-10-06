@@ -28,7 +28,10 @@ intensity. No acceptance threshold was specified.
 | Ljubljana | 10 | 20 | 0.840 | 0.737 | 0.641 | 20/20 |
 
 Per-subject gradient NCC ranges from 0.536 to 0.755 for DeepFluoro and from
-0.698 to 0.799 for Ljubljana. On Ljubljana's model-defined vessel ROI the median
+0.698 to 0.799 for Ljubljana. subject02's lower scores reflect a CT volume
+cropped through the body; the
+[validation guide](../../validation.md#deepfluoro-per-subject-scores) explains
+this and subject03's truncation. On Ljubljana's model-defined vessel ROI the median
 NCC is 0.858 and gradient NCC 0.737.
 
 “Matched beats misposed” compares gradient NCC against an independently rendered

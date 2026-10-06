@@ -12,8 +12,130 @@ and the changes since its previous version. A separate
 [DRR-RATE X-ray comparison report](reports/drr-rate/README.md) covers 40 AP/lateral
 views from 20 CT subjects against an independent synthetic renderer, with both
 the matched DRR-RATE signal model and the stock simulator HU mapping. It includes
-misposed controls and integration-step checks. Dataset images remain local;
-these structural comparisons do not establish physical or clinical validation.
+misposed controls and integration-step checks. Apart from the attributed
+DeepFluoro samples below, dataset images remain local; these structural
+comparisons do not establish physical or clinical validation.
+
+## Latest results
+
+Three paired comparisons have been run with the simulator: two against real
+clinical acquisitions and one against an independent synthetic renderer. Each
+view is rendered with the reference's own volume, pose and detector calibration,
+without registration or image alignment, and scored with the metrics defined
+below. Values are medians of per-subject medians, so each subject counts equally.
+
+| Comparison | Reference images | Subjects | Views | NCC | Gradient NCC | Shape SSIM | Matched beats misposed |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| [DeepFluoro](reports/deepfluoro-ljubljana/README.md) | Real pelvis fluoroscopy | 6 | 362 | 0.939 | 0.681 | 0.850 | 362/362 |
+| [Ljubljana](reports/deepfluoro-ljubljana/README.md) | Real cerebral subtraction angiography | 10 | 20 | 0.840 | 0.737 | 0.641 | 20/20 |
+| [DRR-RATE](reports/drr-rate/README.md), matched signal model | Synthetic chest DRRs (Siddon–Jacobs) | 20 | 40 | 0.998 | 0.964 | 0.961 | 40/40 |
+| [DRR-RATE](reports/drr-rate/README.md), stock HU mapping | Synthetic chest DRRs (Siddon–Jacobs) | 20 | 40 | 0.857 | 0.543 | 0.720 | 40/40 |
+
+- **NCC** and **gradient NCC** measure structural agreement of intensities and
+  edges. They are the primary scores.
+- **Shape SSIM** follows a per-image gain/bias fit, so it does not measure
+  brightness or physical calibration.
+- **Matched beats misposed** counts views whose gradient NCC exceeds that of a
+  control rendered 5 mm and 5° away from the supplied pose. Every view in every
+  comparison passes, so the scores respond to pose rather than to generic
+  anatomy.
+- Rendering at a 0.25 mm instead of 0.5 mm integration step changes attenuation
+  by at most 0.43% in both reports.
+
+The DeepFluoro and Ljubljana results include the dataset adapter's principal-point
+and DeepFluoro voxel-origin corrections; their
+[report](reports/deepfluoro-ljubljana/README.md#changes-since-the-previous-report)
+lists the scores before and after. DRR-RATE uses a centred detector without the
+adapter, so those corrections do not affect it. Against the real acquisitions,
+Ljubljana uses an uncalibrated vessel-contrast model and DeepFluoro an example HU
+mapping, so the remaining differences include intensity modelling as well as
+anatomy. DRR-RATE references are synthetic: they test consistency with another
+renderer, not realism.
+
+![Per-subject agreement for DeepFluoro and Ljubljana](reports/deepfluoro-ljubljana/comparison_summary.png)
+
+![Per-subject agreement for DRR-RATE](reports/drr-rate/comparison_summary.png)
+
+### DeepFluoro per-subject scores
+
+| Subject | Views | NCC | Gradient NCC | Shape SSIM |
+| --- | ---: | ---: | ---: | ---: |
+| subject01 | 109 | 0.941 | 0.706 | 0.858 |
+| subject02 | 104 | 0.888 | 0.657 | 0.825 |
+| subject03 | 24 | 0.937 | 0.750 | 0.898 |
+| subject04 | 46 | 0.944 | 0.536 | 0.842 |
+| subject05 | 55 | 0.935 | 0.651 | 0.838 |
+| subject06 | 24 | 0.969 | 0.755 | 0.878 |
+
+Values are medians over each subject's views, from the
+[per-subject summary](reports/deepfluoro-ljubljana/per_subject_summary.csv).
+
+**subject02 and subject03 have truncated CT volumes.** Each CT in this release
+is a box cropped around the pelvis. For subject01 and subject04–06, the box's
+left/right and front/back faces lie almost entirely in air: at most 10% of each
+face is tissue. The crop cuts through subject02's body on all four sides (68% of
+the left/right faces and 57% of the front/back faces are tissue) and subject03's
+mainly at the sides (39% left/right, 16% front/back). A ray that passes through
+tissue outside the box is attenuated in the real image but not in our render.
+
+To measure the effect, we rendered the tissue on the box faces with each view's
+pose and marked every scored pixel whose ray crosses it, on every second view:
+
+- **subject02** has the lowest NCC because of this. In its median view, 90% of
+  the scored pixels have truncated rays. In the 23 of 52 analysed views that keep
+  at least a quarter of the scored region untruncated, NCC over the untruncated
+  pixels is 0.921, against 0.842 over the full region of the same views. The low
+  score reflects tissue missing from the input CT, not the simulator.
+- **subject03's** scores are typical despite the truncation: NCC close to the
+  dataset median of 0.939, and the second-highest gradient NCC and highest shape
+  SSIM. 59% of its scored pixels have truncated rays, but excluding them changes
+  its NCC only from 0.936 to 0.938, so the truncation has little effect on its
+  scores.
+
+The published scores keep the full scored region for every subject; this
+truncation analysis is supplementary.
+
+### DeepFluoro sample comparisons
+
+![DeepFluoro real fluoroscopy versus simulator, with edge overlay and difference map](images/validation/deepfluoro_samples.png)
+
+The rows are chosen by a fixed rule rather than by appearance: the subjects with
+the highest, closest-to-median and lowest median gradient NCC, and for each the
+view closest to that subject's median. Columns, left to right:
+
+1. **Real fluoroscopy.**
+2. **Our render**, with the view's NCC and gradient NCC. Both images use the
+   same display: a linear stretch between the 1st and 99th percentiles of each
+   image's scored region, bright where transmission is high. The stored
+   DeepFluoro values are already log-converted, so this compares like with like.
+3. **Edge overlay:** the strongest 12% of edges in the scored region, in blue for
+   the reference only, orange for our render only and white where they coincide.
+4. **Difference map:** the reference attenuation proxy minus our render after
+   the same gain/bias fit as Shape SSIM. Red marks where the reference attenuates
+   more, blue where our render does.
+
+What the samples show:
+
+- **Bone contours** of the pelvis and femur largely coincide (white) in all three
+  views, consistent with the near-zero residual misalignment reported for the
+  dataset (0.19 binned pixels RMS).
+- **Intensity distribution** differs smoothly across each view after the fit.
+  For example, the reference attenuates more across the large textured bony
+  region at the centre of the first row. This reflects the example HU-to-attenuation
+  mapping and the reference's acquisition processing, not geometry.
+- **Soft-tissue and field boundaries** account for most edges seen in only one
+  image. The second row shows an orange-only outer contour where the reference
+  contrast is flat.
+- **Objects absent from the CT** appear only in the reference: the small dark
+  dots in the third row show as red points in the difference map. That view,
+  from the lowest-scoring subject, also shows partly offset outer contours.
+
+DeepFluoro images: Grupp et al., [DeepFluoro](https://github.com/rg2/DeepFluoroLabeling-IPCAI2020),
+CC BY-NC 4.0, via the pinned [xvr-data](https://huggingface.co/datasets/eigenvivek/xvr-data)
+release; cropped, binned and shown beside our renders. Ljubljana (CC BY-NC-ND 4.0)
+and DRR-RATE/CT-RATE images are not reproduced. Regenerate the figure from a
+complete local run with
+[`make_sample_figure.py`](reports/deepfluoro-ljubljana/make_sample_figure.py).
 
 ## Install and run
 
