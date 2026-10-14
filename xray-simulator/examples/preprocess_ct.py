@@ -41,8 +41,8 @@ from pathlib import Path
 from xray_simulator import PreprocessedVolume, VolumePreprocessor
 
 SCRIPT_DIR = Path(__file__).resolve().parent.parent
-OUTPUT_DIR = Path(os.environ.get("xray_simulator_OUTPUT_DIR", str(SCRIPT_DIR / "output"))).expanduser()
-DEFAULT_CACHE = Path(os.environ.get("xray_simulator_CACHE_DIR", str(OUTPUT_DIR / "cache"))).expanduser()
+OUTPUT_DIR = Path(os.environ.get("XRAY_SIMULATOR_OUTPUT_DIR", str(SCRIPT_DIR / "output"))).expanduser()
+DEFAULT_CACHE = Path(os.environ.get("XRAY_SIMULATOR_CACHE_DIR", str(OUTPUT_DIR / "cache"))).expanduser()
 
 
 def preprocess_dicom(dicom_path: Path, output_dir: Path) -> PreprocessedVolume:

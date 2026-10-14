@@ -76,13 +76,7 @@ def test_nondefault_config_file_roundtrip(tmp_path):
     assert path.is_absolute()
     assert SimulatorConfig.from_preset(path) == config
     document = json.loads(path.read_text())
-    assert document["detector"] == {
-        "width_px": 640,
-        "height_px": 480,
-        "pixel_spacing_mm": 0.2,
-        "pixel_spacing_y_mm": None,
-        "principal_point_px": None,
-    }
+    assert document["detector"] == {"width_px": 640, "height_px": 480, "pixel_spacing_mm": 0.2}
     assert document["output"]["output_dir"] == "relative-frames"
     assert SimulatorConfig.from_dict(document).to_dict() == document
 
@@ -100,6 +94,16 @@ def test_round_trip_keeps_detector_geometry_field(tmp_path, extension, field, va
 
     assert getattr(restored.geometry, field) == value
     assert restored == config
+    assert field in config.to_dict()["detector"]
+
+
+def test_presets_without_the_optional_detector_fields_still_load_on_older_releases():
+    older = get_preset_schema()
+    detector = older["properties"]["detector"]["properties"]
+    for name in ("pixel_spacing_y_mm", "principal_point_px"):
+        del detector[name]
+
+    Draft202012Validator(older).validate(SimulatorConfig().to_dict())
 
 
 @pytest.mark.parametrize(

@@ -48,9 +48,9 @@ any of these files through `--config`.
 | API | Result and behavior |
 | --- | --- |
 | `SimulatorConfig.from_preset(path)` | Read a UTF-8 `.json`, `.yaml`, or `.yml` file, validate it, fill v1 defaults, and return a `SimulatorConfig`. |
-| `config.save_preset(path)` | Validate the configuration, write all settings including defaults, and return an absolute `Path`. |
+| `config.save_preset(path)` | Validate the configuration, write all settings including defaults (the optional detector fields only when set), and return an absolute `Path`. |
 | `SimulatorConfig.from_dict(data)` | Validate a JSON-compatible dictionary and fill defaults without modifying the input. |
-| `config.to_dict()` | Return a fresh JSON-compatible dictionary with all fields explicit; display windows are arrays. |
+| `config.to_dict()` | Return a fresh JSON-compatible dictionary with all fields explicit, except `detector.pixel_spacing_y_mm` and `detector.principal_point_px`, which appear only when set; display windows are arrays. |
 | `xray_simulator.get_preset_schema()` | Return a fresh dictionary containing the bundled v1 schema, also available in installed wheels. |
 
 Paths accept `str` or `pathlib.Path`. File APIs select JSON or YAML from the
@@ -164,6 +164,9 @@ is `SDD / SID`; view orientation and translation are supplied as a `Pose` at ren
 
 Physical detector width and height are pixel count multiplied by pixel spacing.
 Rendered arrays have shape `(height_px, width_px)`.
+Saved presets include `pixel_spacing_y_mm` and `principal_point_px` only when they are set,
+so a preset that uses neither still loads on earlier releases; one that sets either needs
+this release or newer.
 
 ### Post-processing: realism
 

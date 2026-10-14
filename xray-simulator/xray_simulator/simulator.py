@@ -271,6 +271,8 @@ class CineSequence:
         Returns:
             List of saved file paths.
         """
+        if format.lower() not in ("png", "npy", "npz"):
+            raise ValueError(f"unsupported frame format {format!r}; use png, npy, or npz")
         output_dir = Path(output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)
 

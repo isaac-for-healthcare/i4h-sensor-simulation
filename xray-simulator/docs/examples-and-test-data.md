@@ -135,7 +135,7 @@ The demo executes in four steps:
 
 > **Typical performance:** ~100-300 FPS depending on GPU, volume size, and detector resolution.
 > **Note: Output Directory**
-> The demo writes to `xray-simulator/output/` (override with the `xray_simulator_OUTPUT_DIR`
+> The demo writes to `xray-simulator/output/` (override with the `XRAY_SIMULATOR_OUTPUT_DIR`
 > environment variable): the sweep as `frames/frame_NNNN.png` via `cine.save_all()`, plus
 > `ap_fluoro.png` and `ap_xray.png`. It leaves `OutputSettings.save_to_disk` off. When that
 > flag is on, `render_cine()` writes `frame_NNNN.<format>` per frame, but every

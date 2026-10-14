@@ -159,8 +159,6 @@ def config_to_dict(config: SimulatorConfig) -> dict[str, Any]:
             "width_px": config.geometry.detector_width_px,
             "height_px": config.geometry.detector_height_px,
             "pixel_spacing_mm": config.geometry.pixel_spacing_mm,
-            "pixel_spacing_y_mm": config.geometry.pixel_spacing_y_mm,
-            "principal_point_px": config.geometry.principal_point_px,
         },
         "post_processing": {"realism": asdict(config.realism), "display": asdict(display)},
         "backend": config.backend,
@@ -168,6 +166,11 @@ def config_to_dict(config: SimulatorConfig) -> dict[str, Any]:
         "metrics": asdict(config.metrics),
         "preprocessing": preprocessing,
     }
+    # Written only when set, so presets that do not use them still load on releases whose
+    # schema predates these keys; loading fills the null defaults back in.
+    for name in ("pixel_spacing_y_mm", "principal_point_px"):
+        if (value := getattr(config.geometry, name)) is not None:
+            data["detector"][name] = value
     # Validate direct dataclass instances too, before any file can be overwritten.
     config_from_dict(data)
     return cast(dict[str, Any], json.loads(json.dumps(data, allow_nan=False)))

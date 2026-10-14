@@ -19,7 +19,7 @@ import sys
 
 import numpy as np
 import pytest
-from xray_simulator import CineSequence, Frame, Pose
+from xray_simulator import CineSequence, Frame, OutputSettings, Pose
 
 
 @pytest.fixture
@@ -66,6 +66,20 @@ def test_png_without_pillow_raises_instead_of_writing_another_format(tmp_path, f
     with pytest.raises(ImportError, match="Pillow"):
         frame.save(tmp_path / "frame.png")
     assert list(tmp_path.iterdir()) == []
+
+
+@pytest.mark.parametrize("frames", [0, 1])
+def test_save_all_rejects_an_unsupported_format_before_creating_the_directory(tmp_path, frame, frames):
+    cine = CineSequence(frames=[frame] * frames)
+
+    with pytest.raises(ValueError, match="unsupported frame format"):
+        cine.save_all(tmp_path / "out", format="jpg")
+    assert not (tmp_path / "out").exists()
+
+
+def test_output_settings_rejects_an_unsupported_format():
+    with pytest.raises(ValueError, match="format must be"):
+        OutputSettings(format="jpg")
 
 
 @pytest.mark.parametrize("fmt", ["png", "npy", "npz"])

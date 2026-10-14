@@ -64,10 +64,10 @@ NIFTI_CT_PATH = Path("~/ct_data/imagecas/1.img.nii.gz").expanduser()
 _SCRIPT_DIR = Path(__file__).resolve().parent.parent
 
 # Output directory
-OUTPUT_DIR = Path(os.environ.get("xray_simulator_OUTPUT_DIR", str(_SCRIPT_DIR / "output"))).expanduser()
+OUTPUT_DIR = Path(os.environ.get("XRAY_SIMULATOR_OUTPUT_DIR", str(_SCRIPT_DIR / "output"))).expanduser()
 
 # Cache directory for preprocessed volume
-CACHE_DIR = Path(os.environ.get("xray_simulator_CACHE_DIR", str(OUTPUT_DIR / "cache"))).expanduser()
+CACHE_DIR = Path(os.environ.get("XRAY_SIMULATOR_CACHE_DIR", str(OUTPUT_DIR / "cache"))).expanduser()
 
 # Alternative: pre-generated mu_volume if it exists
 CACHED_MU_VOLUME = CACHE_DIR / "mu_volume.npy"
