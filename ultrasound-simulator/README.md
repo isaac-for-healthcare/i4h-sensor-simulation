@@ -51,7 +51,7 @@ For a comprehensive guide on using the simulator, understanding its features, an
 These numbers are historical: they were measured in March 2025 with `python examples/benchmark.py`.
 Its probe poses predate the move to the i4h-asset mesh frame and no longer reach `Liver.obj`, so the
 FPS it prints today measures empty frames and is not comparable with the results below. The numbers
-will be refreshed once the benchmark poses are fixed (see #<issue>).
+will be refreshed once the benchmark poses are fixed.
 
 ```text
 Benchmark Results:
