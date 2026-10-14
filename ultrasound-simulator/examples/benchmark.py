@@ -80,8 +80,13 @@ def get_cpu_info():
     try:
         with open("/proc/cpuinfo") as f:
             cpu_info = f.read()
-        model_name = re.search(r"model name\s+:\s+(.*)", cpu_info).group(1)
         cpu_cores = len(re.findall(r"processor\s+:", cpu_info))
+        match = re.search(r"model name\s+:\s+(.*)", cpu_info)
+        if match is None:
+            # Arm kernels omit "model name" from /proc/cpuinfo
+            lscpu = subprocess.check_output(["lscpu"]).decode()
+            match = re.search(r"Model name:\s+(.*)", lscpu)
+        model_name = match.group(1).strip()
         return f"{model_name} ({cpu_cores} cores)"
     except Exception as e:
         return f"CPU information unavailable: {e}"

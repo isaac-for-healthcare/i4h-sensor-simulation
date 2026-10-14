@@ -48,21 +48,19 @@ For a comprehensive guide on using the simulator, understanding its features, an
 
 ## Benchmark Results
 
-To reproduce, run `python examples/benchmark.py`. The results below date from March 2025, before
-the benchmark's probe poses were updated for the current `Liver.obj`, so they are not directly
-comparable with today's output.
+To reproduce these results, run `python examples/benchmark.py`.
 
 ```text
 Benchmark Results:
         Total frames: 200
-        Average frame time: 0.0073 seconds
-        Average FPS: 136.28
-        Minimum FPS: 59.66
-        Maximum FPS: 249.62
-        Date: 2025-03-16 07:38:46
+        Average frame time: 0.0015 seconds
+        Average FPS: 665.09
+        Minimum FPS: 249.41
+        Maximum FPS: 1500.11
+        Date: 2026-10-14 22:21:19
 
         System Information:
-        GPU: NVIDIA RTX 6000 Ada Generation (48.0 GB, Driver: 565.57.01)
-        CPU: AMD Ryzen Threadripper PRO 7975WX 32-Cores (64 cores)
+        GPU: NVIDIA GB300 (250.7 GB, Driver: 610.43.02)
+        CPU: Neoverse-V2 (72 cores)
 
 ```
