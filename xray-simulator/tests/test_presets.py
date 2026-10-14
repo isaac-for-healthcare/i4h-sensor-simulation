@@ -81,6 +81,48 @@ def test_nondefault_config_file_roundtrip(tmp_path):
     assert SimulatorConfig.from_dict(document).to_dict() == document
 
 
+@pytest.mark.parametrize("extension", [".json", ".yaml"])
+@pytest.mark.parametrize(
+    "field, value",
+    [("pixel_spacing_y_mm", 0.3), ("principal_point_px", (300.5, 250.25))],
+)
+def test_round_trip_keeps_detector_geometry_field(tmp_path, extension, field, value):
+    config = SimulatorConfig().with_geometry(detector_width_px=640, detector_height_px=480, **{field: value})
+    path = config.save_preset(tmp_path / ("detector" + extension))
+
+    restored = SimulatorConfig.from_preset(path)
+
+    assert getattr(restored.geometry, field) == value
+    assert restored == config
+    assert field in config.to_dict()["detector"]
+
+
+def test_presets_without_the_optional_detector_fields_still_load_on_older_releases():
+    older = get_preset_schema()
+    detector = older["properties"]["detector"]["properties"]
+    for name in ("pixel_spacing_y_mm", "principal_point_px"):
+        del detector[name]
+
+    Draft202012Validator(older).validate(SimulatorConfig().to_dict())
+
+
+@pytest.mark.parametrize(
+    "field, value",
+    [
+        ("pixel_spacing_y_mm", 0),
+        ("pixel_spacing_y_mm", -0.1),
+        ("principal_point_px", [1.0]),
+        ("principal_point_px", [1.0, 2.0, 3.0]),
+        ("principal_point_px", ["a", 2.0]),
+    ],
+)
+def test_invalid_detector_geometry_is_rejected(field, value):
+    data = minimal()
+    data["detector"][field] = value
+    with pytest.raises(ValueError, match="detector"):
+        SimulatorConfig.from_dict(data)
+
+
 @pytest.mark.skipif(os.name != "posix", reason="POSIX permission bits")
 @pytest.mark.parametrize("extension", [".json", ".yaml"])
 @pytest.mark.parametrize("mode", [0o644, 0o664, 0o640, 0o600])

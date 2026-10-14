@@ -129,19 +129,18 @@ The demo executes in four steps:
 | 1. Loading CT Volume | Loads the preprocessed μ-volume from cache (or creates synthetic) |
 | 2. Initializing Simulator | Initializes GPU resources, displays device info and backend |
 | 3. Rendering Frames | Renders a LAO/RAO sweep sequence, shows real-time FPS |
-| 4. Saving Results | Saves frames to `/tmp/xray_simulator_output/frames/` |
+| 4. Saving Results | Saves frames to `output/frames/` and AP views to `output/` |
 
 **Performance metrics** are reported at the end: average FPS, frame time (ms), and timing jitter.
 
 > **Typical performance:** ~100-300 FPS depending on GPU, volume size, and detector resolution.
-> **Note: Output Directories**
-> The demo saves frames to **two locations** (they are identical copies):
->
-> - `/tmp/xray_simulator_output/` — Saved automatically by the simulator when `save_to_disk=True` is set in `OutputSettings`
-> - `/tmp/xray_simulator_output/frames/` — Saved explicitly by the demo script via `cine.save_all()`
-> This is intentional for demonstration purposes. In your own code, use **one approach**:
-> - Set `save_to_disk=True` in config for automatic saving, **or**
-> - Call `cine.save_all()` manually for explicit control (recommended)
+> **Note: Output Directory**
+> The demo writes to `xray-simulator/output/` (override with the `XRAY_SIMULATOR_OUTPUT_DIR`
+> environment variable): the sweep as `frames/frame_NNNN.png` via `cine.save_all()`, plus
+> `ap_fluoro.png` and `ap_xray.png`. It leaves `OutputSettings.save_to_disk` off. When that
+> flag is on, `render_cine()` writes `frame_NNNN.<format>` per frame, but every
+> `render_frame()` call writes `frame_0000.<format>` and overwrites the previous one,
+> including warm-up renders. Call `frame.save()` or `cine.save_all()` for explicit control.
 
 ### Single Frame Rendering
 
@@ -314,7 +313,7 @@ python examples/xray_simulator_demo.py
 2. Initializes `xray_simulator` with the configured detector resolution
 3. Performs GPU warmup for accurate FPS measurement
 4. Renders a sequence of frames in a LAO/RAO (left/right oblique) sweep
-5. Saves frames to `/tmp/xray_simulator_output/frames/`
+5. Saves frames to `output/frames/`
 6. Reports performance metrics (FPS, frame time, jitter)
 
 **Expected Output:**
@@ -327,7 +326,7 @@ The demo displays initialization info (GPU device, Slang module, texture sizes),
 | Frame time | Average time per frame in milliseconds |
 | Jitter (std) | Standard deviation of frame times |
 
-Output frames are saved to `/tmp/xray_simulator_output/frames/` as PNG images.
+Output frames are saved to `output/frames/` as PNG images.
 
 ### Complete Workflow
 
@@ -345,7 +344,7 @@ python examples/preprocess_ct.py --dicom ~/ct_data/dicom_folder  # Real data
 python examples/xray_simulator_demo.py
 
 # 4. View output frames
-ls /tmp/xray_simulator_output/frames/
+ls output/frames/
 # frame_0000.png  frame_0001.png  frame_0002.png  ...
 ```
 
