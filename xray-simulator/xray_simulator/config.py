@@ -635,6 +635,10 @@ class OutputSettings:
     keep_in_gpu: bool = False
     keep_intensity: bool = False
 
+    def __post_init__(self) -> None:
+        if self.format not in ("png", "npy", "npz"):
+            raise ValueError(f"format must be 'png', 'npy' or 'npz', got {self.format!r}")
+
 
 @dataclass(frozen=True)
 class MetricsSettings:
