@@ -710,7 +710,7 @@ if TORCH_AVAILABLE:
                 cfg: Renderer configuration.
             """
             super().__init__()
-            self._renderer = SlangDiffDRRRenderer(mu_volume, spacing_zyx_mm, cfg)
+            self._renderer = SlangDiffDRRRenderer(mu_volume, spacing_zyx_mm, cfg=cfg)
             self._cfg = cfg
 
         def forward(
@@ -798,7 +798,7 @@ def render_diffdrr_slang(
     Returns:
         Rendered DRR image as numpy array of shape (H, W).
     """
-    renderer = SlangDiffDRRRenderer(mu_volume, spacing_zyx_mm, cfg)
+    renderer = SlangDiffDRRRenderer(mu_volume, spacing_zyx_mm, cfg=cfg)
     return renderer.render(rotation, translation)
 
 
