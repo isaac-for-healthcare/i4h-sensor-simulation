@@ -221,7 +221,8 @@ class Frame:
         if suffix == ".npy":
             np.save(path, self.image)
         elif suffix == ".npz":
-            np.savez_compressed(path, image=self.image)
+            with path.open("wb") as file:
+                np.savez_compressed(file, image=self.image)
         else:
             self._save_png(path)
 
