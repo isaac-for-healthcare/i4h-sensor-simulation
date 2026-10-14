@@ -95,6 +95,10 @@ RUN apt-get update \
 # Headers are fetched automatically by CMake from optix-dev repository
 # Add NVIDIA library paths to LD_LIBRARY_PATH for OptiX runtime
 ENV LD_LIBRARY_PATH=/usr/local/nvidia/lib64:/usr/local/nvidia/lib:${LD_LIBRARY_PATH}
+# The base image requests only compute,utility. The OptiX driver libraries (libnvoptix,
+# libnvidia-rtcore) belong to the graphics capability, which hosts without a CDI spec
+# do not mount otherwise.
+ENV NVIDIA_DRIVER_CAPABILITIES=compute,utility,graphics
 
 # Ensure `python` invokes Python 3.12 (python3 already provided by the base image)
 RUN ln -s /usr/bin/python3.12 /usr/bin/python

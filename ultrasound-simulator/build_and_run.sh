@@ -66,9 +66,12 @@ if [[ "$EXAMPLE" == *"server.py"* ]]; then
 fi
 echo ""
 
-# Run the container with GPU support
+# Run the container with GPU support. OptiX (libnvoptix, libnvidia-rtcore) is part of the
+# driver's "graphics" capability, which the container toolkit only mounts when requested
+# unless the host has a CDI spec.
 docker run --rm -it \
   --gpus all \
+  -e NVIDIA_DRIVER_CAPABILITIES=all \
   -p $PORT:8000 \
   --name ultrasound_simulator-server \
   ultrasound_simulator:latest \
