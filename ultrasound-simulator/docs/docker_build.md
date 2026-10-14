@@ -62,12 +62,14 @@ docker run -it --rm --gpus all --network host \
   ultrasound_simulator
 ```
 
-Inside the container, create a virtual environment and install the Python dependencies:
+Inside the container, create a virtual environment and install the Python dependencies.
+The `all` extra provides the packages the examples import (matplotlib, tqdm, flask and
+the rest); `-e .` alone installs only numpy:
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-python -m pip install -e .
+python -m pip install -e ".[all]"
 ```
 
 With the virtual environment active, build the native extension:
@@ -140,5 +142,5 @@ To build for one specific architecture instead of whatever is installed, pass it
 explicitly and skip the `native` detection altogether:
 
 ```bash
-CMAKE_ARGS="-DCMAKE_CUDA_ARCHITECTURES=121" python -m pip install -e .
+CMAKE_ARGS="-DCMAKE_CUDA_ARCHITECTURES=121" python -m pip install -e ".[all]"
 ```
