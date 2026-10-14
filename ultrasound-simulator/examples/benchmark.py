@@ -115,10 +115,8 @@ def main():
 
     # Create probe with initial pose
     initial_pose = rs.Pose(
-        np.array([40.0, -110.0, -300.0], dtype=np.float32),  # position (x, y, z)
-        np.array(
-            [np.deg2rad(-84.0), np.deg2rad(22.0), np.deg2rad(0.0)], dtype=np.float32
-        ),  # rotation (x, y, z
+        np.array([-30.0, -104.0, 40.0], dtype=np.float32),  # position (x, y, z)
+        np.array([-np.pi / 2, np.pi, 0.0], dtype=np.float32),  # rotation (x, y, z)
     )
     probe = rs.CurvilinearProbe(initial_pose, num_elements_x=256)
 
@@ -140,8 +138,9 @@ def main():
 
     # Setup benchmark parameters
     N_frames = 200
-    z_range = -300.0  # Range of z movement
-    z_start = -400.0
+    # Same pose and z range as liver_sweep.py, which keep Liver.obj within the imaging depth
+    z_range = 140.0
+    z_start = 40.0
 
     # Prepare to measure frame times
     frame_times = []
@@ -153,10 +152,8 @@ def main():
         z = z_start + (z_range / 2) * np.sin(i * 0.1)
 
         # Create probe with updated pose
-        position = np.array([40.0, -110.0, z], dtype=np.float32)
-        rotation = np.array(
-            [np.deg2rad(-84.0), np.deg2rad(22.0), np.deg2rad(0.0)], dtype=np.float32
-        )
+        position = np.array([-30.0, -104.0, z], dtype=np.float32)
+        rotation = np.array([-np.pi / 2, np.pi, 0.0], dtype=np.float32)
         probe = rs.CurvilinearProbe(rs.Pose(position=position, rotation=rotation))
 
         # Time the simulation
