@@ -48,12 +48,10 @@ For a comprehensive guide on using the simulator, understanding its features, an
 
 ## Benchmark Results
 
-These numbers are historical. They were measured in March 2025 with `python examples/benchmark.py`,
-before the example poses moved to the i4h-asset mesh frame. `liver_sweep.py` and `server.py` were
-updated for that frame, but `benchmark.py` was not: its probe poses no longer come within the probe's
-imaging depth of `Liver.obj`, so the frames it renders today contain no tissue echo. The FPS it
-prints therefore measures empty frames and cannot be compared with the results below. These results
-will be refreshed once the benchmark poses image the liver again.
+These numbers are historical: they were measured in March 2025 with `python examples/benchmark.py`.
+Its probe poses predate the move to the i4h-asset mesh frame and no longer reach `Liver.obj`, so the
+FPS it prints today measures empty frames and is not comparable with the results below. The numbers
+will be refreshed once the benchmark poses are fixed (see #<issue>).
 
 ```text
 Benchmark Results:
