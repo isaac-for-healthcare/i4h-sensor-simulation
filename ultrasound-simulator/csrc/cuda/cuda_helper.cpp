@@ -250,16 +250,22 @@ void CudaLauncher::launch_internal(dim3 grid, cudaStream_t stream, void** args) 
       launch_block.x *= 2;
     }
   }
-  // Increase by one each step
-  while (static_cast<int>(launch_block.x * launch_block.y * launch_block.z) <=
-         optimal_block_size_) {
+  // Increase by one each step, stopping before the block would exceed the optimal size: that
+  // size can equal the 1024 threads-per-block hardware limit, and one more step makes the
+  // launch fail with cudaErrorInvalidValue
+  while (true) {
+    dim3 next_block = launch_block;
     if ((grid.z > 1) && (launch_block.y > launch_block.z)) {
-      ++launch_block.z;
+      ++next_block.z;
     } else if ((grid.y > 1) && (launch_block.x > launch_block.y)) {
-      ++launch_block.y;
+      ++next_block.y;
     } else {
-      ++launch_block.x;
+      ++next_block.x;
     }
+    if (static_cast<int>(next_block.x * next_block.y * next_block.z) > optimal_block_size_) {
+      break;
+    }
+    launch_block = next_block;
   }
 
   // Limit block to grid
