@@ -76,9 +76,47 @@ def test_nondefault_config_file_roundtrip(tmp_path):
     assert path.is_absolute()
     assert SimulatorConfig.from_preset(path) == config
     document = json.loads(path.read_text())
-    assert document["detector"] == {"width_px": 640, "height_px": 480, "pixel_spacing_mm": 0.2}
+    assert document["detector"] == {
+        "width_px": 640,
+        "height_px": 480,
+        "pixel_spacing_mm": 0.2,
+        "pixel_spacing_y_mm": None,
+        "principal_point_px": None,
+    }
     assert document["output"]["output_dir"] == "relative-frames"
     assert SimulatorConfig.from_dict(document).to_dict() == document
+
+
+@pytest.mark.parametrize("extension", [".json", ".yaml"])
+@pytest.mark.parametrize(
+    "field, value",
+    [("pixel_spacing_y_mm", 0.3), ("principal_point_px", (300.5, 250.25))],
+)
+def test_round_trip_keeps_detector_geometry_field(tmp_path, extension, field, value):
+    config = SimulatorConfig().with_geometry(detector_width_px=640, detector_height_px=480, **{field: value})
+    path = config.save_preset(tmp_path / ("detector" + extension))
+
+    restored = SimulatorConfig.from_preset(path)
+
+    assert getattr(restored.geometry, field) == value
+    assert restored == config
+
+
+@pytest.mark.parametrize(
+    "field, value",
+    [
+        ("pixel_spacing_y_mm", 0),
+        ("pixel_spacing_y_mm", -0.1),
+        ("principal_point_px", [1.0]),
+        ("principal_point_px", [1.0, 2.0, 3.0]),
+        ("principal_point_px", ["a", 2.0]),
+    ],
+)
+def test_invalid_detector_geometry_is_rejected(field, value):
+    data = minimal()
+    data["detector"][field] = value
+    with pytest.raises(ValueError, match="detector"):
+        SimulatorConfig.from_dict(data)
 
 
 @pytest.mark.skipif(os.name != "posix", reason="POSIX permission bits")

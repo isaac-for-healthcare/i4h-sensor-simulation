@@ -116,12 +116,15 @@ def config_from_dict(data: dict[str, Any]) -> SimulatorConfig:
         mapping = HuToMuMapping.from_dict(preprocessing["hu_to_mu"])
     except ValueError as exc:
         raise ValueError(f"preprocessing.hu_to_mu: {exc}") from exc
+    principal_point = detector["principal_point_px"]
     return SimulatorConfig(
         geometry=CarmGeometry(
             **geometry,
             detector_width_px=int(detector["width_px"]),
             detector_height_px=int(detector["height_px"]),
             pixel_spacing_mm=detector["pixel_spacing_mm"],
+            pixel_spacing_y_mm=detector["pixel_spacing_y_mm"],
+            principal_point_px=None if principal_point is None else (principal_point[0], principal_point[1]),
         ),
         physics=XrayPhysics(**document["beam"]),
         display=display,
@@ -156,6 +159,8 @@ def config_to_dict(config: SimulatorConfig) -> dict[str, Any]:
             "width_px": config.geometry.detector_width_px,
             "height_px": config.geometry.detector_height_px,
             "pixel_spacing_mm": config.geometry.pixel_spacing_mm,
+            "pixel_spacing_y_mm": config.geometry.pixel_spacing_y_mm,
+            "principal_point_px": config.geometry.principal_point_px,
         },
         "post_processing": {"realism": asdict(config.realism), "display": asdict(display)},
         "backend": config.backend,

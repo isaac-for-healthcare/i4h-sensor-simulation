@@ -228,7 +228,7 @@ The package-level `get_preset_schema()` returns the bundled JSON Schema. See the
 
 | Method | Description |
 | ------ | ----------- |
-| `save(path)` | Write the frame as 8-bit PNG or full-precision `.npy` |
+| `save(path)` | Write the frame as 8-bit grayscale `.png` (Pillow), full-precision `.npy`, or compressed `.npz` |
 | `with_appearance(preset)` | Re-map the same render to another mode (needs `keep_intensity`) |
 
 **Frame:**
@@ -237,7 +237,7 @@ The package-level `get_preset_schema()` returns the bundled JSON Schema. See the
 | --------------- | ----------- |
 | `image` | Rendered image as numpy array (H, W), float32 in [0, 1] |
 | `pose` | Pose at which frame was rendered |
-| `save(path)` | Save to PNG or NPY file |
+| `save(path)` | Save to a PNG, NPY, or NPZ file |
 
 **CineSequence:**
 

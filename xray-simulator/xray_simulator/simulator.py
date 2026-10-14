@@ -204,31 +204,39 @@ class Frame:
         return replace(self, image=apply_display(self.intensity, settings, i0=self.i0))
 
     def save(self, path: str | Path) -> None:
-        """Save frame to disk as PNG or NPY."""
+        """Save the frame as an 8-bit grayscale PNG, an NPY array, or a compressed NPZ.
+
+        The format follows the suffix: ``.png``, ``.npy``, or ``.npz`` (array key ``image``).
+
+        Raises:
+            ValueError: If the suffix is not one of the supported formats.
+            ImportError: If a PNG is requested and Pillow is not installed.
+        """
         path = Path(path)
+        suffix = path.suffix.lower()
+        if suffix not in (".png", ".npy", ".npz"):
+            raise ValueError(f"unsupported frame format {path.suffix!r}; use .png, .npy, or .npz")
         path.parent.mkdir(parents=True, exist_ok=True)
 
-        if path.suffix.lower() == ".npy":
+        if suffix == ".npy":
             np.save(path, self.image)
+        elif suffix == ".npz":
+            np.savez_compressed(path, image=self.image)
         else:
-            # Save as PNG
             self._save_png(path)
 
     def _save_png(self, path: Path) -> None:
         """Save as 8-bit grayscale PNG."""
+        try:
+            from PIL import Image
+        except ImportError as exc:
+            raise ImportError(
+                "PNG output requires Pillow; install the cli extra "
+                "(pip install -e './xray-simulator[cli]') or save as .npy/.npz"
+            ) from exc
         img = np.clip(self.image, 0.0, 1.0)
         u8 = (img * 255.0 + 0.5).astype(np.uint8)
-        try:
-            import matplotlib.pyplot as plt
-
-            plt.imsave(str(path), u8, cmap="gray", vmin=0, vmax=255)
-        except ImportError:
-            # Fallback to PGM format
-            pgm_path = path.with_suffix(".pgm")
-            header = f"P5\n{u8.shape[1]} {u8.shape[0]}\n255\n".encode("ascii")
-            with pgm_path.open("wb") as f:
-                f.write(header)
-                f.write(u8.tobytes())
+        Image.fromarray(u8).save(path)
 
 
 @dataclass
@@ -257,7 +265,7 @@ class CineSequence:
 
         Args:
             output_dir: Directory to save frames.
-            format: Output format ("png" or "npy").
+            format: Output format ("png", "npy", or "npz").
 
         Returns:
             List of saved file paths.

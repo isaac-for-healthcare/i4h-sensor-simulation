@@ -63,7 +63,7 @@ phantom is already labeled LPS.
 | Enable intensity effects | `post_processing.realism.enabled` |
 | Incident intensity and sampling | `beam.i0`, `beam.step_mm` |
 | Geometry | `geometry.source_to_detector_mm`, `geometry.source_to_isocenter_mm` |
-| Detector | `detector.width_px`, `detector.height_px`, `detector.pixel_spacing_mm` |
+| Detector | `detector.width_px`, `detector.height_px`, `detector.pixel_spacing_mm`, `pixel_spacing_y_mm`, `principal_point_px` |
 | HU clipping and transfer function | `preprocessing.clip_hu`, `hu_clip_min`, `hu_clip_max`, `hu_to_mu` |
 | Image format and retained intensity | `output.format`, `output.keep_intensity` |
 

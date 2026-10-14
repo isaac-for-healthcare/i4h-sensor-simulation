@@ -42,7 +42,6 @@ from pathlib import Path
 
 from xray_simulator import (
     CarmGeometry,
-    OutputSettings,
     Pose,
     PreprocessedVolume,
     RealismSettings,
@@ -151,11 +150,6 @@ def main():
             enabled=False,  # Disable noise for clean images
             # gaussian_sigma=0.015,
             # blur_sigma_px=0.3,
-        ),
-        output=OutputSettings(
-            save_to_disk=True,
-            output_dir=str(OUTPUT_DIR),
-            format="png",
         ),
     )
 
