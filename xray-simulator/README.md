@@ -41,6 +41,9 @@ Install the package from the repository root:
 python -m pip install -e './xray-simulator[cli,slang]'
 ```
 
+This covers synthetic volumes, presets, and PNG/NPY/NPZ output. Loading CT input also
+needs nibabel for NIfTI (`datasets` extra) or SimpleITK for DICOM (`all` extra).
+
 Scanner parameters are exposed through `SimulatorConfig` and versioned JSON/YAML
 presets. A small launcher selects the input and runs the configured pipeline:
 
@@ -91,7 +94,9 @@ pip install -e .[all]
 | CUDA-capable GPU | GPU-accelerated rendering |
 | `slangpy >= 0.40` | Slang shader compilation and autodiff |
 | `numpy` | Array operations |
-| `SimpleITK` | DICOM/NIfTI loading (optional) |
+| `pillow` | PNG output (optional, `cli` extra) |
+| `nibabel` | NIfTI loading (optional, `datasets` extra) |
+| `SimpleITK` | DICOM loading (optional, `all` extra) |
 | `torch` | PyTorch integration for autograd (optional) |
 
 ---
@@ -241,8 +246,9 @@ a narrower window for more soft-tissue and contrast separation. The old `physics
 image = frame.image  # Shape: (H, W), dtype: float32, range: [0, 1]
 
 # Save to disk
-frame.save("output.png")  # 8-bit grayscale PNG
+frame.save("output.png")  # 8-bit grayscale PNG (requires Pillow)
 frame.save("output.npy")  # Full-precision numpy
+frame.save("output.npz")  # Compressed numpy, array key "image"
 ```
 
 ### Rendering Multiple Frames (Cine Sequence)

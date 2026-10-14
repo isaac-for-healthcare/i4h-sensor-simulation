@@ -48,9 +48,9 @@ any of these files through `--config`.
 | API | Result and behavior |
 | --- | --- |
 | `SimulatorConfig.from_preset(path)` | Read a UTF-8 `.json`, `.yaml`, or `.yml` file, validate it, fill v1 defaults, and return a `SimulatorConfig`. |
-| `config.save_preset(path)` | Validate the configuration, write all settings including defaults, and return an absolute `Path`. |
+| `config.save_preset(path)` | Validate the configuration, write all settings including defaults (the optional detector fields only when set), and return an absolute `Path`. |
 | `SimulatorConfig.from_dict(data)` | Validate a JSON-compatible dictionary and fill defaults without modifying the input. |
-| `config.to_dict()` | Return a fresh JSON-compatible dictionary with all fields explicit; display windows are arrays. |
+| `config.to_dict()` | Return a fresh JSON-compatible dictionary with all fields explicit, except `detector.pixel_spacing_y_mm` and `detector.principal_point_px`, which appear only when set; display windows are arrays. |
 | `xray_simulator.get_preset_schema()` | Return a fresh dictionary containing the bundled v1 schema, also available in installed wheels. |
 
 Paths accept `str` or `pathlib.Path`. File APIs select JSON or YAML from the
@@ -63,7 +63,9 @@ New files use owner-only permissions. If copying the permissions fails, saving
 raises the file-system error and leaves the original file intact.
 Saving through a symbolic link follows the link (including relative links and
 link chains) and atomically replaces its target, keeping the links intact.
-Other aliases of the same target therefore see the updated preset. A link to a
+Other symbolic links to the same target therefore see the updated preset. Hard links
+are not preserved: the replacement is a new file, so other hard links to the old file
+keep the previous content. A link to a
 missing file creates that target; the target's parent directory must already
 exist. The temporary file is created beside the resolved target so replacement
 stays on the same filesystem. The supplied path's extension selects the format,
@@ -156,10 +158,15 @@ is `SDD / SID`; view orientation and translation are supplied as a `Pose` at ren
 | --- | --- | --- | --- |
 | `width_px` | Integer ≥ 1 | `512` | Columns; maps to `CarmGeometry.detector_width_px`. |
 | `height_px` | Integer ≥ 1 | `512` | Rows; maps to `CarmGeometry.detector_height_px`. |
-| `pixel_spacing_mm` | Number > 0 | `0.5` | Square pixel pitch in mm; maps to `CarmGeometry.pixel_spacing_mm`. |
+| `pixel_spacing_mm` | Number > 0 | `0.5` | Horizontal pixel pitch in mm, also vertical unless `pixel_spacing_y_mm` is set; maps to `CarmGeometry.pixel_spacing_mm`. |
+| `pixel_spacing_y_mm` | Number > 0 or `null` | `null` | Vertical pixel pitch in mm; `null` uses `pixel_spacing_mm`. Maps to `CarmGeometry.pixel_spacing_y_mm`. |
+| `principal_point_px` | `[column, row]` numbers or `null` | `null` | Where the ray perpendicular to the detector lands; `null` is the detector center. Maps to `CarmGeometry.principal_point_px`. |
 
 Physical detector width and height are pixel count multiplied by pixel spacing.
 Rendered arrays have shape `(height_px, width_px)`.
+Saved presets include `pixel_spacing_y_mm` and `principal_point_px` only when they are set,
+so a preset that uses neither still loads on earlier releases; one that sets either needs
+this release or newer.
 
 ### Post-processing: realism
 

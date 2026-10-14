@@ -116,12 +116,15 @@ def config_from_dict(data: dict[str, Any]) -> SimulatorConfig:
         mapping = HuToMuMapping.from_dict(preprocessing["hu_to_mu"])
     except ValueError as exc:
         raise ValueError(f"preprocessing.hu_to_mu: {exc}") from exc
+    principal_point = detector["principal_point_px"]
     return SimulatorConfig(
         geometry=CarmGeometry(
             **geometry,
             detector_width_px=int(detector["width_px"]),
             detector_height_px=int(detector["height_px"]),
             pixel_spacing_mm=detector["pixel_spacing_mm"],
+            pixel_spacing_y_mm=detector["pixel_spacing_y_mm"],
+            principal_point_px=None if principal_point is None else (principal_point[0], principal_point[1]),
         ),
         physics=XrayPhysics(**document["beam"]),
         display=display,
@@ -163,6 +166,11 @@ def config_to_dict(config: SimulatorConfig) -> dict[str, Any]:
         "metrics": asdict(config.metrics),
         "preprocessing": preprocessing,
     }
+    # Written only when set, so presets that do not use them still load on releases whose
+    # schema predates these keys; loading fills the null defaults back in.
+    for name in ("pixel_spacing_y_mm", "principal_point_px"):
+        if (value := getattr(config.geometry, name)) is not None:
+            data["detector"][name] = value
     # Validate direct dataclass instances too, before any file can be overwritten.
     config_from_dict(data)
     return cast(dict[str, Any], json.loads(json.dumps(data, allow_nan=False)))

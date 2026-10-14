@@ -81,7 +81,29 @@
           "type": "number",
           "exclusiveMinimum": 0,
           "default": 0.5,
-          "description": "Square detector pixel pitch in millimeters."
+          "description": "Horizontal detector pixel pitch in millimeters; also vertical when pixel_spacing_y_mm is null."
+        },
+        "pixel_spacing_y_mm": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "exclusiveMinimum": 0,
+          "default": null,
+          "description": "Vertical detector pixel pitch in millimeters, or null to use pixel_spacing_mm."
+        },
+        "principal_point_px": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "number"
+          },
+          "minItems": 2,
+          "maxItems": 2,
+          "default": null,
+          "description": "[column, row] where the ray perpendicular to the detector lands, or null for the detector center."
         }
       }
     },
