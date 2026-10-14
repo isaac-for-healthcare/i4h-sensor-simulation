@@ -84,26 +84,9 @@ def load_dicom_series_hu(dicom_dir: str | Path) -> CtVolume:
 
     img = reader.Execute()
 
-    # SimpleITK returns arrays in (Z,Y,X) already.
+    # SimpleITK returns arrays in (Z,Y,X) already. Its GDCM reader has already applied
+    # RescaleSlope (0028,1053) and RescaleIntercept (0028,1052), so the values are HU.
     arr_zyx = sitk.GetArrayFromImage(img).astype(np.float32, copy=False)
-
-    # Convert to HU if rescale tags exist (common for CT).
-    # Tags:
-    # - (0028,1052) RescaleIntercept
-    # - (0028,1053) RescaleSlope
-    intercept = None
-    slope = None
-    try:
-        if reader.HasMetaDataKey(0, "0028|1052"):
-            intercept = float(reader.GetMetaData(0, "0028|1052"))
-        if reader.HasMetaDataKey(0, "0028|1053"):
-            slope = float(reader.GetMetaData(0, "0028|1053"))
-    except Exception:
-        intercept = None
-        slope = None
-
-    if slope is not None and intercept is not None:
-        arr_zyx = arr_zyx * float(slope) + float(intercept)
 
     spacing_xyz = tuple(float(x) for x in img.GetSpacing())  # (X,Y,Z)
     spacing_zyx = (spacing_xyz[2], spacing_xyz[1], spacing_xyz[0])
