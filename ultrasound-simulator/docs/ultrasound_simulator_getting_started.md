@@ -6,9 +6,27 @@ This comprehensive tutorial will guide you through the ultrasound raytracing sim
 
 ## Prerequisites and Installation
 
-Before starting the tutorial, you need to properly build and install the ultrasound raytracing simulator.
+The chapters import the compiled extension `ultrasound_simulator.ray_sim_python` and
+`matplotlib`. Run them with the same Python interpreter that built the extension. From
+`ultrasound-simulator/`, the [bare-metal install](baremetal_build.md) provides both:
 
-> 📖 **Complete Installation Guide**: For detailed installation instructions including OptiX setup and mesh data, see the [main README](../README.md)
+```bash
+uv venv && source .venv/bin/activate
+uv pip install -e ".[all]"   # builds the CUDA/OptiX extension for this interpreter, adds matplotlib
+python -c "import ultrasound_simulator.cuda, matplotlib; print('ready')"
+```
+
+The build needs CUDA with `nvcc` on `PATH` and CMake 3.24 or newer; see the
+[bare-metal guide](baremetal_build.md) for these prerequisites and build troubleshooting.
+Chapter 5 also loads `mesh/Liver.obj`; download the mesh data as described in that guide.
+
+> ⚠️ **Docker builds:** the [Docker guide](docker_build.md) mounts the source tree and builds the
+> extension with the container's Python 3.12, leaving
+> `ultrasound_simulator/ray_sim_python.cpython-312-*.so` in that tree. A host interpreter of
+> another version cannot import it and fails with
+> `ModuleNotFoundError: No module named 'ultrasound_simulator.ray_sim_python'`. Either run the
+> chapters inside that container, or build on the host with the commands above.
+> `./build_and_run.sh` builds inside its image and leaves nothing in the source tree.
 
 ---
 
