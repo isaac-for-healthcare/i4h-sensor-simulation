@@ -69,7 +69,7 @@ def _write_ct_series(directory, stored_zyx, slope, intercept):
         _write(directory / f"slice_{z:03d}.dcm", ds)
 
 
-@pytest.mark.parametrize("slope, intercept", [(1, -1024), (2, -1000), (1, 0)])
+@pytest.mark.parametrize("slope, intercept", [(1, -1024), (2, -1000), (1, 0), (0.5, -1024.25)])
 def test_series_hu_is_stored_value_rescaled_once(tmp_path, slope, intercept):
     rng = np.random.default_rng(0)
     stored = rng.integers(0, 4096, size=(4, 8, 6)).astype(np.int16)
