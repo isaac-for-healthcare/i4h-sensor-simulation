@@ -5,6 +5,12 @@
 - Removed the `i4h` CLI wrapper. Run the X-ray simulator through its Python examples,
   the `xray-simulator` config-file launcher or its Dockerfile, and the ultrasound
   simulator through `build_and_run.sh`
+- Fixed X-ray DICOM loading applying RescaleSlope and RescaleIntercept twice, which
+  left series with a nonzero intercept offset in HU (1024 HU low for the common
+  -1024 intercept). Delete preprocessed caches (`mu_volume.npy` and `metadata.json`)
+  built from DICOM before this fix and preprocess again: `PreprocessedVolume.load` and
+  the demo reuse an existing cache without re-reading the source. NIfTI and synthetic
+  caches are not affected
 
 ## Version 0.6.0
 

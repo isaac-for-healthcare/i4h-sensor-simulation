@@ -79,8 +79,6 @@ def load_dicom_series_hu(dicom_dir: str | Path) -> CtVolume:
     series_uid = series_ids[0]
     file_names = reader.GetGDCMSeriesFileNames(str(ddir), series_uid)
     reader.SetFileNames(file_names)
-    reader.MetaDataDictionaryArrayUpdateOn()
-    reader.LoadPrivateTagsOn()
 
     img = reader.Execute()
 
