@@ -80,8 +80,13 @@ def get_cpu_info():
     try:
         with open("/proc/cpuinfo") as f:
             cpu_info = f.read()
-        model_name = re.search(r"model name\s+:\s+(.*)", cpu_info).group(1)
         cpu_cores = len(re.findall(r"processor\s+:", cpu_info))
+        match = re.search(r"model name\s+:\s+(.*)", cpu_info)
+        if match is None:
+            # Arm kernels omit "model name" from /proc/cpuinfo
+            lscpu = subprocess.check_output(["lscpu"]).decode()
+            match = re.search(r"Model name:\s+(.*)", lscpu)
+        model_name = match.group(1).strip()
         return f"{model_name} ({cpu_cores} cores)"
     except Exception as e:
         return f"CPU information unavailable: {e}"
@@ -115,10 +120,8 @@ def main():
 
     # Create probe with initial pose
     initial_pose = rs.Pose(
-        np.array([40.0, -110.0, -300.0], dtype=np.float32),  # position (x, y, z)
-        np.array(
-            [np.deg2rad(-84.0), np.deg2rad(22.0), np.deg2rad(0.0)], dtype=np.float32
-        ),  # rotation (x, y, z
+        np.array([-30.0, -104.0, 40.0], dtype=np.float32),  # position (x, y, z)
+        np.array([-np.pi / 2, np.pi, 0.0], dtype=np.float32),  # rotation (x, y, z)
     )
     probe = rs.CurvilinearProbe(initial_pose, num_elements_x=256)
 
@@ -140,8 +143,9 @@ def main():
 
     # Setup benchmark parameters
     N_frames = 200
-    z_range = -300.0  # Range of z movement
-    z_start = -400.0
+    # Same pose and z range as liver_sweep.py, which keep Liver.obj within the imaging depth
+    z_range = 140.0
+    z_start = 40.0
 
     # Prepare to measure frame times
     frame_times = []
@@ -153,10 +157,8 @@ def main():
         z = z_start + (z_range / 2) * np.sin(i * 0.1)
 
         # Create probe with updated pose
-        position = np.array([40.0, -110.0, z], dtype=np.float32)
-        rotation = np.array(
-            [np.deg2rad(-84.0), np.deg2rad(22.0), np.deg2rad(0.0)], dtype=np.float32
-        )
+        position = np.array([-30.0, -104.0, z], dtype=np.float32)
+        rotation = np.array([-np.pi / 2, np.pi, 0.0], dtype=np.float32)
         probe = rs.CurvilinearProbe(rs.Pose(position=position, rotation=rotation))
 
         # Time the simulation
