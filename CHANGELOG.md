@@ -11,6 +11,9 @@
   built from DICOM before this fix and preprocess again: `PreprocessedVolume.load` and
   the demo reuse an existing cache without re-reading the source. NIfTI and synthetic
   caches are not affected
+- The ultrasound Docker guide's "Download mesh data" step now gives the command: it copies
+  the meshes the image already contains into the mounted checkout, so `examples/server.py`
+  finds `mesh/Tumor1.obj`
 
 ## Version 0.6.0
 

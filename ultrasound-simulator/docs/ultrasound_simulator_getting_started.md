@@ -1000,7 +1000,7 @@ So far we've worked with simple spheres, but real ultrasound imaging involves co
 
 ### Loading 3D Mesh Objects
 
-> **NOTE:** Be sure to download the mesh assets as described in [README.md](../README.md) before starting with this section.
+> **NOTE:** Be sure to download the mesh assets as described in the [bare-metal guide](baremetal_build.md) or the [Docker guide](docker_build.md) before starting with this section.
 
 The simulator can load standard 3D mesh formats (OBJ files) to represent complex anatomical structures:
 

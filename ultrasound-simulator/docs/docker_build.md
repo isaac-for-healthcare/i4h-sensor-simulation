@@ -41,12 +41,21 @@ Check your driver with `nvidia-smi --query-gpu=driver_version,compute_cap --form
 
 ## 2 · Download mesh data (done once)
 
-Follow the steps described in [ultrasound-simulator README](../README.md) to install the mesh assets within the project environment.
+The image built in step 1 already contains the organ meshes (`Props/ABDPhantom/Organs`,
+asset catalog version 0.2.0, ~527 MB). Step 3 mounts this directory over the container's
+working directory, so copy them into it once:
 
-```text
+```bash
+cd ultrasound-simulator # ensure you are in the sensor directory
+
+docker run --rm -v "$(pwd)":/ultrasound_simulator ultrasound_simulator \
+  cp -rL /home/ultrasound_simulator/workspace/mesh /ultrasound_simulator/mesh
+ls mesh/Tumor1.obj
 ```
 
-> The mesh data will be available inside the container through the volume mount.
+> The copy runs as the image's user, which step 1 created with your UID and GID, so the
+> files are yours on the host. `mesh/` is git-ignored. To download the meshes on the host
+> instead, follow "Download mesh data" in the [bare-metal guide](baremetal_build.md).
 
 ---
 
