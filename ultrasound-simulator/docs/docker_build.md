@@ -53,8 +53,9 @@ docker run --rm -v "$(pwd)":/ultrasound_simulator ultrasound_simulator \
 ls mesh/Tumor1.obj
 ```
 
-> The copy runs as the image's user, which step 1 created with your UID and GID, so the
-> files are yours on the host. `mesh/` is git-ignored. To download the meshes on the host
+> The copy needs no GPU, so ignore the CUDA image's warning that none is attached. It runs
+> as the image's user, which step 1 created with your UID and GID, so the files are yours
+> on the host. `mesh/` is git-ignored. To download the meshes on the host
 > instead, follow "Download mesh data" in the [bare-metal guide](baremetal_build.md).
 
 ---
