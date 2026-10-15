@@ -64,15 +64,15 @@ print(f"Volume shape: {preprocessor.shape}")        # e.g., (553, 512, 512)
 print(f"Spacing (ZYX): {preprocessor.spacing_zyx_mm} mm")
 print(f"HU range: {preprocessor.hu_range}")
 
-# Convert HU → μ and cache
-volume = preprocessor.preprocess(output_dir="/tmp/fluoro_cache")
+# Convert HU → μ and cache where the example scripts look for it
+volume = preprocessor.preprocess(output_dir="output/cache")
 print(f"μ range: [{volume.mu_volume.min():.4f}, {volume.mu_volume.max():.4f}] mm⁻¹")
 ```
 
 **Or use the preprocessing script:**
 
 ```bash
-cd fluoro-simulator
+cd xray-simulator
 
 # Preprocess DICOM data
 python examples/preprocess_ct.py --dicom ~/ct_data/excellent/excellent/0
@@ -109,14 +109,14 @@ Public datasets from The Cancer Imaging Archive (TCIA) can also be used for test
 ### Command Line Usage
 
 ```bash
-cd fluoro-simulator
+cd xray-simulator
 
 # Step 1: Preprocess CT data (choose one)
 python examples/preprocess_ct.py --synthetic                      # Synthetic test data
 python examples/preprocess_ct.py --dicom ~/ct_data/dicom_folder   # DICOM series
 python examples/preprocess_ct.py --nifti ~/ct_data/volume.nii.gz  # NIfTI file
 
-# Step 2: Run simulator (uses cached volume from /tmp/fluoro_cache)
+# Step 2: Run simulator (uses the cached volume from output/cache)
 python examples/xray_simulator_demo.py
 ```
 
@@ -148,7 +148,7 @@ The demo executes in four steps:
 from xray_simulator import VolumePreprocessor, xray_simulator, Pose, PreprocessedVolume
 
 # Load cached volume (or preprocess from CT)
-volume = PreprocessedVolume.load("/tmp/fluoro_cache")
+volume = PreprocessedVolume.load("output/cache")
 
 # Create simulator
 simulator = xray_simulator(volume)
@@ -176,7 +176,7 @@ frame_combined.save("/tmp/rao_cranial.png")
 ```python
 from xray_simulator import xray_simulator, Pose, PreprocessedVolume
 
-volume = PreprocessedVolume.load("/tmp/fluoro_cache")
+volume = PreprocessedVolume.load("output/cache")
 simulator = xray_simulator(volume)
 
 # Generate a rotational angiography sweep, RAO 90 through LAO 90
@@ -197,7 +197,7 @@ frames = cine.to_numpy()  # Shape: (61, 512, 512)
 ```python
 from xray_simulator import xray_simulator, Pose, PreprocessedVolume
 
-volume = PreprocessedVolume.load("/tmp/fluoro_cache")
+volume = PreprocessedVolume.load("output/cache")
 simulator = xray_simulator(volume)
 
 def pose_generator():
@@ -220,7 +220,7 @@ from xray_simulator.rendering.diffdrr_slang_renderer import TorchSlangDiffDRR, S
 from xray_simulator import PreprocessedVolume
 
 # Load volume
-volume = PreprocessedVolume.load("/tmp/fluoro_cache")
+volume = PreprocessedVolume.load("output/cache")
 
 # Create differentiable renderer
 config = SlangDiffDRRConfig(det_width_px=256, det_height_px=256)
@@ -263,7 +263,7 @@ The `examples/` directory contains two main scripts that demonstrate the complet
 This script converts CT volumes (in Hounsfield Units) to linear attenuation coefficients (μ) required for X-ray simulation.
 
 ```bash
-cd fluoro-simulator
+cd xray-simulator
 
 # Option A: Use synthetic test data (no download required)
 python examples/preprocess_ct.py --synthetic
@@ -285,14 +285,14 @@ python examples/preprocess_ct.py --synthetic --output /path/to/cache
 | `--dicom PATH` | Path to DICOM series directory |
 | `--nifti PATH` | Path to NIfTI file (.nii or .nii.gz) |
 | `--synthetic` | Generate a synthetic test volume (sphere in air) |
-| `--output PATH` | Output directory for cached volume (default: `/tmp/fluoro_cache`) |
+| `--output PATH` | Output directory for cached volume (default: `xray-simulator/output/cache`, or `$XRAY_SIMULATOR_CACHE_DIR`, or `$XRAY_SIMULATOR_OUTPUT_DIR/cache`) |
 
 **Expected Output:**
 
 The script displays volume metadata (shape, spacing, HU range), performs HU→μ conversion, runs verification checks, and saves to the output directory. On success, it prints the path and usage instructions:
 
 ```python
-volume = PreprocessedVolume.load("/tmp/fluoro_cache")
+volume = PreprocessedVolume.load("output/cache")
 simulator = xray_simulator(volume)
 ```
 
@@ -301,15 +301,15 @@ simulator = xray_simulator(volume)
 This script loads a preprocessed volume and renders a C-arm sweep animation.
 
 ```bash
-cd fluoro-simulator
+cd xray-simulator
 
-# Run the demo (auto-loads cached volume from /tmp/fluoro_cache)
+# Run the demo (auto-loads the cached volume from output/cache)
 python examples/xray_simulator_demo.py
 ```
 
 **What it does:**
 
-1. Loads cached μ-volume from `/tmp/fluoro_cache` (or creates synthetic if not found)
+1. Loads the cached μ-volume from `output/cache` (or `$XRAY_SIMULATOR_CACHE_DIR`), or creates a synthetic one if none is found
 2. Initializes `xray_simulator` with the configured detector resolution
 3. Performs GPU warmup for accurate FPS measurement
 4. Renders a sequence of frames in a LAO/RAO (left/right oblique) sweep
@@ -331,7 +331,7 @@ Output frames are saved to `output/frames/` as PNG images.
 ### Complete Workflow
 
 ```bash
-cd fluoro-simulator
+cd xray-simulator
 
 # 1. Install the package
 pip install -e .[all]
