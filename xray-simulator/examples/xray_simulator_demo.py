@@ -31,7 +31,7 @@ Run with:
     python examples/xray_simulator_demo.py
 
 To clear cache and reload from source:
-    rm -rf /tmp/fluoro_cache && python examples/xray_simulator_demo.py
+    rm -rf output/cache && python examples/xray_simulator_demo.py
 """
 
 from __future__ import annotations

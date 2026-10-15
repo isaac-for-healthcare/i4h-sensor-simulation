@@ -23,7 +23,7 @@ The preprocessing pipeline converts Hounsfield Units (HU) to linear attenuation
 coefficients (μ) which are required for X-ray simulation.
 
 Run with:
-    cd fluoro-simulator
+    cd xray-simulator
     python examples/preprocess_ct.py
 
     # Or with a specific input:

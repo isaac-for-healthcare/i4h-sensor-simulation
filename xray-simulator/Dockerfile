@@ -19,8 +19,9 @@
 # Build:
 #   docker build -t xray_simulator .
 #
-# Run demo (with GPU):
-#   docker run --rm --gpus all -v /tmp/xray_simulator_output:/output xray_simulator
+# Run demo (with GPU); frames and the volume cache land in the mounted folder:
+#   docker run --rm --gpus all -v /tmp/xray_simulator_output:/output \
+#     -e XRAY_SIMULATOR_OUTPUT_DIR=/output xray_simulator python examples/xray_simulator_demo.py
 #
 # Run interactive:
 #   docker run --rm --gpus all -it xray_simulator bash
