@@ -14,6 +14,9 @@
 - Fixed the X-ray simulator example docs and Dockerfile header: the folder is
   `xray-simulator`, the example scripts cache to `xray-simulator/output/cache` (not
   `/tmp/fluoro_cache`), and the Docker demo command now runs the demo into the mount
+- The ultrasound Docker guide's "Download mesh data" step now gives the command: it copies
+  the meshes the image already contains into the mounted checkout, so `examples/server.py`
+  finds `mesh/Tumor1.obj`
 
 ## Version 0.6.0
 
