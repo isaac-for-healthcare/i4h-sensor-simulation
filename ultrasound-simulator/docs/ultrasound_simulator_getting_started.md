@@ -20,15 +20,16 @@ The build needs CUDA with `nvcc` on `PATH` and CMake 3.24 or newer; see the
 [bare-metal guide](baremetal_build.md) for these prerequisites and build troubleshooting.
 Chapter 5 also loads `mesh/Liver.obj`; download the mesh data as described in that guide.
 
-> ⚠️ **Docker builds:** the [Docker guide](docker_build.md) mounts the source tree and builds the
-> extension with the container's Python 3.12, leaving
-> `ultrasound_simulator/ray_sim_python.cpython-312-*.so` in that tree. A host interpreter of
-> another version cannot import it and fails with
-> `ModuleNotFoundError: No module named 'ultrasound_simulator.ray_sim_python'`. Either run the
-> chapters inside that container, or build on the host with the commands above. The container
-> keeps its environment in `.venv-docker/` and its build in `build-docker/`, so the host
-> commands above, which use `.venv/` and `build-release/`, work in the same tree, before or
-> after the container build.
+> **Docker builds:** the [Docker guide](docker_build.md) mounts the source tree, but installs
+> the native extension into the container's `.venv-docker/`, with its build in `build-docker/`.
+> The host commands above use `.venv/` and `build-release/` and install a separate extension
+> into the host environment. Both builds work in the same tree, before or after each other,
+> including when both interpreters are Python 3.12. Run each chapter with the environment
+> activated on the side where you built it.
+>
+> Older builds left `ultrasound_simulator/ray_sim_python*.so` in the shared source tree.
+> Remove these legacy extensions with `rm -f ultrasound_simulator/ray_sim_python*.so` and
+> reinstall in both environments.
 >
 > Earlier versions of the Docker guide built in `.venv/` and `build-release/` inside the
 > container. In a tree they built, `uv venv` stops with `A virtual environment already exists`,

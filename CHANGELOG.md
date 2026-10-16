@@ -24,6 +24,10 @@
   build in the same tree (`.venv/`, `build-release/`) works before or after it, and
   `docker build` no longer copies either build into the image. The ultrasound guides say
   how to clean a tree built by an earlier version of the Docker guide
+- Ultrasound native extensions are now installed into each Python environment instead of
+  the shared source tree, so host and container builds also stay separate with the same
+  Python ABI. Remove legacy `ultrasound_simulator/ray_sim_python*.so` files and reinstall
+  in both environments. The Docker image defaults subsequent installs to `build-docker/`
 
 ## Version 0.6.0
 

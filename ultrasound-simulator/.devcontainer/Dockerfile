@@ -123,6 +123,9 @@ ARG CUDA_ARCHITECTURES=80
 RUN CMAKE_ARGS="-DCMAKE_CUDA_ARCHITECTURES=${CUDA_ARCHITECTURES}" \
     /home/$USERNAME/.venv/bin/python -m pip install -e ".[all]"
 
+# Reinstalls in a mounted checkout must not use the host's build directory.
+ENV SKBUILD_BUILD_DIR=build-docker
+
 # Copy downloaded mesh data from the dataset-downloader stage
 COPY --from=dataset-downloader --chown=$USERNAME:$USERNAME /downloads/mesh /home/$USERNAME/workspace/mesh
 
