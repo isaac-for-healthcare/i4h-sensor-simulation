@@ -185,10 +185,12 @@ mapping follows realism. When disabled, all realism operations are skipped.
 | `blur_sigma_px` | Number ≥ 0 | `0.0` | Gaussian blur standard deviation in pixels; zero disables it. |
 | `seed` | Integer ≥ 0 or `null` | `0` | Random seed, or fresh randomness when null. |
 
-The realism implementation creates a random generator for each frame. Repeated
-`render_frame()` calls with the same seed repeat the noise realization.
-`render_cine()` and the launcher advance the seed per frame, so a fixed seed
-reproduces the complete sequence while giving its frames independent draws.
+The realism implementation creates a random generator for each frame. Each
+`render_frame()` call uses `seed` itself, so repeated calls with the same seed
+repeat the noise realization. `render_cine()`, `stream()` and the launcher draw
+frame `i` of a sequence with `seed + i`, starting again at frame 0 on each call,
+so a fixed seed reproduces the complete sequence while giving its frames
+independent draws.
 
 ### Post-processing: display
 
@@ -275,7 +277,7 @@ all supported `SimulatorConfig` settings.
 | Field | Type / constraint | Default | Meaning |
 | --- | --- | --- | --- |
 | `backend` | `"slang"` | `"slang"` | Rendering backend; not initialized by preset loading. |
-| `output.save_to_disk` | Boolean | `false` | Save rendered frames automatically. |
+| `output.save_to_disk` | Boolean | `false` | Save rendered frames automatically: `render_cine()` and `stream()` write `frame_NNNN.<format>` per frame, numbered from `0000` on each call; each `render_frame()` call writes `frame_0000.<format>`, replacing the previous one, including a sequence's first file. Older higher-numbered files are not removed; use a new `output_dir` for each call. Unbounded streams write files for as long as they run. |
 | `output.output_dir` | Nonempty string or `null` | `null` | Destination directory; a string is required when `save_to_disk` is true. |
 | `output.format` | `"png"`, `"npy"`, or `"npz"` | `"png"` | Frame file format. |
 | `output.keep_in_gpu` | Boolean | `false` | Existing `OutputSettings` flag; actual residency follows renderer capabilities. |

@@ -1,0 +1,10 @@
+# The image builds its own environment and extension, and downloads its own meshes. Keep
+# host and mounted-container build products out of the build context: a copied
+# build-release/ records another source path and fails the in-image CMake configure.
+.venv*
+build
+build-*
+ultrasound_simulator/*.so
+**/__pycache__
+mesh
+assets

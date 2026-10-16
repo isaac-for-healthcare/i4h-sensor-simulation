@@ -138,9 +138,16 @@ The demo executes in four steps:
 > The demo writes to `xray-simulator/output/` (override with the `XRAY_SIMULATOR_OUTPUT_DIR`
 > environment variable): the sweep as `frames/frame_NNNN.png` via `cine.save_all()`, plus
 > `ap_fluoro.png` and `ap_xray.png`. It leaves `OutputSettings.save_to_disk` off. When that
-> flag is on, `render_cine()` writes `frame_NNNN.<format>` per frame, but every
-> `render_frame()` call writes `frame_0000.<format>` and overwrites the previous one,
-> including warm-up renders. Call `frame.save()` or `cine.save_all()` for explicit control.
+> flag is on, `render_cine()` and `stream()` write `frame_NNNN.<format>` per frame, where
+> `NNNN` is the frame's `frame_idx` (`stream()` writes each frame before yielding it), but
+> every `render_frame()` call writes `frame_0000.<format>` and overwrites the previous one,
+> including warm-up renders. Each call numbers its frames from `0000`, so a later call into
+> the same `output_dir` overwrites files with the same names. Call `frame.save()` or
+> `cine.save_all()` for explicit control.
+> Files from an earlier, longer call are not removed, and `render_frame()` after a stream or
+> cine replaces that sequence's first file. Use a new `output_dir` for each call to keep
+> sequences separate. An unbounded stream with autosave enabled writes one file per frame
+> for as long as it runs.
 
 ### Single Frame Rendering
 
@@ -211,6 +218,9 @@ def pose_generator():
 for frame in simulator.stream(pose_generator(), max_frames=100):
     process_frame(frame.image)  # Your processing function
 ```
+
+With `OutputSettings.save_to_disk` on, `stream()` also writes each frame to `output_dir` as
+`frame_NNNN.<format>` (`frame_0000` to `frame_0099` here) before yielding it.
 
 ### Gradient-Based Pose Optimization (2D/3D Registration)
 

@@ -77,18 +77,28 @@ The `all` extra provides the packages the examples import (matplotlib, tqdm, fla
 the rest); `-e .` alone installs only numpy:
 
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install -e ".[all]"
+python3 -m venv .venv-docker
+source .venv-docker/bin/activate
+python -m pip install -e ".[all]" --config-settings=build-dir=build-docker
 ```
 
-With the virtual environment active, build the native extension:
+The editable install also builds the native extension and installs it into
+`.venv-docker/`; no separate CMake invocation is needed. The image sets
+`SKBUILD_BUILD_DIR=build-docker`, so subsequent plain `pip install -e ".[all]"`
+commands also use the container's build directory.
 
-```bash
-cmake -S . -B build -DPYTHON_EXECUTABLE=$PWD/.venv/bin/python \
-      -DCMAKE_BUILD_TYPE=Release && \
-cmake --build build -j$(nproc)
-```
+> **Building on the host in the same tree:** the container's virtual environment
+> (`.venv-docker/`) and build directory (`build-docker/`) record container paths
+> such as `/ultrasound_simulator`, so they are kept apart from the `.venv/` and
+> `build-release/` that the [bare-metal guide](baremetal_build.md) and the
+> [getting-started guide](ultrasound_simulator_getting_started.md#prerequisites-and-installation)
+> use on the host. Each environment gets its own native extension, even with the same
+> Python version. Both builds work in the same tree, in either order, and step 1 leaves all of
+> these directories out of the image. Earlier versions of this guide used `.venv/` and
+> `build-release/` inside the container; in a tree they built, run `rm -rf build-release` and
+> replace the environment with `uv venv --clear` before building on the host. Also remove
+> legacy in-source extensions with `rm -f ultrasound_simulator/ray_sim_python*.so` before
+> reinstalling in both environments.
 
 ---
 
@@ -152,5 +162,6 @@ To build for one specific architecture instead of whatever is installed, pass it
 explicitly and skip the `native` detection altogether:
 
 ```bash
-CMAKE_ARGS="-DCMAKE_CUDA_ARCHITECTURES=121" python -m pip install -e ".[all]"
+CMAKE_ARGS="-DCMAKE_CUDA_ARCHITECTURES=121" python -m pip install -e ".[all]" \
+  --config-settings=build-dir=build-docker
 ```

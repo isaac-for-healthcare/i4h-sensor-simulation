@@ -29,7 +29,6 @@ if(BUILD_PYTHON_BINDINGS)
     )
 
     set_target_properties(ray_sim_python PROPERTIES
-        LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/../../ultrasound_simulator
         CXX_STANDARD 17
         CXX_STANDARD_REQUIRED ON
     )
@@ -39,4 +38,9 @@ if(BUILD_PYTHON_BINDINGS)
             ray_sim_core
             ray_sim_cuda
         )
+
+    # Keep the built module in the build tree. scikit-build installs it into the
+    # active environment, including for editable installs, so host and container
+    # builds with the same Python ABI cannot overwrite each other's extension.
+    install(TARGETS ray_sim_python LIBRARY DESTINATION ultrasound_simulator)
 endif()
