@@ -32,6 +32,10 @@
   the shared source tree, so host and container builds also stay separate with the same
   Python ABI. Remove legacy `ultrasound_simulator/ray_sim_python*.so` files and reinstall
   in both environments. The Docker image defaults subsequent installs to `build-docker/`
+- The ultrasound bare-metal guide now builds the C++ example in `build-cpp/`. It used
+  `build-release/`, which `pip install -e` also builds in, so the C++ configure could fail
+  after `pip install -e` and `pip install -e` failed after the C++ build. In a tree built
+  by the earlier guide, run `rm -rf build-release` before reinstalling
 
 ## Version 0.6.0
 
