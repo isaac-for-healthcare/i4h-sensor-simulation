@@ -192,6 +192,11 @@ frame `i` of a sequence with `seed + i`, starting again at frame 0 on each call,
 so a fixed seed reproduces the complete sequence while giving its frames
 independent draws.
 
+Because frame `i` uses `seed + i`, runs whose seeds differ by less than their
+frame count share noise draws at an offset: frame 1 with seed 10 matches frame 0
+with seed 11 at the same pose. Space the seeds of runs meant to be independent at
+least one sequence length apart.
+
 ### Post-processing: display
 
 `post_processing.display` maps to `DisplaySettings`.
