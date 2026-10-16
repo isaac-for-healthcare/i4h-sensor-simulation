@@ -420,6 +420,10 @@ class xray_simulator:
     ) -> Frame:
         """Render a single fluoroscopy frame.
 
+        With ``output.save_to_disk`` on, the frame is also written to
+        ``<output_dir>/frame_0000.<format>``, so each call replaces the file the previous
+        call wrote. :meth:`render_cine` and :meth:`stream` write one file per frame.
+
         Args:
             rotation: Euler angles (rx, ry, rz) in radians.
             translation: Translation (tx, ty, tz) in mm.
@@ -430,16 +434,18 @@ class xray_simulator:
         """
         if pose is None:
             pose = Pose(rotation=rotation, translation=translation)
-        else:
-            rotation = pose.rotation
-            translation = pose.translation
 
         self._check_view_frame(pose)
+        frame = self._render_pose(pose)
+        self._autosave(frame)
+        return frame
 
+    def _render_pose(self, pose: Pose, frame_idx: int = 0) -> Frame:
+        """Render one frame at a pose, without the view check or the automatic save."""
         start_time = time.perf_counter()
 
         # Render using Slang DiffDRR
-        image = self._renderer.render(rotation, translation)
+        image = self._renderer.render(pose.rotation, pose.translation)
 
         # Apply realism if enabled
         if self._config.realism.enabled:
@@ -452,22 +458,20 @@ class xray_simulator:
         elapsed_ms = (time.perf_counter() - start_time) * 1000
         self._frame_times.append(elapsed_ms)
 
-        # Create frame
-        frame = Frame(
+        return Frame(
             image=image,
             pose=replace(pose),
-            frame_idx=0,
+            frame_idx=frame_idx,
             timestamp_ms=elapsed_ms,
             intensity=intensity,
             i0=self._config.physics.i0,
         )
 
-        # Save if configured
-        if self._config.output.save_to_disk and self._config.output.output_dir:
-            output_dir = Path(self._config.output.output_dir)
-            frame.save(output_dir / f"frame_0000.{self._config.output.format}")
-
-        return frame
+    def _autosave(self, frame: Frame) -> None:
+        """Write a frame as ``frame_<frame_idx:04d>.<format>`` if ``output.save_to_disk`` is on."""
+        output = self._config.output
+        if output.save_to_disk and output.output_dir:
+            frame.save(Path(output.output_dir) / f"frame_{frame.frame_idx:04d}.{output.format}")
 
     def render_cine(
         self,
@@ -541,6 +545,14 @@ class xray_simulator:
 
         This is useful for interactive applications or RL environments.
 
+        Each call numbers its frames from 0 (``Frame.frame_idx``). With
+        ``output.save_to_disk`` on, each frame is written to
+        ``<output_dir>/frame_<frame_idx:04d>.<format>`` before it is yielded, as
+        :meth:`render_cine` names its files, so a stream that ends early (``max_frames``,
+        ``break``) still has a file for every frame it yielded. A later call into the same
+        ``output_dir`` starts again at ``frame_0000`` and replaces files with the same names;
+        call :meth:`Frame.save` on each frame to keep several streams.
+
         Args:
             pose_generator: Iterator yielding Pose objects or dicts.
             max_frames: Maximum number of frames to generate (None = unlimited).
@@ -569,8 +581,9 @@ class xray_simulator:
             else:
                 pose = Pose.from_dict(pose_data)
 
-            frame = self.render_frame(pose=pose)
-            frame.frame_idx = frame_idx
+            self._check_view_frame(pose)
+            frame = self._render_pose(pose, frame_idx=frame_idx)
+            self._autosave(frame)
 
             yield frame
             frame_idx += 1

@@ -275,7 +275,7 @@ all supported `SimulatorConfig` settings.
 | Field | Type / constraint | Default | Meaning |
 | --- | --- | --- | --- |
 | `backend` | `"slang"` | `"slang"` | Rendering backend; not initialized by preset loading. |
-| `output.save_to_disk` | Boolean | `false` | Save rendered frames automatically. |
+| `output.save_to_disk` | Boolean | `false` | Save rendered frames automatically: `render_cine()` and `stream()` write `frame_NNNN.<format>` per frame, numbered from `0000` on each call; each `render_frame()` call writes `frame_0000.<format>`, replacing the previous one. |
 | `output.output_dir` | Nonempty string or `null` | `null` | Destination directory; a string is required when `save_to_disk` is true. |
 | `output.format` | `"png"`, `"npy"`, or `"npz"` | `"png"` | Frame file format. |
 | `output.keep_in_gpu` | Boolean | `false` | Existing `OutputSettings` flag; actual residency follows renderer capabilities. |

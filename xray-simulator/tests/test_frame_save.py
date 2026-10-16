@@ -13,19 +13,74 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Frame and CineSequence file output, CPU only."""
+"""Frame and CineSequence file output, and the simulator's automatic frame writer, CPU only."""
 
 import sys
 
 import numpy as np
 import pytest
-from xray_simulator import CineSequence, Frame, OutputSettings, Pose
+from xray_simulator import CineSequence, Frame, OutputSettings, Pose, SimulatorConfig, VolumePreprocessor
+from xray_simulator.simulator import xray_simulator
+
+FORMATS = ["png", "npy", "npz"]
 
 
 @pytest.fixture
 def frame():
     image = np.linspace(0.0, 1.0, 12 * 16, dtype=np.float32).reshape(12, 16)
     return Frame(image=image, pose=Pose.ap())
+
+
+@pytest.fixture
+def make_simulator(monkeypatch, sample_hu_volume, sample_spacing):
+    """Build simulators that run the production pipeline with GPU ray marching replaced."""
+
+    def initialize(simulator):
+        class Renderer:
+            calls = 0
+
+            def render(self, rotation, translation):
+                # A different image on every call, so a test can tell which render a file holds.
+                Renderer.calls += 1
+                gradient = np.linspace(0.05, 0.95, 12 * 16, dtype=np.float32).reshape(12, 16)
+                return simulator.config.physics.i0 * gradient**Renderer.calls
+
+        simulator._renderer = Renderer()
+
+    monkeypatch.setattr(xray_simulator, "_init_renderer", initialize)
+    volume = VolumePreprocessor.from_numpy(
+        sample_hu_volume, spacing_zyx_mm=sample_spacing, anatomical_frame="LPS"
+    ).preprocess()
+
+    def make(output_dir, fmt):
+        if fmt == "png":
+            pytest.importorskip("PIL")
+        config = SimulatorConfig().with_output(save_to_disk=True, output_dir=str(output_dir), format=fmt)
+        return xray_simulator(volume, config)
+
+    return make
+
+
+def load_saved(path):
+    """Read back the array a frame file holds (8-bit for PNG)."""
+    if path.suffix == ".npy":
+        return np.load(path)
+    if path.suffix == ".npz":
+        with np.load(path) as archive:
+            return archive["image"]
+    from PIL import Image
+
+    with Image.open(path) as png:
+        return np.asarray(png)
+
+
+def as_saved(image, fmt):
+    """Return what a frame file in this format holds for the image."""
+    return (np.clip(image, 0.0, 1.0) * 255.0 + 0.5).astype(np.uint8) if fmt == "png" else image
+
+
+def poses(count):
+    return [Pose(rotation=(0.0, 0.1 * i, 0.0)) for i in range(count)]
 
 
 def test_png_is_8_bit_grayscale_with_the_rounded_pixel_values(tmp_path, frame):
@@ -92,3 +147,67 @@ def test_save_all_writes_every_documented_format(tmp_path, frame, fmt):
 
     assert paths == [tmp_path / f"frame_0000.{fmt}", tmp_path / f"frame_0001.{fmt}"]
     assert sorted(tmp_path.iterdir()) == paths
+
+
+@pytest.mark.parametrize("fmt", FORMATS)
+def test_stream_autosaves_one_file_per_yielded_frame(tmp_path, make_simulator, fmt):
+    simulator = make_simulator(tmp_path, fmt)
+
+    frames = list(simulator.stream(iter(poses(3)), max_frames=3))
+
+    assert [f.frame_idx for f in frames] == [0, 1, 2]
+    assert sorted(p.name for p in tmp_path.iterdir()) == [f"frame_{i:04d}.{fmt}" for i in range(3)]
+    for f in frames:
+        np.testing.assert_array_equal(load_saved(tmp_path / f"frame_{f.frame_idx:04d}.{fmt}"), as_saved(f.image, fmt))
+    assert not np.array_equal(frames[0].image, frames[-1].image)
+
+
+def test_stream_saves_each_frame_before_yielding_it(tmp_path, make_simulator):
+    stream = make_simulator(tmp_path, "npy").stream(iter(poses(5)))
+
+    first = next(stream)
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["frame_0000.npy"]
+    np.testing.assert_array_equal(np.load(tmp_path / "frame_0000.npy"), first.image)
+    stream.close()
+
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["frame_0000.npy"]
+
+
+def test_stream_stops_writing_at_max_frames(tmp_path, make_simulator):
+    frames = list(make_simulator(tmp_path, "npy").stream(iter(poses(5)), max_frames=2))
+
+    assert len(frames) == 2
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["frame_0000.npy", "frame_0001.npy"]
+
+
+def test_each_stream_call_numbers_its_files_from_zero(tmp_path, make_simulator):
+    simulator = make_simulator(tmp_path, "npy")
+    list(simulator.stream(iter(poses(3))))
+
+    second = list(simulator.stream(iter(poses(2))))
+
+    assert [f.frame_idx for f in second] == [0, 1]
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["frame_0000.npy", "frame_0001.npy", "frame_0002.npy"]
+    for f in second:
+        np.testing.assert_array_equal(np.load(tmp_path / f"frame_{f.frame_idx:04d}.npy"), f.image)
+
+
+@pytest.mark.parametrize("fmt", FORMATS)
+def test_render_cine_autosaves_one_file_per_frame(tmp_path, make_simulator, fmt):
+    cine = make_simulator(tmp_path, fmt).render_cine(poses(3), progress=False)
+
+    assert sorted(p.name for p in tmp_path.iterdir()) == [f"frame_{i:04d}.{fmt}" for i in range(3)]
+    for f in cine:
+        np.testing.assert_array_equal(load_saved(tmp_path / f"frame_{f.frame_idx:04d}.{fmt}"), as_saved(f.image, fmt))
+
+
+@pytest.mark.parametrize("fmt", FORMATS)
+def test_render_frame_autosave_overwrites_frame_0000(tmp_path, make_simulator, fmt):
+    simulator = make_simulator(tmp_path, fmt)
+    simulator.render_frame(pose=Pose.ap())
+
+    last = simulator.render_frame(pose=Pose.pa())
+
+    assert last.frame_idx == 0
+    assert sorted(p.name for p in tmp_path.iterdir()) == [f"frame_0000.{fmt}"]
+    np.testing.assert_array_equal(load_saved(tmp_path / f"frame_0000.{fmt}"), as_saved(last.image, fmt))

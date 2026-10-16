@@ -620,7 +620,9 @@ class OutputSettings:
     """Output configuration for rendered frames.
 
     Attributes:
-        save_to_disk: If True, save rendered frames to disk.
+        save_to_disk: If True, save rendered frames to disk as ``frame_NNNN.<format>``.
+            ``render_cine`` and ``stream`` write one file per frame, numbered from 0 on each
+            call; ``render_frame`` always writes ``frame_0000``, replacing the previous one.
         output_dir: Directory for saved frames (used if save_to_disk=True).
         format: Output format for saved frames.
         keep_in_gpu: If True, keep frames in GPU memory (for streaming).

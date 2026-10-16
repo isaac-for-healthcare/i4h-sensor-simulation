@@ -17,6 +17,9 @@
 - The ultrasound Docker guide's "Download mesh data" step now gives the command: it copies
   the meshes the image already contains into the mounted checkout, so `examples/server.py`
   finds `mesh/Tumor1.obj`
+- Fixed X-ray `stream()` with `output.save_to_disk` writing every frame to
+  `frame_0000.<format>`, which kept only the last frame. It now writes one
+  `frame_NNNN.<format>` file per yielded frame, as `render_cine()` does
 
 ## Version 0.6.0
 
