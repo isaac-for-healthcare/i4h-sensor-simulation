@@ -25,7 +25,23 @@ Chapter 5 also loads `mesh/Liver.obj`; download the mesh data as described in th
 > `ultrasound_simulator/ray_sim_python.cpython-312-*.so` in that tree. A host interpreter of
 > another version cannot import it and fails with
 > `ModuleNotFoundError: No module named 'ultrasound_simulator.ray_sim_python'`. Either run the
-> chapters inside that container, or build on the host with the commands above.
+> chapters inside that container, or build on the host with the commands above. The container
+> keeps its environment in `.venv-docker/` and its build in `build-docker/`, so the host
+> commands above, which use `.venv/` and `build-release/`, work in the same tree, before or
+> after the container build.
+>
+> Earlier versions of the Docker guide built in `.venv/` and `build-release/` inside the
+> container. In a tree they built, `uv venv` stops with `A virtual environment already exists`,
+> and the install fails with `CMake Error: The current CMakeCache.txt directory ... is different
+> than the directory /ultrasound_simulator/...`. Replace the environment and remove that build
+> directory, then install as above:
+>
+> ```bash
+> rm -rf build-release
+> uv venv --clear && source .venv/bin/activate
+> uv pip install -e ".[all]"
+> ```
+>
 > `./build_and_run.sh` builds inside its image and leaves nothing in the source tree.
 
 ---

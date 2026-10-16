@@ -20,6 +20,10 @@
 - Fixed X-ray `stream()` with `output.save_to_disk` writing every frame to
   `frame_0000.<format>`, which kept only the last frame. It now writes one
   `frame_NNNN.<format>` file per yielded frame, as `render_cine()` does
+- The ultrasound Docker guide now builds in `.venv-docker/` and `build-docker/`, so the host
+  build in the same tree (`.venv/`, `build-release/`) works before or after it, and
+  `docker build` no longer copies either build into the image. The ultrasound guides say
+  how to clean a tree built by an earlier version of the Docker guide
 
 ## Version 0.6.0
 

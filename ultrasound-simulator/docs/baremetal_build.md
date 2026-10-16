@@ -23,6 +23,14 @@
    > export PATH=/usr/local/cuda/bin:$PATH
    > export LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH
    >   ```
+   >
+   > Note: This build uses `.venv/` and `build-release/`. The [Docker guide](docker_build.md)
+   > builds in the same tree in `.venv-docker/` and `build-docker/`, so the two do not
+   > interfere. Earlier versions of the Docker guide built in `.venv/` and `build-release/`
+   > inside the container. In a tree they built, run `rm -rf build-release` and, with uv,
+   > replace the environment with `uv venv --clear` before installing; otherwise the build
+   > fails with `CMake Error: The current CMakeCache.txt directory ... is different than the
+   > directory /ultrasound_simulator/...`.
 
 ## Option A: Using uv
 
