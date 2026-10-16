@@ -97,10 +97,19 @@
 
    **C++ example**
 
-   To build and run C++ examples, you can manually run CMake with `BUILD_EXAMPLES=ON`:
+   To build and run C++ examples, you can manually run CMake with `BUILD_EXAMPLES=ON`.
+   Use a build directory of its own, such as `build-cpp/`. `pip install -e` builds in
+   `build-release/` with Ninja, often from its temporary build environment, so a plain
+   CMake configure there can fail, and a Makefile build there breaks later `pip install -e`
+   builds.
 
    ```bash
-   cmake -DPYTHON_EXECUTABLE=$(which python) -DCMAKE_BUILD_TYPE=Release -DBUILD_EXAMPLES=ON -B build-release
-   cmake --build build-release -j $(nproc)
-   ./build-release/examples/cpp/ray_sim_example
+   cmake -DPYTHON_EXECUTABLE=$(which python) -DCMAKE_BUILD_TYPE=Release -DBUILD_EXAMPLES=ON -B build-cpp
+   cmake --build build-cpp -j $(nproc)
+   ./build-cpp/examples/cpp/ray_sim_example
    ```
+
+   > Earlier versions of this guide built the C++ example in `build-release/`. In a tree
+   > they built, `pip install -e` fails with `ninja: error: Makefile:5: expected '=', got ':'`
+   > or `Does not match the generator used previously: Unix Makefiles`; run
+   > `rm -rf build-release` and reinstall.
