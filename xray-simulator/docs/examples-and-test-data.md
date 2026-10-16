@@ -144,6 +144,10 @@ The demo executes in four steps:
 > including warm-up renders. Each call numbers its frames from `0000`, so a later call into
 > the same `output_dir` overwrites files with the same names. Call `frame.save()` or
 > `cine.save_all()` for explicit control.
+> Files from an earlier, longer call are not removed, and `render_frame()` after a stream or
+> cine replaces that sequence's first file. Use a new `output_dir` for each call to keep
+> sequences separate. An unbounded stream with autosave enabled writes one file per frame
+> for as long as it runs.
 
 ### Single Frame Rendering
 

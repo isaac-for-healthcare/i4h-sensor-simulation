@@ -449,7 +449,7 @@ class xray_simulator:
 
         # Apply realism if enabled
         if self._config.realism.enabled:
-            image = self._apply_realism(image)
+            image = self._apply_realism(image, seed_offset=frame_idx)
 
         intensity = image if self._config.output.keep_intensity else None
         image = self._to_display(image)
@@ -500,29 +500,7 @@ class xray_simulator:
 
             self._check_view_frame(pose)
 
-            start_time = time.perf_counter()
-
-            # Render frame using Slang DiffDRR
-            image = self._renderer.render(pose.rotation, pose.translation)
-
-            # Apply realism
-            if self._config.realism.enabled:
-                image = self._apply_realism(image, seed_offset=i)
-
-            intensity = image if self._config.output.keep_intensity else None
-            image = self._to_display(image)
-
-            elapsed_ms = (time.perf_counter() - start_time) * 1000
-            self._frame_times.append(elapsed_ms)
-
-            frames.append(Frame(
-                image=image,
-                pose=pose,
-                frame_idx=i,
-                timestamp_ms=elapsed_ms,
-                intensity=intensity,
-                i0=self._config.physics.i0,
-            ))
+            frames.append(self._render_pose(pose, frame_idx=i))
 
             if progress and (i + 1) % 10 == 0:
                 current_fps = 1000.0 / np.mean(list(self._frame_times)[-10:])
@@ -552,6 +530,10 @@ class xray_simulator:
         ``break``) still has a file for every frame it yielded. A later call into the same
         ``output_dir`` starts again at ``frame_0000`` and replaces files with the same names;
         call :meth:`Frame.save` on each frame to keep several streams.
+        Files from an earlier, longer call are not removed, and a later
+        :meth:`render_frame` call replaces the sequence's ``frame_0000``. Use a new
+        ``output_dir`` for each call to keep sequences separate. An unbounded stream
+        writes one file per frame for as long as it runs when autosave is enabled.
 
         Args:
             pose_generator: Iterator yielding Pose objects or dicts.

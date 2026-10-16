@@ -603,7 +603,8 @@ class RealismSettings:
         poisson_photons: Photon count for Poisson noise (0 = disabled).
         gaussian_sigma: Gaussian noise sigma (0 = disabled).
         blur_sigma_px: Gaussian blur sigma in pixels (0 = disabled).
-        seed: Random seed for reproducibility (None = random).
+        seed: Random seed for reproducibility (None = random). Cine and stream frames use
+            ``seed + frame_idx``; single-frame renders use ``seed``.
     """
 
     enabled: bool = False
@@ -623,6 +624,9 @@ class OutputSettings:
         save_to_disk: If True, save rendered frames to disk as ``frame_NNNN.<format>``.
             ``render_cine`` and ``stream`` write one file per frame, numbered from 0 on each
             call; ``render_frame`` always writes ``frame_0000``, replacing the previous one.
+            Files from earlier, longer calls are not removed; a later ``render_frame`` also
+            replaces a sequence's first file. Use a new ``output_dir`` for each call.
+            An unbounded stream writes files for as long as it runs.
         output_dir: Directory for saved frames (used if save_to_disk=True).
         format: Output format for saved frames.
         keep_in_gpu: If True, keep frames in GPU memory (for streaming).

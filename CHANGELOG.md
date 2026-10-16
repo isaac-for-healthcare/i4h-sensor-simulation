@@ -20,6 +20,10 @@
 - Fixed X-ray `stream()` with `output.save_to_disk` writing every frame to
   `frame_0000.<format>`, which kept only the last frame. It now writes one
   `frame_NNNN.<format>` file per yielded frame, as `render_cine()` does
+- Fixed X-ray `stream()` realism reusing the same noise field on every frame with a fixed
+  seed. It now advances the seed per frame like `render_cine()`, changing noisy stream
+  output after frame zero while keeping repeated streams reproducible. The output docs
+  also explain stale files, single-frame overwrites and unbounded stream disk usage
 - The ultrasound Docker guide now builds in `.venv-docker/` and `build-docker/`, so the host
   build in the same tree (`.venv/`, `build-release/`) works before or after it, and
   `docker build` no longer copies either build into the image. The ultrasound guides say

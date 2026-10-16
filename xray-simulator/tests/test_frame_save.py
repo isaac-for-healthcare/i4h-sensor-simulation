@@ -211,3 +211,40 @@ def test_render_frame_autosave_overwrites_frame_0000(tmp_path, make_simulator, f
     assert last.frame_idx == 0
     assert sorted(p.name for p in tmp_path.iterdir()) == [f"frame_0000.{fmt}"]
     np.testing.assert_array_equal(load_saved(tmp_path / f"frame_0000.{fmt}"), as_saved(last.image, fmt))
+
+
+@pytest.mark.parametrize("seed", [0, 29])
+def test_stream_realism_advances_per_frame_and_matches_cine(tmp_path, make_simulator, monkeypatch, seed):
+    template = make_simulator(tmp_path, "npy")
+    config = template.config.with_realism(enabled=True, seed=seed, gaussian_sigma=0.01).with_output(
+        save_to_disk=False, keep_intensity=True
+    )
+    simulator = xray_simulator(template.volume, config)
+    monkeypatch.setattr(
+        simulator._renderer, "render", lambda *_: np.full((12, 16), 0.5 * config.physics.i0, dtype=np.float32)
+    )
+    stationary = [Pose.ap() for _ in range(3)]
+
+    stream = list(simulator.stream(iter(stationary)))
+    repeated = list(simulator.stream(iter(stationary)))
+    cine = simulator.render_cine(stationary, progress=False)
+
+    assert not np.array_equal(stream[0].intensity, stream[1].intensity)
+    assert not np.array_equal(stream[1].intensity, stream[2].intensity)
+    for streamed, again, filmed in zip(stream, repeated, cine):
+        np.testing.assert_array_equal(streamed.intensity, again.intensity)
+        np.testing.assert_array_equal(streamed.intensity, filmed.intensity)
+        np.testing.assert_array_equal(streamed.image, filmed.image)
+    for _ in range(2):
+        np.testing.assert_array_equal(simulator.render_frame(pose=Pose.ap()).intensity, stream[0].intensity)
+
+
+def test_render_frame_after_stream_replaces_only_the_first_file(tmp_path, make_simulator):
+    simulator = make_simulator(tmp_path, "npy")
+    list(simulator.stream(iter(poses(3))))
+    remaining = {p: p.read_bytes() for p in (tmp_path / "frame_0001.npy", tmp_path / "frame_0002.npy")}
+
+    frame = simulator.render_frame(pose=Pose.ap())
+
+    np.testing.assert_array_equal(np.load(tmp_path / "frame_0000.npy"), frame.image)
+    assert all(p.read_bytes() == content for p, content in remaining.items())
