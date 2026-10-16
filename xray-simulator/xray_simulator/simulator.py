@@ -424,6 +424,11 @@ class xray_simulator:
         ``<output_dir>/frame_0000.<format>``, so each call replaces the file the previous
         call wrote. :meth:`render_cine` and :meth:`stream` write one file per frame.
 
+        Realism noise is drawn with ``realism.seed`` itself, so under a fixed seed every call
+        repeats the same noise realization. Use :meth:`stream` or :meth:`render_cine` for a
+        sequence whose frames get their own noise, or a ``None`` seed for fresh noise on
+        every call.
+
         Args:
             rotation: Euler angles (rx, ry, rz) in radians.
             translation: Translation (tx, ty, tz) in mm.
@@ -534,6 +539,12 @@ class xray_simulator:
         :meth:`render_frame` call replaces the sequence's ``frame_0000``. Use a new
         ``output_dir`` for each call to keep sequences separate. An unbounded stream
         writes one file per frame for as long as it runs when autosave is enabled.
+
+        With realism enabled, frame ``i`` draws its noise with seed ``realism.seed + i``, as
+        :meth:`render_cine` does. Under a fixed seed, consecutive frames therefore get
+        independent noise, and the same poses give the same frames on every call, matching
+        :meth:`render_cine`; repeated streams over the same poses also repeat their noise. A
+        ``None`` seed draws fresh noise for every frame, at the cost of reproducibility.
 
         Args:
             pose_generator: Iterator yielding Pose objects or dicts.
