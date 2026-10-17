@@ -79,7 +79,8 @@ def main() -> None:
         import torch
 
         def sync() -> None:
-            torch.cuda.synchronize()
+            if args.device_type == "cuda":
+                torch.cuda.synchronize()
     else:
 
         def sync() -> None:
