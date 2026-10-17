@@ -223,6 +223,43 @@ float rayMarchIntegral(
     return integral;
 }
 
+/**
+ * Forward-only ray-march: one hardware-filtered sample per step.
+ *
+ * The sampler is already trilinear, so this returns the same integral as
+ * rayMarchIntegral to within the texture unit's fixed-point filter weights,
+ * from one fetch per step instead of eight. It carries no derivative.
+ */
+float rayMarchIntegralHardware(
+    Texture3D<float> volume,
+    SamplerState sampler,
+    float3 rayOrigin,
+    float3 rayDir,
+    float tStart,
+    float tEnd,
+    VolumeInfo volInfo,
+    float stepMM
+)
+{
+    float3 volumeSize = float3(volInfo.dimensions) * volInfo.spacing;
+    float integral = 0.0f;
+
+    float rayLength = tEnd - tStart;
+    int numSteps = min(int(rayLength / stepMM) + 1, MAX_STEPS);
+
+    for (int i = 0; i < numSteps; i++)
+    {
+        float t = tStart + (float(i) + 0.5f) * stepMM;
+        if (t >= tEnd)
+            break;
+
+        float3 uvw = clamp((rayOrigin + rayDir * t - volInfo.origin) / volumeSize, float3(0.0f), float3(1.0f));
+        integral += volume.SampleLevel(sampler, uvw, 0.0) * stepMM;
+    }
+
+    return integral;
+}
+
 // ============================================================================
 // Core Differentiable Rendering Function
 // ============================================================================
@@ -243,7 +280,8 @@ float computePixelIntensity(
     float3 translation,   // Translation in mm
     int2 pixelCoord,
     float stepMM,
-    float i0
+    float i0,
+    bool hardwareSampling
 )
 {
     // Build rotation matrix from Euler angles
@@ -287,12 +325,25 @@ float computePixelIntensity(
     float tEnd = tHit.y;
 
     // Compute line integral
-    float integral = rayMarchIntegral(
-        muVolume, volumeSampler,
-        sourceWorld, rayDir,
-        tStart, tEnd,
-        volInfo, stepMM
-    );
+    float integral;
+    if (hardwareSampling)
+    {
+        integral = no_diff(rayMarchIntegralHardware(
+            muVolume, volumeSampler,
+            sourceWorld, rayDir,
+            tStart, tEnd,
+            volInfo, stepMM
+        ));
+    }
+    else
+    {
+        integral = rayMarchIntegral(
+            muVolume, volumeSampler,
+            sourceWorld, rayDir,
+            tStart, tEnd,
+            volInfo, stepMM
+        );
+    }
 
     // Beer-Lambert law: I = I₀ * exp(-∫μds)
     return i0 * exp(-integral);
@@ -316,7 +367,8 @@ void renderDRR_forward(
     CarmGeometry carm,
     Pose pose,
     float stepMM,
-    float i0
+    float i0,
+    int hardwareSampling
 )
 {
     int2 pixelCoord = int2(dispatchThreadID.xy);
@@ -329,10 +381,56 @@ void renderDRR_forward(
         volInfo, carm,
         pose.rotation, pose.translation,
         pixelCoord,
-        stepMM, i0
+        stepMM, i0,
+        hardwareSampling != 0
     );
 
     outputImage[pixelCoord] = intensity;
+}
+
+/**
+ * Forward pass for a batch of poses in one dispatch: z indexes the pose.
+ *
+ * Poses arrive as six floats each (rx, ry, rz, tx, ty, tz) rather than as
+ * Pose structs, because CUDA and Vulkan lay out float3 members differently in
+ * a structured buffer. Images are written row-major as (pose, y, x).
+ */
+[CudaKernel]
+void renderDRR_forward_batch(
+    uint3 dispatchThreadID,
+    Texture3D<float> muVolume,
+    SamplerState volumeSampler,
+    RWStructuredBuffer<float> outputImages,
+    StructuredBuffer<float> poses,
+    int numPoses,
+    VolumeInfo volInfo,
+    CarmGeometry carm,
+    float stepMM,
+    float i0,
+    int hardwareSampling
+)
+{
+    int2 pixelCoord = int2(dispatchThreadID.xy);
+    int poseIndex = int(dispatchThreadID.z);
+
+    if (pixelCoord.x >= carm.detectorPixels.x || pixelCoord.y >= carm.detectorPixels.y || poseIndex >= numPoses)
+        return;
+
+    int p = 6 * poseIndex;
+    float3 rotation = float3(poses[p], poses[p + 1], poses[p + 2]);
+    float3 translation = float3(poses[p + 3], poses[p + 4], poses[p + 5]);
+
+    float intensity = computePixelIntensity(
+        muVolume, volumeSampler,
+        volInfo, carm,
+        rotation, translation,
+        pixelCoord,
+        stepMM, i0,
+        hardwareSampling != 0
+    );
+
+    int index = (poseIndex * carm.detectorPixels.y + pixelCoord.y) * carm.detectorPixels.x + pixelCoord.x;
+    outputImages[index] = intensity;
 }
 
 /**
@@ -378,6 +476,7 @@ void renderDRR_backward(
         dpTranslation,
         pixelCoord,
         dpStepMM, dpI0,
+        false,
         dL_dI
     );
 

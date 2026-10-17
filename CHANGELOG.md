@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Added `SlangDiffDRRRenderer.render_batch`, which renders one DRR per pose in a single
+  dispatch. `as_torch=True` on the CUDA device returns a `torch.Tensor` read on the GPU,
+  with no host copy. Added `SlangDiffDRRConfig.hardware_sampling` (off by default) for
+  forward renders. It samples the volume once per ray step through the texture unit, in place
+  of eight point fetches. Gradients still use the software path.
+  `examples/benchmark_render.py` times both changes
 - Removed the `i4h` CLI wrapper. Run the X-ray simulator through its Python examples,
   the `xray-simulator` config-file launcher or its Dockerfile, and the ultrasound
   simulator through `build_and_run.sh`

@@ -124,6 +124,11 @@ class SlangDiffDRRConfig:
         normalize: If True, normalize output to [0, 1].
         invert: If True, invert so bone=white, air=black (clinical X-ray convention).
         eps: Numerical stability constant.
+        hardware_sampling: If True, ``render`` and ``render_batch`` take one hardware-filtered
+            texture sample per ray-march step instead of eight point samples blended in
+            software. The result differs only by the texture unit's fixed-point filter
+            weights. ``render_with_gradients`` always uses the software path, so its image
+            and gradients describe the same function.
     """
 
     det_height_px: int = 512
@@ -139,6 +144,7 @@ class SlangDiffDRRConfig:
     device_type: str = "cuda"
     pixel_spacing_y_mm: float | None = None
     detector_offset_xy_mm: tuple[float, float] = (0.0, 0.0)
+    hardware_sampling: bool = False
 
 
 class SlangDiffDRRRenderer:
@@ -249,6 +255,8 @@ class SlangDiffDRRRenderer:
 
         # Get entry points for differentiable rendering
         self._forward_fn = self._module.find_function("renderDRR_forward")
+        self._forward_batch_fn = self._module.find_function("renderDRR_forward_batch")
+        self._batch_cache = None
         self._backward_fn = self._module.find_function("renderDRR_backward")
         self._normalize_fn = self._module.find_function("normalizeImage")
         print("  Functions loaded: forward, backward, normalize")
@@ -398,6 +406,7 @@ class SlangDiffDRRRenderer:
             pose=pose,
             stepMM=float(cfg.step_mm),
             i0=float(cfg.i0),
+            hardwareSampling=int(cfg.hardware_sampling),
         )
 
         # Read back result
@@ -415,6 +424,95 @@ class SlangDiffDRRRenderer:
             image = 1.0 - image
 
         return image.astype(np.float32)
+
+    def render_batch(
+        self,
+        rotations: np.ndarray,
+        translations: np.ndarray,
+        *,
+        as_torch: bool = False,
+    ):
+        """Render one DRR per pose in a single dispatch (forward pass only).
+
+        Each image is the one ``render`` returns for the same pose, including
+        per-image normalization when ``cfg.normalize`` is set.
+
+        Args:
+            rotations: Euler angles in radians, shape (N, 3).
+            translations: Translations in mm, shape (N, 3).
+            as_torch: Return a ``torch.Tensor``. On the CUDA device it is read
+                from the output buffer on the GPU without a host copy; on Vulkan
+                it is built from the host readback.
+
+        Returns:
+            float32 images of shape (N, H, W), as numpy or torch.
+        """
+        rotations = np.asarray(rotations, dtype=np.float32)
+        translations = np.asarray(translations, dtype=np.float32)
+        if rotations.ndim != 2 or rotations.shape[1] != 3 or translations.shape != rotations.shape:
+            raise ValueError(
+                f"rotations and translations must both be (N, 3); got {rotations.shape} and {translations.shape}"
+            )
+        num_poses = rotations.shape[0]
+        if num_poses == 0:
+            raise ValueError("render_batch needs at least one pose")
+        if as_torch and not TORCH_AVAILABLE:
+            raise RuntimeError("as_torch=True requires PyTorch")
+
+        cfg = self._cfg
+        height, width = cfg.det_height_px, cfg.det_width_px
+        vol_info, carm, _ = self._build_params((0.0, 0.0, 0.0), (0.0, 0.0, 0.0))
+        poses_buffer, images_buffer = self._batch_buffers(num_poses)
+        poses_buffer.copy_from_numpy(np.ascontiguousarray(np.concatenate((rotations, translations), axis=1)))
+
+        self._forward_batch_fn.dispatch(
+            thread_count=slangpy.uint3(width, height, num_poses),
+            muVolume=self._mu_texture,
+            volumeSampler=self._sampler,
+            outputImages=images_buffer,
+            poses=poses_buffer,
+            numPoses=num_poses,
+            volInfo=vol_info,
+            carm=carm,
+            stepMM=float(cfg.step_mm),
+            i0=float(cfg.i0),
+            hardwareSampling=int(cfg.hardware_sampling),
+        )
+
+        if as_torch:
+            if self._cfg.device_type == "cuda":
+                # The buffer is reused by the next call, so hand out a copy.
+                images = images_buffer.to_torch(type=slangpy.DataType.float32, shape=(num_poses, height, width)).clone()
+            else:
+                images = torch.from_numpy(images_buffer.to_numpy().view(np.float32).reshape(num_poses, height, width))
+            lib = torch
+        else:
+            images = images_buffer.to_numpy().view(np.float32).reshape(num_poses, height, width).copy()
+            lib = np
+
+        if cfg.normalize:
+            flat = images.reshape(num_poses, -1)
+            vmin = flat.min(1)[0] if lib is torch else flat.min(axis=1)
+            vmax = flat.max(1)[0] if lib is torch else flat.max(axis=1)
+            images = (images - vmin[:, None, None]) / (vmax - vmin + cfg.eps)[:, None, None]
+        if cfg.invert:
+            images = 1.0 - images
+        return images
+
+    def _batch_buffers(self, num_poses: int):
+        """Pose and image buffers for ``num_poses``, reused while the batch size holds."""
+        cached = self._batch_cache
+        if cached is not None and cached[0] == num_poses:
+            return cached[1], cached[2]
+        usage = slangpy.BufferUsage.shader_resource | slangpy.BufferUsage.unordered_access
+        poses_buffer = self._device.create_buffer(element_count=6 * num_poses, struct_size=4, usage=usage)
+        images_buffer = self._device.create_buffer(
+            element_count=num_poses * self._cfg.det_height_px * self._cfg.det_width_px,
+            struct_size=4,
+            usage=usage,
+        )
+        self._batch_cache = (num_poses, poses_buffer, images_buffer)
+        return poses_buffer, images_buffer
 
     def render_with_gradients(
         self,
@@ -498,6 +596,7 @@ class SlangDiffDRRRenderer:
             pose=pose,
             stepMM=float(cfg.step_mm),
             i0=float(cfg.i0),
+            hardwareSampling=0,
         )
 
         # Step 2: Backward pass - compute per-pixel gradients
