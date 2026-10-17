@@ -98,3 +98,78 @@ def test_torch_slang_diffdrr_yields_pose_gradients():
         assert grad.shape == (3,)
         assert torch.isfinite(grad).all()
     assert translation.grad.abs().sum() > 0
+
+
+ROTATIONS = np.array([[0.0, 0.0, 0.0], [0.3, -0.2, 0.1], [-0.4, 0.25, 1.2]], np.float32)
+TRANSLATIONS = np.array([[0.0, 0.0, 0.0], [5.0, -3.0, 2.0], [-4.0, 6.0, -1.0]], np.float32)
+
+
+def _phantom_renderer(device_type="cuda", **cfg_kwargs):
+    """A sphere in a faint box, anisotropic voxels so the three axes are distinguishable."""
+    if not diffdrr.SLANG_AVAILABLE:
+        pytest.skip("slangpy is not installed")
+    z, y, x = np.mgrid[:48, :40, :32].astype(np.float32)
+    mu = np.full((48, 40, 32), 0.002, np.float32)
+    mu[(z - 24) ** 2 + (y - 18) ** 2 + (x - 17) ** 2 < 9**2] = 0.05
+    cfg = diffdrr.SlangDiffDRRConfig(det_width_px=64, det_height_px=48, device_type=device_type, **cfg_kwargs)
+    try:
+        return diffdrr.SlangDiffDRRRenderer(mu, (2.0, 1.5, 1.0), cfg=cfg)
+    except Exception as exc:  # noqa: BLE001 - a missing backend is a skip, not a failure
+        pytest.skip(f"Slang {device_type} device unavailable: {exc}")
+
+
+@pytest.mark.gpu
+@pytest.mark.parametrize("device_type", ["cuda", "vulkan"])
+@pytest.mark.parametrize("normalize", [False, True], ids=["raw", "normalized"])
+def test_a_batch_renders_each_pose_as_render_does(device_type, normalize):
+    renderer = _phantom_renderer(device_type, normalize=normalize, invert=normalize)
+
+    batch = renderer.render_batch(ROTATIONS, TRANSLATIONS)
+
+    assert batch.shape == (3, 48, 64) and batch.dtype == np.float32
+    for index in range(3):
+        np.testing.assert_allclose(batch[index], renderer.render(ROTATIONS[index], TRANSLATIONS[index]), atol=1e-6)
+    assert not np.allclose(batch[0], batch[1])
+
+
+@pytest.mark.gpu
+def test_a_torch_batch_stays_on_the_gpu_and_survives_the_next_call():
+    torch = pytest.importorskip("torch")
+    if not torch.cuda.is_available():
+        pytest.skip("CUDA is not available to torch")
+    renderer = _phantom_renderer("cuda", normalize=False, invert=False)
+
+    first = renderer.render_batch(ROTATIONS, TRANSLATIONS, as_torch=True)
+    expected = first.cpu().numpy().copy()
+    renderer.render_batch(ROTATIONS[::-1].copy(), TRANSLATIONS[::-1].copy(), as_torch=True)
+
+    assert first.is_cuda and first.shape == (3, 48, 64) and first.dtype == torch.float32
+    np.testing.assert_array_equal(first.cpu().numpy(), expected)
+    np.testing.assert_allclose(expected, renderer.render_batch(ROTATIONS, TRANSLATIONS), atol=1e-6)
+
+
+@pytest.mark.gpu
+@pytest.mark.parametrize("device_type", ["cuda", "vulkan"])
+def test_hardware_sampling_matches_the_software_line_integrals(device_type):
+    """One filtered fetch per step instead of eight point fetches gives the same attenuation."""
+    software = _phantom_renderer(device_type, normalize=False, invert=False)
+    hardware = _phantom_renderer(device_type, normalize=False, invert=False, hardware_sampling=True)
+
+    reference = -np.log(software.render_batch(ROTATIONS, TRANSLATIONS))
+    filtered = -np.log(hardware.render_batch(ROTATIONS, TRANSLATIONS))
+
+    assert reference.max() > 0.5  # the sphere is in view, so the comparison has signal
+    assert np.abs(filtered - reference).max() < 5e-3 * reference.max()
+    np.testing.assert_allclose(hardware.render(ROTATIONS[1], TRANSLATIONS[1]), np.exp(-filtered[1]), atol=1e-6)
+
+
+@pytest.mark.gpu
+@pytest.mark.parametrize(
+    ("rotations", "translations"),
+    [(np.zeros((2, 3)), np.zeros((3, 3))), (np.zeros(3), np.zeros(3)), (np.zeros((0, 3)), np.zeros((0, 3)))],
+    ids=["mismatched", "unbatched", "empty"],
+)
+def test_render_batch_rejects_malformed_poses(rotations, translations):
+    renderer = _phantom_renderer()
+    with pytest.raises(ValueError):
+        renderer.render_batch(rotations, translations)
