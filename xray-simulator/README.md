@@ -99,6 +99,19 @@ pip install -e .[all]
 | `SimpleITK` | DICOM loading (optional, `all` extra) |
 | `torch` | PyTorch integration for autograd (optional) |
 
+### Running the tests
+
+The unit tests run on a host without a GPU, as CI does
+(`.github/workflows/xray-simulator-ci.yml`). From the repository root:
+
+```bash
+python -m pip install -e './xray-simulator[cli,validation]' pytest "pydicom>=2.4.0" "SimpleITK>=2.3.0"
+python -m pytest xray-simulator/tests -m 'not gpu'
+```
+
+`-m 'not gpu'` skips the tests marked `gpu`; drop it on a host with CUDA and Slang to run
+those as well.
+
 ---
 
 ## Quick Start
