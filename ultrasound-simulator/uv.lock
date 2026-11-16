@@ -210,14 +210,6 @@ wheels = [
 ]
 
 [[package]]
-name = "flash"
-version = "1.0.3"
-source = { registry = "https://pypi.org/simple" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/06/0d/b2760d85cd8901615122f6a61e2f8fd34ffcaf82e5c4af09bd887a8e587a/flash-1.0.3-py3-none-any.whl", hash = "sha256:69f448811abc97d4f0857fc577e14398b322ceddad074430350a5012a61302b2", size = 2707, upload-time = "2020-01-17T11:28:00.404Z" },
-]
-
-[[package]]
 name = "flask"
 version = "3.1.0"
 source = { registry = "https://pypi.org/simple" }
@@ -415,12 +407,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/fd/71/1687c5c0a0be2cee39a5c9c389e546f9c6e215e46b691d00d9f646892083/kiwisolver-1.4.7-pp310-pypy310_pp73-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:40fa14dbd66b8b8f470d5fc79c089a66185619d31645f9b0773b88b19f7223c4", size = 79951, upload-time = "2024-09-04T09:06:29.966Z" },
     { url = "https://files.pythonhosted.org/packages/ea/8b/d7497df4a1cae9367adf21665dd1f896c2a7aeb8769ad77b662c5e2bcce7/kiwisolver-1.4.7-pp310-pypy310_pp73-win_amd64.whl", hash = "sha256:eb542fe7933aa09d8d8f9d9097ef37532a7df6497819d16efe4359890a2f417a", size = 55715, upload-time = "2024-09-04T09:06:31.489Z" },
 ]
-
-[[package]]
-name = "logger"
-version = "1.4"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/73/2f/b0d28eaa1e2c1cf64129f8da3fe701888d152677fec708cd0f13e8309e1e/logger-1.4.tar.gz", hash = "sha256:4ecac57133c6376fa215f0fe6b4dc4d60e4d1ad8be005cab4e8a702df682f8b3", size = 1187, upload-time = "2013-10-22T16:49:01.48Z" }
 
 [[package]]
 name = "markupsafe"
@@ -953,11 +939,9 @@ dependencies = [
 all = [
     { name = "configparser" },
     { name = "cupy-cuda12x" },
-    { name = "flash" },
     { name = "flask" },
     { name = "flask-cors" },
     { name = "imageio" },
-    { name = "logger" },
     { name = "matplotlib" },
     { name = "pillow" },
     { name = "scipy" },
@@ -972,11 +956,9 @@ dev = [
 requires-dist = [
     { name = "configparser", marker = "extra == 'all'", specifier = ">=7.1.0" },
     { name = "cupy-cuda12x", marker = "extra == 'all'", specifier = ">=13.3.0" },
-    { name = "flash", marker = "extra == 'all'", specifier = ">=1.0.3" },
     { name = "flask", marker = "extra == 'all'", specifier = ">=3.1.0" },
     { name = "flask-cors", marker = "extra == 'all'", specifier = ">=5.0.0" },
     { name = "imageio", marker = "extra == 'all'", specifier = ">=2.36.1" },
-    { name = "logger", marker = "extra == 'all'", specifier = ">=1.4" },
     { name = "matplotlib", marker = "extra == 'all'", specifier = ">=3.9.0" },
     { name = "numpy" },
     { name = "pillow", marker = "extra == 'all'", specifier = ">=11.0.0" },
