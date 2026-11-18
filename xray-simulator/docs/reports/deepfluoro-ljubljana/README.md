@@ -89,7 +89,7 @@ offset-sign diagnostic render was removed from the scripts.
 
 | Item | Configuration |
 | --- | --- |
-| Input release | `eigenvivek/xvr-data`, revision `a17273e3eadbd793bd861f3598a80ce4590c1124` |
+| Input release | `eigenvivek/xvr-data`, revision `a17273e3eadbd793bd861f3598a80ce4590c1124`. Hugging Face no longer serves this revision: the dataset history was rewritten on 2026-11-09. Download revision `7a46053ffba5cd3e10779b27cb0d010d0c06178b` to reproduce. Its `deepfluoro/` and `ljubljana/` files match, by sha256, those of `eaf85c7241db` (2026-08-10), the last change to them before this report was run. The rewrite only added a `wbct` subject |
 | Pairing | Matching subject volume, supplied pose and per-view detector intrinsics through `xray_simulator.validation.xvr` |
 | Geometry conventions | Principal point at `((W-1)/2 + x0/dx, (H-1)/2 + y0/dy)`; DeepFluoro voxel `ijk` at `affine @ (ijk + 1/2)`, Ljubljana at `affine @ ijk`. Fixed per dataset; no registration or pose fitting |
 | Sampling | 4×4 detector binning; 0.5 mm ray integration step |
