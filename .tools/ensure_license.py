@@ -26,29 +26,56 @@ file_extensions = [".py", ".sh", ".ipynb", ".slurm", ".h", ".hpp", ".cu", ".cpp"
 
 file_to_ignore = ["NOTICE.txt"]
 
+SKIP_DIR_NAMES = {
+    ".git",
+    ".venv",
+    "venv",
+    "node_modules",
+    "__pycache__",
+    "build",
+    "build-ci",
+    "build-release",
+    "dist",
+    ".eggs",
+    "assets",
+    "tools",
+    "_deps",
+}
+
+
+def _should_skip_dir(name: str) -> bool:
+    return name in SKIP_DIR_NAMES or name.startswith("build") or name.endswith(".egg-info")
+
+
 def check_license_in_file(file_path):
     """Check if the file contains all lines of the license header"""
-    with open(file_path, "r", encoding="utf-8") as file:
-        content = file.read()
-        year_line = license_lines[0]
-        for word in year_line.split():
-            # It's okay if the year is not 2025, as long as it has the other words.
-            if word in content and word != "2025":
-                break
-        else:
-            return False
-
-        for license_line in license_lines[1:]:
-            if license_line not in content:
-                return False
+    try:
+        with open(file_path, "r", encoding="utf-8") as file:
+            content = file.read()
+    except (UnicodeDecodeError, OSError):
+        # Skip binary or unreadable files that happen to match an extension.
         return True
+
+    year_line = license_lines[0]
+    for word in year_line.split():
+        # It's okay if the year is not 2025, as long as it has the other words.
+        if word in content and word != "2025":
+            break
+    else:
+        return False
+
+    for license_line in license_lines[1:]:
+        if license_line not in content:
+            return False
+    return True
 
 
 def check_license_in_directory(directory):
     """Check for missing license headers in all files in the directory"""
     files_without_license = []
 
-    for root, _, files in os.walk(directory):
+    for root, dirs, files in os.walk(directory):
+        dirs[:] = [d for d in dirs if not _should_skip_dir(d)]
         for file in files:
             if any(file.endswith(ext) for ext in file_extensions):
                 if os.path.relpath(os.path.join(root, file), directory) in file_to_ignore:

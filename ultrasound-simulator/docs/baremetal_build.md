@@ -1,0 +1,115 @@
+# ultrasound_simulator – Bare-metal installation
+
+1. Clone this repository:
+
+   ```bash
+   git clone https://github.com/isaac-for-healthcare/i4h-sensor-simulation.git
+   cd i4h-sensor-simulation/ultrasound-simulator
+   ```
+
+2. The required OptiX header files are fetched automatically by CMake from the
+   open-source [optix-dev](https://github.com/NVIDIA/optix-dev) repository during the
+   configure step.  All you need is a recent NVIDIA driver (OptiX is part of the
+   driver) and CUDA ≥ 12.6 which are already listed in the requirements section.
+
+3. Install Python dependencies and create virtual environment:
+
+   > Note: The `pip install -e .[all]` command will automatically run the CMake build process. This requires:
+   > - CUDA toolkit with `nvcc` in your `$PATH`
+   > - CMake 3.24.0 or higher (install with `pip install cmake==3.24.0` if needed)
+   > - CUDA paths properly set:
+>
+   > ```bash
+   > export PATH=/usr/local/cuda/bin:$PATH
+   > export LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH
+   >   ```
+   >
+   > Note: This build uses `.venv/` and `build-release/`. The [Docker guide](docker_build.md)
+   > builds in the same tree in `.venv-docker/` and `build-docker/`, so the two do not
+   > interfere. The native extension is installed into each environment rather than the
+   > shared source directory, including when both use the same Python version.
+   > Remove legacy in-source extensions with `rm -f ultrasound_simulator/ray_sim_python*.so`
+   > before reinstalling in both environments.
+   > Earlier versions of the Docker guide built in `.venv/` and `build-release/`
+   > inside the container. In a tree they built, run `rm -rf build-release` and, with uv,
+   > replace the environment with `uv venv --clear` before installing; otherwise the build
+   > fails with `CMake Error: The current CMakeCache.txt directory ... is different than the
+   > directory /ultrasound_simulator/...`.
+
+## Option A: Using uv
+
+   ```bash
+   uv sync && source .venv/bin/activate
+   uv pip install -e .[all]
+   ```
+
+## Option B: Using conda
+
+   ```bash
+   # Create environment and install dependencies
+   conda create -n ultrasound python=3.11 libstdcxx-ng -c conda-forge -y
+   conda activate ultrasound
+   pip install -e .[all]
+   ```
+
+1. Download mesh data:
+
+   ```bash
+   cd ultrasound-simulator  # ensure you're in the correct directory
+   pip install git+https://github.com/isaac-for-healthcare/i4h-asset-catalog.git
+   # Download mesh data (~527MB)
+   i4h-asset-retrieve --download-dir assets --sub-path Props/ABDPhantom/Organs --version 0.2.0
+   # Note: The hash below is specific to version 0.2.0
+   ln -s assets/8c0bf782eab2f44f1cc82da60eb10f6be8f941406d291b7fbfbdb53c05b3d149/Props/ABDPhantom/Organs mesh
+   ```
+
+   > **Troubleshooting Build Issues:**
+   >
+   > - In the [CMake setup file](../cmake/SetupCUDA.cmake), the default value for `CMAKE_CUDA_ARCHITECTURES` is set to `native`. This setting **may cause compilation failures** on systems with multiple NVIDIA GPUs that have different compute capabilities, or when the installed CUDA toolkit is older than the GPU (for example, CUDA 12.0 on a Blackwell GPU).
+   >
+   > - If you experience this issue, either set `export CUDA_VISIBLE_DEVICES=<selected device number>` before running `pip install`, or force a toolkit-supported architecture:
+   >
+   > ```bash
+   > CMAKE_ARGS="-DCMAKE_CUDA_ARCHITECTURES=80" uv sync --extra all
+   > ```
+
+2. Run examples
+
+   **Using uv**
+
+   ```bash
+   # Basic example
+   uv run examples/sphere_sweep.py
+
+   # Web interface (open http://localhost:8000 afterward)
+   uv run examples/server.py
+   ```
+
+   **Using conda**
+
+   ```bash
+   # Using the system's libstdc++ with LD_PRELOAD if your conda environment's version is too old
+   python examples/sphere_sweep.py
+
+   # Web interface
+   python examples/server.py
+   ```
+
+   **C++ example**
+
+   To build and run C++ examples, you can manually run CMake with `BUILD_EXAMPLES=ON`.
+   Use a build directory of its own, such as `build-cpp/`. `pip install -e` builds in
+   `build-release/` with Ninja, often from its temporary build environment, so a plain
+   CMake configure there can fail, and a Makefile build there breaks later `pip install -e`
+   builds.
+
+   ```bash
+   cmake -DPYTHON_EXECUTABLE=$(which python) -DCMAKE_BUILD_TYPE=Release -DBUILD_EXAMPLES=ON -B build-cpp
+   cmake --build build-cpp -j $(nproc)
+   ./build-cpp/examples/cpp/ray_sim_example
+   ```
+
+   > Earlier versions of this guide built the C++ example in `build-release/`. In a tree
+   > they built, `pip install -e` fails with `ninja: error: Makefile:5: expected '=', got ':'`
+   > or `Does not match the generator used previously: Unix Makefiles`; run
+   > `rm -rf build-release` and reinstall.
