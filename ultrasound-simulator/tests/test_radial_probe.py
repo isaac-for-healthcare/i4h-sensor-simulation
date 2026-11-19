@@ -292,3 +292,43 @@ def test_a_line_access_rejects_an_index_past_the_last_scanline(method_name):
 
     with pytest.raises(IndexError):
         getattr(probe, method_name)(4)
+
+
+def make_simulator(**sim_overrides):
+    materials = rs.Materials()
+    world = rs.World("water")
+    world.add(rs.Sphere(np.array([0.0, 0.0, 5.0], dtype=np.float32), 1.0, materials.get_index("bone")))
+    sim_params = rs.SimParams()
+    sim_params.t_far = 10.0
+    sim_params.buffer_size = 4096
+    sim_params.max_depth = 2
+    sim_params.use_scattering = False
+    sim_params.conv_psf = False
+    sim_params.median_clip_filter = False
+    sim_params.enable_cuda_timing = False
+    for name, value in sim_overrides.items():
+        setattr(sim_params, name, value)
+    # The simulator borrows the world and materials, so hand them back to keep them alive.
+    return rs.RaytracingUltrasoundSimulator(world, materials), sim_params, (world, materials)
+
+
+@pytest.mark.gpu
+@pytest.mark.parametrize("b_mode_size", [(101, 101), (201, 101), (101, 201)])
+def test_image_bounds_match_the_scan_converted_pixel_grid(b_mode_size):
+    """The circle is fit to the shorter side, so the longer side extends past +-t_far."""
+    simulator, sim_params, _scene = make_simulator(b_mode_size=b_mode_size)
+    simulator.simulate_with_metadata(make_probe(), sim_params)
+
+    width, height = b_mode_size
+    spacing = 2.0 * sim_params.t_far / (min(width, height) - 1)
+    assert simulator.get_max_x() == pytest.approx(0.5 * spacing * (width - 1), rel=1e-5)
+    assert simulator.get_min_x() == pytest.approx(-0.5 * spacing * (width - 1), rel=1e-5)
+    assert simulator.get_max_z() == pytest.approx(0.5 * spacing * (height - 1), rel=1e-5)
+    assert simulator.get_min_z() == pytest.approx(-0.5 * spacing * (height - 1), rel=1e-5)
+
+
+@pytest.mark.gpu
+def test_b_mode_size_beyond_32_bit_indexing_is_rejected_before_allocation():
+    simulator, sim_params, _scene = make_simulator(b_mode_size=(65537, 65537))
+    with pytest.raises(Exception, match="2\\^32"):
+        simulator.simulate_with_metadata(make_probe(), sim_params)

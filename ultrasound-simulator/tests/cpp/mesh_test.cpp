@@ -39,7 +39,8 @@ const std::vector<uint32_t> kTriangleIndices = {0, 1, 2};
 class MeshWithoutNormalsFile {
  public:
   MeshWithoutNormalsFile()
-      : path_(std::filesystem::temp_directory_path() / "ultrasound_simulator_mesh_without_normals.obj") {
+      : path_(std::filesystem::temp_directory_path() /
+              "ultrasound_simulator_mesh_without_normals.obj") {
     std::ofstream stream(path_);
     stream << "o TriangleWithoutNormals\n"
               "v 0.0 0.0 0.0\n"
@@ -124,8 +125,9 @@ void test_rejects_an_incomplete_triangle() {
 }
 
 void test_rejects_an_out_of_range_index() {
-  require_invalid_argument([]() { ultrasound_simulator::Mesh(kTriangleVertices, {0, 1, 3}, {}, 0); },
-                           "an out-of-range index was accepted");
+  require_invalid_argument(
+      []() { ultrasound_simulator::Mesh(kTriangleVertices, {0, 1, 3}, {}, 0); },
+      "an out-of-range index was accepted");
 }
 
 void test_rejects_the_wrong_number_of_normals() {
@@ -160,7 +162,9 @@ void test_rejects_cancelling_generated_normals() {
   const std::vector<uint32_t> opposing_indices = {0, 1, 2, 0, 2, 1};
 
   require_invalid_argument(
-      [&opposing_indices]() { ultrasound_simulator::Mesh(kTriangleVertices, opposing_indices, {}, 0); },
+      [&opposing_indices]() {
+        ultrasound_simulator::Mesh(kTriangleVertices, opposing_indices, {}, 0);
+      },
       "cancelling generated normals were accepted");
 }
 

@@ -61,7 +61,11 @@ class RaytracingUltrasoundSimulator {
 
   /// Simulation results
   struct SimResult {
+    /// Direct OptiX response before filtering and image formation, one row per scanline. With
+    /// several elevation samples it is the mean over the elevation planes, not the individual
+    /// planes. Only filled when SimParams::return_raw_rf is set.
     std::unique_ptr<CudaMemory> raw_rf_data;
+    /// Processed scanlines (PSF, time-gain compensation, envelope), also elevation-averaged.
     std::unique_ptr<CudaMemory> rf_data;
     std::unique_ptr<CudaMemory> b_mode;
     std::vector<float> scanline_timestamps;

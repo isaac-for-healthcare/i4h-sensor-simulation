@@ -21,6 +21,7 @@
 #include <filesystem>
 
 #include "ultrasound_simulator/core/probe.hpp"
+#include "ultrasound_simulator/core/radial_geometry.hpp"
 #include "ultrasound_simulator/core/world.hpp"
 #include "ultrasound_simulator/core/write_image.hpp"
 #include "ultrasound_simulator/cuda/cuda_algorithms.hpp"
@@ -534,12 +535,16 @@ RaytracingUltrasoundSimulator::SimResult RaytracingUltrasoundSimulator::simulate
                                   // radius is large
       max_z = z_behind_image_origin;
     } break;
-    case ProbeType::PROBE_TYPE_RADIAL:
-      min_x = -sim_params.t_far;
-      max_x = sim_params.t_far;
-      min_z = -sim_params.t_far;
-      max_z = sim_params.t_far;
-      break;
+    case ProbeType::PROBE_TYPE_RADIAL: {
+      // The converter fits the circular field of view to the shorter image side, so the longer
+      // side extends past +-t_far; report the extent of the pixel grid it actually produces.
+      const uint2 size = sim_params.b_mode_size;
+      const float spacing = radial_pixel_spacing(sim_params.t_far, size.x, size.y);
+      max_x = 0.5f * spacing * static_cast<float>(size.x - 1);
+      min_x = -max_x;
+      max_z = 0.5f * spacing * static_cast<float>(size.y - 1);
+      min_z = -max_z;
+    } break;
     default:
       throw std::runtime_error("Unhandled ultrasound probe type while computing image bounds");
   }

@@ -34,7 +34,8 @@ void require(bool condition, const char* message) {
   if (!condition) { throw std::runtime_error(message); }
 }
 
-void require_direction(const ultrasound_simulator::RadialProbe& probe, uint32_t index, float3 expected) {
+void require_direction(const ultrasound_simulator::RadialProbe& probe, uint32_t index,
+                       float3 expected) {
   float3 direction;
   probe.get_local_element_direction(index, direction);
   require(near(direction.x, expected.x), "unexpected radial direction x component");
@@ -45,7 +46,8 @@ void require_direction(const ultrasound_simulator::RadialProbe& probe, uint32_t 
       "radial direction is not normalised");
 }
 
-void require_position(const ultrasound_simulator::RadialProbe& probe, uint32_t index, float3 expected) {
+void require_position(const ultrasound_simulator::RadialProbe& probe, uint32_t index,
+                      float3 expected) {
   float3 position;
   probe.get_local_element_position(index, position);
   require(near(position.x, expected.x), "unexpected radial origin x component");
@@ -57,7 +59,8 @@ void require_position(const ultrasound_simulator::RadialProbe& probe, uint32_t i
 
 int main() {
   try {
-    const ultrasound_simulator::RadialProbe probe(ultrasound_simulator::Pose(), 4, 0.0f, 1.0f, 0.04f, 20.0f, 0.5f, 1);
+    const ultrasound_simulator::RadialProbe probe(
+        ultrasound_simulator::Pose(), 4, 0.0f, 1.0f, 0.04f, 20.0f, 0.5f, 1);
 
     require_direction(probe, 0, make_float3(0.0f, 0.0f, 1.0f));
     require_direction(probe, 1, make_float3(1.0f, 0.0f, 0.0f));
@@ -75,20 +78,21 @@ int main() {
     require(near(probe.get_a_line_timestamp(0), 0.0f), "first timestamp is not frame-relative");
     require(near(probe.get_a_line_timestamp(3), 0.03f), "unexpected sequential timestamp");
 
-    const ultrasound_simulator::RadialProbe nonideal_probe(ultrasound_simulator::Pose(),
-                                             4,
-                                             0.0f,
-                                             1.0f,
-                                             0.04f,
-                                             20.0f,
-                                             0.5f,
-                                             1,
-                                             1.0f,
-                                             1.54f,
-                                             2.0f,
-                                             0.25f,
-                                             30.0f,
-                                             ultrasound_simulator::RadialRotationDirection::NEGATIVE);
+    const ultrasound_simulator::RadialProbe nonideal_probe(
+        ultrasound_simulator::Pose(),
+        4,
+        0.0f,
+        1.0f,
+        0.04f,
+        20.0f,
+        0.5f,
+        1,
+        1.0f,
+        1.54f,
+        2.0f,
+        0.25f,
+        30.0f,
+        ultrasound_simulator::RadialRotationDirection::NEGATIVE);
     require(near(nonideal_probe.get_a_line_angle(1), -90.0f),
             "negative rotation did not reverse the angular sequence");
     require_position(nonideal_probe, 0, make_float3(0.0f, 0.0f, 0.25f));
@@ -116,25 +120,27 @@ int main() {
             "-x point was rejected by radial scan conversion");
     require(near(scanline_coordinate, 0.75f), "-x point mapped to the wrong scanline");
 
-    require(ultrasound_simulator::radial_scan_coordinates(10.0f,
-                                            0.0f,
-                                            20.0f,
-                                            1.0f,
-                                            0.0f,
-                                            depth_coordinate,
-                                            scanline_coordinate,
-                                            ultrasound_simulator::RadialRotationDirection::NEGATIVE),
+    require(ultrasound_simulator::radial_scan_coordinates(
+                10.0f,
+                0.0f,
+                20.0f,
+                1.0f,
+                0.0f,
+                depth_coordinate,
+                scanline_coordinate,
+                ultrasound_simulator::RadialRotationDirection::NEGATIVE),
             "+x point was rejected for negative rotation");
     require(near(scanline_coordinate, 0.75f),
             "+x point mapped to the wrong negative-rotation scanline");
-    require(ultrasound_simulator::radial_scan_coordinates(-10.0f,
-                                            0.0f,
-                                            20.0f,
-                                            1.0f,
-                                            0.0f,
-                                            depth_coordinate,
-                                            scanline_coordinate,
-                                            ultrasound_simulator::RadialRotationDirection::NEGATIVE),
+    require(ultrasound_simulator::radial_scan_coordinates(
+                -10.0f,
+                0.0f,
+                20.0f,
+                1.0f,
+                0.0f,
+                depth_coordinate,
+                scanline_coordinate,
+                ultrasound_simulator::RadialRotationDirection::NEGATIVE),
             "-x point was rejected for negative rotation");
     require(near(scanline_coordinate, 0.25f),
             "-x point mapped to the wrong negative-rotation scanline");
@@ -145,6 +151,15 @@ int main() {
     require(!ultrasound_simulator::radial_scan_coordinates(
                 0.0f, 21.0f, 20.0f, 1.0f, 0.0f, depth_coordinate, scanline_coordinate),
             "point outside radial range was not masked");
+
+    // The field of view is fit to the shorter image side, so a wide image keeps square pixels.
+    const float far = 10.0f;
+    require(near(ultrasound_simulator::radial_pixel_spacing(far, 101, 101), 0.2f),
+            "square image pixel spacing is wrong");
+    require(near(ultrasound_simulator::radial_pixel_spacing(far, 201, 101), 0.2f),
+            "wide image must share the shorter side's spacing");
+    require(near(ultrasound_simulator::radial_pixel_spacing(far, 101, 201), 0.2f),
+            "tall image must share the shorter side's spacing");
 
     bool rejected_invalid_direction = false;
     try {

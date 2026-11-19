@@ -22,6 +22,8 @@
 #include <cufftdx/cufftdx.hpp>
 
 #include <cmath>
+#include <cstdint>
+#include <limits>
 #include <stdexcept>
 
 #include "ultrasound_simulator/core/radial_geometry.hpp"
@@ -464,8 +466,7 @@ static __global__ void scan_convert_radial_kernel(const float* __restrict__ inpu
   output[output_offset] = std::numeric_limits<float>::lowest();
 
   // Fit the circular field of view to the shorter image dimension without stretching it.
-  const float diameter_pixels = static_cast<float>(min(output_size.x - 1, output_size.y - 1));
-  const float pixel_spacing = (2.0f * far) / diameter_pixels;
+  const float pixel_spacing = radial_pixel_spacing(far, output_size.x, output_size.y);
   const float center_x = static_cast<float>(output_size.x - 1) * 0.5f;
   const float center_z = static_cast<float>(output_size.y - 1) * 0.5f;
   const float x = (static_cast<float>(index.x) - center_x) * pixel_spacing;
@@ -809,6 +810,13 @@ std::unique_ptr<CudaMemory> CUDAAlgorithms::scan_convert_radial(
   if ((output_size.x < 2) || (output_size.y < 2)) {
     throw std::invalid_argument("Radial scan conversion output dimensions must be at least 2");
   }
+  // The kernel indexes both buffers with 32-bit offsets, so reject anything that would wrap.
+  constexpr uint64_t kMaxElements = std::numeric_limits<uint32_t>::max();
+  if ((static_cast<uint64_t>(output_size.x) * output_size.y > kMaxElements) ||
+      (static_cast<uint64_t>(input_size.x) * input_size.y > kMaxElements)) {
+    throw std::invalid_argument(
+        "Radial scan conversion input and output buffers must each hold fewer than 2^32 samples");
+  }
   if (!std::isfinite(far) || (far <= 0.0f)) {
     throw std::invalid_argument("Radial imaging range must be finite and greater than zero");
   }
@@ -821,7 +829,8 @@ std::unique_ptr<CudaMemory> CUDAAlgorithms::scan_convert_radial(
     throw std::invalid_argument("Radial rotation direction must be POSITIVE or NEGATIVE");
   }
 
-  auto output = std::make_unique<CudaMemory>(output_size.x * output_size.y * sizeof(float), stream);
+  auto output = std::make_unique<CudaMemory>(
+      static_cast<size_t>(output_size.x) * output_size.y * sizeof(float), stream);
   scan_convert_radial_launcher_.launch(output_size,
                                        stream,
                                        reinterpret_cast<const float*>(scan_lines->get_ptr(stream)),

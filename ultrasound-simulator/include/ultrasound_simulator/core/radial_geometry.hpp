@@ -67,6 +67,16 @@ __host__ __device__ inline float3 radial_scanline_direction(
   return make_float3(transverse_scale * sinf(angle), sinf(tilt), transverse_scale * cosf(angle));
 }
 
+/**
+ * Pixel pitch of the scan-converted image: the circular field of view (diameter 2 * far) is fit
+ * to the shorter image dimension, so both axes share one spacing and the image is not stretched.
+ * Requires width >= 2 and height >= 2.
+ */
+__host__ __device__ inline float radial_pixel_spacing(float far, uint32_t width, uint32_t height) {
+  const uint32_t shorter_side = (width < height) ? width : height;
+  return (2.0f * far) / static_cast<float>(shorter_side - 1);
+}
+
 __host__ __device__ inline float wrap_unit_interval(float value) {
   return value - floorf(value);
 }
