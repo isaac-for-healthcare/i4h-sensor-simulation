@@ -32,6 +32,7 @@ struct Params {
   float t_far;
   float min_intensity;
   uint32_t max_depth;
+  uint32_t use_scattering;
   Material* materials;
   uint32_t background_material_id;
   cudaTextureObject_t scattering_texture;
@@ -41,13 +42,17 @@ struct Params {
 };
 
 struct RayGenData {
-  int probe_type;            // Type of probe (curvilinear, linear, phased)
-  float sector_angle;        // Field of view in degrees (sector angle for phased array)
-  float elevational_height;  // Height in elevational direction in mm
-  float radius;              // Radius of curvature in mm (for curvilinear)
-  float width;               // Width of linear/phased array in mm
-  float3 position;           // Probe position in world coordinates
-  float33 rotation_matrix;   // Probe orientation in world coordinates
+  int probe_type;                  // Type of probe (curvilinear, linear, phased, radial)
+  float sector_angle;              // Field of view in degrees (sector angle for phased array)
+  float start_angle;               // Direction of radial scanline zero in degrees
+  float transducer_offset_radius;  // Radial emitter offset from catheter axis in mm
+  float beam_tilt;                 // Signed beam tilt from the transverse plane in degrees
+  int rotation_direction;          // RadialRotationDirection encoded as +1 or -1
+  float elevational_height;        // Height in elevational direction in mm
+  float radius;                    // Radius of curvature in mm (for curvilinear)
+  float width;                     // Width of linear/phased array in mm
+  float3 position;                 // Probe position in world coordinates
+  float33 rotation_matrix;         // Probe orientation in world coordinates
 };
 
 struct MissData {};
