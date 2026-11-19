@@ -358,6 +358,38 @@ detector, post-processing, and optional runtime settings, including units and de
 Example files cover [fluoroscopy](examples/presets/fluoroscopy.json) and
 [radiograph appearance](examples/presets/radiograph.json).
 
+## Extra Absorbers and Vessel Contrast
+
+Anything that moves every frame, such as a catheter or a deforming vessel, can be
+composited onto a rendered frame instead of being voxelised into the volume. Beer-Lambert
+makes attenuators add in the exponent, so each one reports its own line integral along the
+renderer's rays and multiplies into the transmission. `xray_simulator.absorbers` holds the
+interface: `DetectorRays.for_pose` rebuilds the shader's ray grid on the CPU, any object
+with a `line_integral(rays)` method is an `Absorber`, and `composite` applies them.
+`CatheterAttenuation` is the built-in catheter absorber.
+
+`xray_simulator.vessel` is optional and off unless you construct a `VesselContrast`. It
+carves the contrast lumen out of the volume once, and the carved volume becomes the
+contrast-free mask that you render. It then composites the lumen back each frame at
+whatever displacement and iodine concentration you supply. Contrast transport along the
+centerline is `ContrastTransport`, and a DSA frame is `subtract(live, mask)`. Positions
+are in the frame of the volume's `ijk_to_world` affine, and concentration maps to
+attenuation through the same `HuToMuMapping` the volume was built with. The carve,
+centerline and transport need only numpy and scipy. The chord integrators need the `warp`
+extra.
+
+```python
+from xray_simulator.absorbers import DetectorRays, composite
+from xray_simulator.vessel import HuToMu, VesselContrast, VesselTree
+
+vessel = VesselContrast(mu_kji, ijk_to_world_mm, VesselTree(points_mm, edges, radii_mm).smoothed(),
+                        HuToMu.from_mapping(mapping))
+# Render vessel.mask_volume as usual, then:
+rays = DetectorRays.for_pose(rotation, translation, isocenter_mm, source_to_detector_mm=sdd,
+                             source_to_isocenter_mm=sid, width=w, height=h, pixel_spacing_mm=px)
+live = composite(mask_transmission, [vessel.absorber(vessel.state(displacement_mm, concentration))], rays)
+```
+
 ## Further Reading
 
 - **[Architecture, API & Configuration](docs/architecture-and-api.md)** — Physics model, differentiable rendering, full API reference, and C-arm geometry configuration.
