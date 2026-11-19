@@ -33,7 +33,9 @@ Example:
 """
 
 from .config import (
+    DEFAULT_HU_TO_MU_PRESET,
     DISPLAY_PRESETS,
+    HU_TO_MU_PRESETS,
     CarmGeometry,
     DisplaySettings,
     HuToMuMapping,
@@ -76,6 +78,8 @@ __all__ = [
     "MetricsSettings",
     "PreprocessingSettings",
     "HuToMuMapping",
+    "DEFAULT_HU_TO_MU_PRESET",
+    "HU_TO_MU_PRESETS",
     # Image appearance
     "DisplaySettings",
     "DISPLAY_PRESETS",

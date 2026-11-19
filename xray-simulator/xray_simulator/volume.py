@@ -37,7 +37,9 @@ class VolumeMetadata:
     Attributes:
         shape_zyx: Volume shape in (Z, Y, X) order.
         spacing_zyx_mm: Voxel spacing in mm, (Z, Y, X) order.
-        origin_xyz_mm: Volume origin in mm, (X, Y, Z) order.
+        origin_xyz_mm: World position in mm, (X, Y, Z) order, of the outer corner of voxel
+            [0, 0, 0]. None for oblique or flipped native grids, which are described by
+            ``voxel_to_lps_mm`` alone.
         hu_range: Original HU range before conversion [min, max].
         mu_range: μ range after conversion [min, max].
         source: Original source path (DICOM dir or NIfTI file).
@@ -60,10 +62,14 @@ class VolumeMetadata:
     hu_to_mu: dict[str, Any] | None = None
     anatomical_frame: str | None = None
     source_orientation: str | None = None
+    voxel_to_lps_mm: list | None = None
+    scan_metadata: dict | None = None
+    schema_version: int = 2  # 1 (or absent): origin_xyz_mm of scan volumes was voxel 0's centre
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         return {
+            "schema_version": self.schema_version,
             "shape_zyx": list(self.shape_zyx),
             "spacing_zyx_mm": list(self.spacing_zyx_mm),
             "origin_xyz_mm": list(self.origin_xyz_mm) if self.origin_xyz_mm else None,
@@ -73,6 +79,8 @@ class VolumeMetadata:
             "hu_to_mu": self.hu_to_mu,
             "anatomical_frame": self.anatomical_frame,
             "source_orientation": self.source_orientation,
+            "voxel_to_lps_mm": self.voxel_to_lps_mm,
+            "scan_metadata": self.scan_metadata,
         }
 
     @classmethod
@@ -88,6 +96,9 @@ class VolumeMetadata:
             hu_to_mu=d.get("hu_to_mu"),
             anatomical_frame=d.get("anatomical_frame"),
             source_orientation=d.get("source_orientation"),
+            voxel_to_lps_mm=d.get("voxel_to_lps_mm"),
+            scan_metadata=d.get("scan_metadata"),
+            schema_version=d.get("schema_version", 1),
         )
 
 
