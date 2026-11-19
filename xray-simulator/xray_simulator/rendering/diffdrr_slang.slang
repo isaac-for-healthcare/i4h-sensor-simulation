@@ -263,7 +263,6 @@ float rayMarchIntegralHardware(
     float stepMM
 )
 {
-    float3 volumeSize = float3(volInfo.dimensions) * volInfo.spacing;
     float integral = 0.0f;
 
     float rayLength = tEnd - tStart;
@@ -275,7 +274,8 @@ float rayMarchIntegralHardware(
         if (t >= tEnd)
             break;
 
-        float3 uvw = clamp((rayOrigin + rayDir * t - volInfo.origin) / volumeSize, float3(0.0f), float3(1.0f));
+        float3 uvw = clamp((worldToIndex(volInfo, rayOrigin + rayDir * t) + 0.5f) / float3(volInfo.dimensions),
+                           float3(0.0f), float3(1.0f));
         integral += volume.SampleLevel(sampler, uvw, 0.0) * stepMM;
     }
 
