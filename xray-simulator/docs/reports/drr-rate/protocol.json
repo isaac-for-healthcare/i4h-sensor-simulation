@@ -1,0 +1,77 @@
+{
+  "created_utc": "2026-10-05T05:13:25.217065+00:00",
+  "simulator_repository": "<repository-root>",
+  "simulator_commit": "8b3753f555314179835b8dd266ccaeb60b83c203",
+  "source_dirty": false,
+  "drr_revision": "500d7868a84478eb0bafcdee793d1246f492c986",
+  "ct_revision": "deeca4d89e9f978d4d1bccd88a55071ddbb146bb",
+  "cohort": "First 20 distinct validation subjects in natural numeric order; first scan/reconstruction per subject, selected before scoring. All are absent from the upstream non-chest list. AP and LATERAL for every subject: 40 pairs.",
+  "pilot": "valid_1_a_1 was used to verify the source-derived camera conversion. No pose, registration or intensity parameters were fitted to reference images. The pilot also tested the earlier fluoroscopy example mapping; that pilot-only variant is not part of this cohort report.",
+  "backend": "Unmodified public xray_simulator / SlangDiffDRRRenderer, CUDA, NVIDIA RTX A6000",
+  "source_generator": {
+    "repository": "https://github.com/farrell236/midas-journal-784",
+    "commit": "889727fe0049bf89091f9c2d943299f428ba2a65",
+    "file": "getDRRSiddonJacobsRayTracing.cxx"
+  },
+  "siddon_implementation_reviewed": {
+    "repository": "https://github.com/InsightSoftwareConsortium/ITKTwoProjectionRegistration",
+    "commit": "fc9714977f5c053a0b68eb5a3761812496ab781b",
+    "tag": "v2.0.1"
+  },
+  "input_preparation": "CT-RATE v1: HU = stored * metadata.RescaleSlope + metadata.RescaleIntercept; XY/Z spacing from validation_metadata.csv. Preserve voxel array indexing. The reference generator resets origin and its Siddon traversal ignores direction cosines. Renderer origin is -0.5 * shape_xyz * spacing_xyz; no resampling.",
+  "geometry": "512x512; detector pitch 0.51 mm; source-to-projection-plane 1000 mm. Reference transforms: CT translation (0,300,0) mm; Rz=0 AP, -90 deg LATERAL. After upstream camera rotation and output row flip: source relative to CT box center is Rz.T@(0,-1300,0); projection plane center Rz.T@(0,-300,0); columns Rz.T@(1,0,0), rows Rz.T@(0,0,-1). Simulator SID=500 is an equivalent parameterization, translation Rz.T@(0,-800,0).",
+  "reference_recipe": "mu_proxy = max(trunc(HU)+100,0) * 1e-5 /mm; emulate the published -100 HU threshold and signed-short input. This is a renderer-comparison proxy, not calibrated attenuation. Scaling is fixed for every subject.",
+  "stock_hu_mapping": "Public HuToMuMapping() defaults, evaluated by the public hu_to_mu function: -1000 HU -> 0/mm, 3000 HU -> 0.02/mm, linearly interpolated and clipped at those endpoints.",
+  "integration_step_mm": 0.5,
+  "primary_roi": "Central 90% detector rectangle (26-pixel margin on every edge at 512x512), fixed before scores; not an anatomy segmentation.",
+  "structural_evaluation": "Published 8-bit DRR PNG /255 versus simulated attenuation /6; attenuation_proxy domain, data_range=1, histogram_range=[0,1], 64 bins. NCC and gradient NCC are primary structural scores. Shape SSIM/RMSE use an in-sample nonnegative gain/bias fit and do not establish calibration.",
+  "default_display": "Actual public xray appearance, fixed log window [0,6]. Evaluate against the published PNG separately from structural metrics.",
+  "reference_style_display": "For reference_recipe only: convert the physical-length integral to the source algorithm alpha-integral by dividing by 1e-5 * source-to-pixel ray length; truncate/clamp to signed short, min/max-scale the generated projection to [0,1], truncate to uint8. This emulates reference export preprocessing, without fitting to a reference image. Record its display scores separately.",
+  "controls": "Independent render after +5 mm along simulator X and +5 degrees about simulator world Z, for both mappings and both views; same reference and ROI.",
+  "integration_checks": "Reference-recipe AP view for every subject also at 0.25 mm. Evaluate relative L2 and RMSE on the same ROI. Assert per-ray requested steps stay within the shader 2048-step limit for every render.",
+  "statistics": "Per-view, per-subject median, AP/LATERAL summaries and median/IQR across subject medians. No pass/fail threshold or population-generalization claim.",
+  "limitations": [
+    "DRR-RATE references are synthetic; agreement is consistency with another renderer, not real diagnostic-X-ray validation.",
+    "No calibrated dose, spectrum, scatter, detector MTF/NPS, noise, temporal or clinical-task validation.",
+    "20 selected subjects, not the complete 3039-reconstruction validation split.",
+    "Reference uses piecewise-constant Siddon integration; the simulator uses trilinear interpolation and fixed-step integration.",
+    "Dataset and generated anatomy images stay local."
+  ],
+  "sources": [
+    "https://huggingface.co/datasets/farrell236/DRR-RATE",
+    "https://huggingface.co/datasets/ibrahimhamamci/CT-RATE",
+    "https://arxiv.org/html/2406.03688v1"
+  ],
+  "metadata_sha256": "7ae04aaf59e946f8805c940697820f8fd97b56b9634cadd725269b3f6ed9cae1",
+  "non_chest_list_sha256": "07d3e3ddbb1588a8288050d470b977ef12f472842f433fa38b12f5082f74eca4",
+  "packages": {
+    "numpy": "2.4.0",
+    "scipy": "1.16.3",
+    "nibabel": "5.3.3",
+    "pillow": "12.1.0",
+    "torch": "2.13.0",
+    "slangpy": "0.40.1",
+    "scikit-image": "0.26.0"
+  },
+  "source_hashes": {
+    "xray-simulator/xray_simulator/__init__.py": "61e28e5c094287485e5119348b4c3421c5026f96872629e23bc565294b0503d5",
+    "xray-simulator/xray_simulator/config.py": "3aa30082995d4ecf04a788509c9bf9136c22cb0b5ad9cb152927812c713525f8",
+    "xray-simulator/xray_simulator/ct/__init__.py": "427a32035ac48933857c55a9353ff3311995a7ad9cd2fd1bf6424c241491562c",
+    "xray-simulator/xray_simulator/ct/dicom_ingest.py": "19635c5b9506b4c7f85337f6df487557f6de26dce909f263a0c7666b92d361ab",
+    "xray-simulator/xray_simulator/display.py": "3fe36e95e1d6e46a24c0e44cb659935e67725fa9b0ec79d4d5819236c6be94ac",
+    "xray-simulator/xray_simulator/geometry.py": "476f4ab6150a682fcbc3202d18e357d283e3f54ed785b935c319fd2baff1562c",
+    "xray-simulator/xray_simulator/hu_mapping.py": "82635e722ca2b9683a88fe263546d27cba0fc58f6d4f48efe34b78430867a673",
+    "xray-simulator/xray_simulator/preprocessor.py": "1aff2d6a69433563c2c500fb5d2b8352196c5a44ea6c582c4e8e7774f8085046",
+    "xray-simulator/xray_simulator/rendering/__init__.py": "387a32b75f1f0392a08be40da4b93d739cfe3bcd3d0406aa94f2e2f35a557812",
+    "xray-simulator/xray_simulator/rendering/diffdrr_slang.slang": "7a93d90e4561ab820230b458617b4360ffab2493f21a5e028bd02525c7206279",
+    "xray-simulator/xray_simulator/rendering/diffdrr_slang_renderer.py": "8852a3da07ec6a57d4e08f1e12af6c00d4d3d4fd8d54bb70299bed7e6bfb93b4",
+    "xray-simulator/xray_simulator/rendering/realism.py": "62ba15527cfc5488ff9ef6112ec0cbe579871a8779983625d6bde217a0162bfd",
+    "xray-simulator/xray_simulator/simulator.py": "17fd2fb0ac1d6c934c5069f37002d1652077426fd782010d047ce3aa331d567b",
+    "xray-simulator/xray_simulator/validation/__init__.py": "8f420a44f70d23766551d45832ddce40d6b4d42a0b21566a9fab416992803a66",
+    "xray-simulator/xray_simulator/validation/__main__.py": "006ba7d5d59cdf2e6678a87b9a4a758d16dbb896c9ecf43f6715a3f9930bab75",
+    "xray-simulator/xray_simulator/validation/metrics.py": "9c81d818be03ea62aefe5a6f0651d19466713c41d05ea9b8ab14ff2059e4e2f5",
+    "xray-simulator/xray_simulator/validation/xvr.py": "232be5c3cc22a47fd151e878833c94b7ab48bfe695012a750abb37ccd1b8868a",
+    "xray-simulator/xray_simulator/volume.py": "1c910e79ab43f6212d5555dd793f26939e240e0b9c3b3db9f6d5f0f7daadf60a"
+  },
+  "publication_note": "The simulator_repository host path is replaced with a placeholder. All source hashes, method settings and measured values are unchanged."
+}
