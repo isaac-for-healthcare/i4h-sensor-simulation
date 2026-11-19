@@ -60,7 +60,7 @@ def protocol():
         'simulator_commit': subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=REPO, text=True).strip(),
         'source_dirty': bool(subprocess.check_output(['git', 'status', '--porcelain'], cwd=REPO, text=True).strip()),
         'data_root': str(DATA),
-        'data_revision': 'a17273e3eadbd793bd861f3598a80ce4590c1124',
+        'data_revision': '7a46053ffba5cd3e10779b27cb0d010d0c06178b',
         'dataset_inventory_sha256': digest(DATA.parent / 'manifest.json') if (DATA.parent / 'manifest.json').is_file() else None,
         'backend': 'public xray_simulator.xray_simulator / SlangDiffDRRRenderer, CUDA',
         'binning': 4, 'integration_step_mm': 0.5,

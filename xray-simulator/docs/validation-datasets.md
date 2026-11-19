@@ -31,12 +31,12 @@ Example acquisition with the Hugging Face CLI, after reviewing the dataset terms
 
 ```bash
 hf download eigenvivek/xvr-data --repo-type dataset \
-  --revision a17273e3eadbd793bd861f3598a80ce4590c1124 \
+  --revision 7a46053ffba5cd3e10779b27cb0d010d0c06178b \
   --include 'deepfluoro/**' --include 'ljubljana/**' --include README.md \
   --local-dir /path/to/validation-data/fluoroscopy --dry-run
 
 hf download eigenvivek/xvr-data --repo-type dataset \
-  --revision a17273e3eadbd793bd861f3598a80ce4590c1124 \
+  --revision 7a46053ffba5cd3e10779b27cb0d010d0c06178b \
   --include 'deepfluoro/**' --include 'ljubljana/**' --include README.md \
   --local-dir /path/to/validation-data/fluoroscopy
 ```

@@ -36,7 +36,7 @@ from ..config import CarmGeometry
 from ..geometry import matrix_to_euler_zxy, project_point_to_detector
 from ..simulator import Pose
 
-XVR_DATA_REVISION = "a17273e3eadbd793bd861f3598a80ce4590c1124"
+XVR_DATA_REVISION = "7a46053ffba5cd3e10779b27cb0d010d0c06178b"
 XVR_CODE_REVISION = "caa55cc8096294cf70a218126bf16008dee0dec7"
 EXCLUDED_VIEWS = frozenset({("subject01", "003"), ("subject01", "050"), ("subject04", "002"), ("subject04", "004")})
 # Where each release's poses expect voxel samples: "center" places voxel ijk at affine @ ijk
