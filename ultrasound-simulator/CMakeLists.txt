@@ -27,6 +27,7 @@ include(SetupCUDA)
 # Build options
 option(BUILD_PYTHON_BINDINGS "Build Python bindings" ON)
 option(BUILD_EXAMPLES "Build C++ examples" ON)
+option(BUILD_TESTING "Build C++ tests" OFF)
 
 # Add core C++ libraries
 add_subdirectory(csrc)
@@ -34,4 +35,9 @@ add_subdirectory(csrc)
 # Add C++ examples
 if(BUILD_EXAMPLES)
     add_subdirectory(examples/cpp)
+endif()
+
+if(BUILD_TESTING)
+    enable_testing()
+    add_subdirectory(tests/cpp)
 endif()
