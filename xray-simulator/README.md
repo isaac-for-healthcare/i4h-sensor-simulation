@@ -18,12 +18,12 @@ flowchart LR
 ```
 
 ```python
-from xray_simulator import HuToMuMapping, PreprocessingSettings, VolumePreprocessor
+from xray_simulator import PreprocessingSettings, VolumePreprocessor
 from xray_simulator.scan_volume import Conversion, export_ct, replay
 
 conversion = Conversion(world_frame="RAS", world_unit="m", array_axes="kji")
 recipe = export_ct("dicom/", "ct_artifact", options=conversion)
-settings = PreprocessingSettings(hu_to_mu=HuToMuMapping.preset("interventional"), clip_hu=False)
+settings = PreprocessingSettings.preset("interventional")  # curve + matching clip policy
 
 # Equivalent volumes; use either as the simulator input.
 volume = VolumePreprocessor.from_dicom(

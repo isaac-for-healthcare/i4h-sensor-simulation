@@ -19,7 +19,7 @@ import os
 
 import numpy as np
 import pytest
-from xray_simulator import HuToMuMapping, PreprocessingSettings, VolumePreprocessor
+from xray_simulator import PreprocessingSettings, VolumePreprocessor
 from xray_simulator import scan_volume as scan
 from xray_simulator import volume_center_xyz_mm
 
@@ -34,7 +34,7 @@ def test_dicom_artifact_mu_parity(tmp_path, preset, resample):
         array_axes="ijk", origin="source_center", spacing_ijk_mm=(0.8, 0.8, 1.0) if resample else None
     )
     recipe = scan.export_ct(tmp_path / "dicom", tmp_path / "artifact", options=conversion)
-    settings = PreprocessingSettings(hu_to_mu=HuToMuMapping.preset(preset))
+    settings = PreprocessingSettings.preset(preset)
     direct = VolumePreprocessor.from_dicom(tmp_path / "dicom", conversion=conversion, settings=settings).preprocess()
     saved = VolumePreprocessor.from_artifact(recipe, settings=settings).preprocess()
     np.testing.assert_array_equal(direct.mu_volume, saved.mu_volume)
@@ -52,26 +52,87 @@ def test_dicom_artifact_mu_parity(tmp_path, preset, resample):
         )
 
 
-def render(data, affine):
+def make_renderer(data, affine, det_px=48, step_mm=0.2, device="vulkan"):
     from xray_simulator.rendering.diffdrr_slang_renderer import SlangDiffDRRConfig, SlangDiffDRRRenderer
 
     affine = np.asarray(affine)
     cfg = SlangDiffDRRConfig(
-        det_height_px=48,
-        det_width_px=48,
+        det_height_px=det_px,
+        det_width_px=det_px,
         pixel_spacing_mm=1.0,
-        device_type="vulkan",
+        device_type=device,
         normalize=False,
         invert=False,
-        step_mm=0.2,
+        step_mm=step_mm,
     )
-    renderer = SlangDiffDRRRenderer(
+    return SlangDiffDRRRenderer(
         data, tuple(np.linalg.norm(affine[:3, :3], axis=0)[::-1]), cfg=cfg, voxel_to_world_mm=affine
     )
-    return renderer.render((0.12, 0.21, -0.15), (0.0, 0.0, 0.0))
 
 
-@pytest.mark.skipif(os.environ.get("I4H_TEST_GPU") != "1", reason="set I4H_TEST_GPU=1 for Vulkan rendering")
+def render(data, affine):
+    return make_renderer(data, affine).render((0.12, 0.21, -0.15), (0.0, 0.0, 0.0))
+
+
+GPU = pytest.mark.skipif(os.environ.get("I4H_TEST_GPU") != "1", reason="set I4H_TEST_GPU=1 for Vulkan rendering")
+
+
+def oblique_affine():
+    ax, ay = 0.5, 0.3
+    rx = np.array([[1, 0, 0], [0, np.cos(ax), -np.sin(ax)], [0, np.sin(ax), np.cos(ax)]])
+    ry = np.array([[np.cos(ay), 0, np.sin(ay)], [0, 1, 0], [-np.sin(ay), 0, np.cos(ay)]])
+    affine = np.eye(4)
+    affine[:3, :3] = rx @ ry @ np.diag([1.2, 1.7, 2.1])
+    affine[:3, 3] = [30.0, -25.0, 40.0]
+    return affine
+
+
+@GPU
+def test_uniform_volume_centre_pixel_matches_closed_form_chord():
+    """exp(-mu * chord) with the chord from an independent numpy ray/parallelepiped intersection.
+
+    At zero pose the centre ray runs along world +z through the centre of the volume's bounding
+    box, so the expected line integral depends only on the stated affine convention, not on the
+    shader. A transposed rotation or a half-voxel offset changes the chord.
+    """
+    shape, mu, step = (30, 34, 38), 0.02, 0.1
+    affine = oblique_affine()
+    centre = (affine @ np.r_[(np.array(shape[::-1]) - 1) / 2, 1])[:3]
+    inverse = np.linalg.inv(affine)
+    origin_index = (inverse @ np.r_[centre, 1])[:3]
+    direction_index = inverse[:3, :3] @ [0.0, 0.0, 1.0]
+    lo, hi = -0.5, np.array(shape[::-1]) - 0.5
+    t = np.sort(np.stack([(lo - origin_index) / direction_index, (hi - origin_index) / direction_index]), axis=0)
+    chord = t[1].min() - t[0].max()
+    assert chord > 20.0
+    image = make_renderer(np.full(shape, mu, np.float32), affine, det_px=49, step_mm=step).render()
+    assert -np.log(image[24, 24]) == pytest.approx(mu * chord, abs=3 * mu * step)
+
+
+@GPU
+def test_pose_gradients_match_finite_differences_on_oblique_volume():
+    shape = (17, 19, 23)
+    z, y, x = np.indices(shape)
+    values = np.zeros(shape, np.float32)
+    values[(x - 11) ** 2 + (y - 9) ** 2 + (z - 8) ** 2 < 30] = 0.02
+    values[3:9, 4:8, 14:19] = 0.03
+    try:  # the differentiable backward kernel does not compile for Vulkan
+        renderer = make_renderer(values, oblique_affine(), det_px=32, step_mm=0.3, device="cuda")
+    except Exception as exc:
+        pytest.skip(f"CUDA device unavailable: {exc}")
+    rotation, translation = np.array([0.12, 0.21, -0.15]), np.array([2.0, -1.5, 1.0])
+    _, grads = renderer.render_with_gradients(rotation, translation)
+    for name, base, h in [("rotation", rotation, 2e-3), ("translation", translation, 0.2)]:
+        for axis in range(3):
+            plus, minus = base.copy(), base.copy()
+            plus[axis] += h
+            minus[axis] -= h
+            args = (lambda v: (v, translation)) if name == "rotation" else (lambda v: (rotation, v))
+            numeric = (renderer.render(*args(plus)).sum() - renderer.render(*args(minus)).sum()) / (2 * h)
+            assert grads[name][axis] == pytest.approx(numeric, rel=0.1, abs=2e-3), (name, axis)
+
+
+@GPU
 def test_projection_invariant_to_array_reindexing():
     shape = (17, 19, 23)
     z, y, x = np.indices(shape)

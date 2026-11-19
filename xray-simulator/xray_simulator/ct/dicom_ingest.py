@@ -20,7 +20,6 @@ from pathlib import Path
 
 import numpy as np
 
-from ..preprocessor import ijk_to_lps_mm
 from ..scan_volume import ScanVolume, from_dicom, from_nifti
 
 
@@ -54,7 +53,7 @@ class CtVolume:
 
 
 def _ct(scan: ScanVolume) -> CtVolume:
-    affine = ijk_to_lps_mm(scan)
+    affine = scan.ijk_to_lps_mm
     spacing_xyz = np.linalg.norm(affine[:3, :3], axis=0)
     return CtVolume(
         hu_zyx=scan.values_kji,

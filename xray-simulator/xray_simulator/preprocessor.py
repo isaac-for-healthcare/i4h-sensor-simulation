@@ -23,22 +23,16 @@ from __future__ import annotations
 
 from dataclasses import replace
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import numpy as np
 
-from . import scan_volume
 from .config import HuToMuMapping, PreprocessingSettings
 from .hu_mapping import hu_to_mu
-from .scan_volume import Conversion, ScanVolume
 from .volume import PreprocessedVolume, VolumeMetadata
 
-
-def ijk_to_lps_mm(scan: ScanVolume) -> np.ndarray:
-    """Return the 4x4 affine from a scan's voxel-centre (i, j, k) indices to LPS mm."""
-    t = np.diag([scan.meters_per_unit * 1000.0] * 3 + [1.0])
-    if scan.frame == "RAS":
-        t = np.diag([-1.0, -1.0, 1.0, 1.0]) @ t
-    return t @ scan.ijk_to_world
+if TYPE_CHECKING:  # scan_volume (and PyYAML) load lazily, only when a scan is read
+    from .scan_volume import Conversion, ScanVolume
 
 
 class VolumePreprocessor:
@@ -116,12 +110,20 @@ class VolumePreprocessor:
         Returns:
             VolumePreprocessor instance ready for preprocessing.
         """
-        affine = ijk_to_lps_mm(scan)
+        affine = scan.ijk_to_lps_mm
         spacing_xyz = np.linalg.norm(affine[:3, :3], axis=0)
+        # ``origin_xyz_mm`` means the outer corner of voxel [0, 0, 0], as in from_numpy.
+        # It is only defined for axis-aligned grids; oblique scans carry the affine alone.
+        linear = affine[:3, :3]
+        axis_aligned = bool(
+            np.all(np.diag(linear) > 0)
+            and np.allclose(linear, np.diag(np.diag(linear)), rtol=0, atol=1e-9 * spacing_xyz.max())
+        )
+        origin = tuple((affine @ [-0.5, -0.5, -0.5, 1.0])[:3]) if axis_aligned else None
         return cls(
             scan.values_kji,
             tuple(spacing_xyz[::-1]),
-            tuple(affine[:3, 3]),
+            origin,
             source=source,
             settings=settings,
             anatomical_frame="LPS",
@@ -148,7 +150,9 @@ class VolumePreprocessor:
         Returns:
             VolumePreprocessor instance ready for preprocessing.
         """
-        scan = scan_volume.from_dicom(dicom_dir, series_uid=series_uid, conversion=conversion or Conversion())
+        from . import scan_volume
+
+        scan = scan_volume.from_dicom(dicom_dir, series_uid=series_uid, conversion=conversion or scan_volume.Conversion())
         return cls.from_scan(scan, settings, source=str(dicom_dir))
 
     @classmethod
@@ -158,6 +162,8 @@ class VolumePreprocessor:
         settings: PreprocessingSettings | None = None,
     ) -> "VolumePreprocessor":
         """Create a preprocessor from a NIfTI file (.nii or .nii.gz) and its affine."""
+        from . import scan_volume
+
         return cls.from_scan(scan_volume.from_nifti(nifti_path), settings, source=str(nifti_path))
 
     @classmethod
@@ -167,6 +173,8 @@ class VolumePreprocessor:
         settings: PreprocessingSettings | None = None,
     ) -> "VolumePreprocessor":
         """Create a preprocessor from a saved volume.yaml and its hash-verified HU array."""
+        from . import scan_volume
+
         return cls.from_scan(scan_volume.load_artifact(metadata_path), settings, source=str(metadata_path))
 
     @classmethod

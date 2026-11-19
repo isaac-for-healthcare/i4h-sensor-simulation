@@ -15,9 +15,11 @@
 
 """Portable HU volumes and reproducible DICOM conversion.
 
-This file is deliberately identical in patient_digital_twin and xray_simulator.
-Keep copies synchronized; artifacts record its hash. Array axes are index labels,
-not anatomical directions. Integer indices locate voxel centres.
+A copy of this module also lives in patient_digital_twin. Artifacts record
+``FORMAT_VERSION``; bump it in both copies whenever a change alters the produced
+volume or geometry. Cosmetic edits (headers, formatting) do not affect replay.
+Array axes are index labels, not anatomical directions. Integer indices locate
+voxel centres.
 """
 
 from dataclasses import asdict, dataclass
@@ -25,7 +27,8 @@ from hashlib import sha256
 from pathlib import Path
 
 import numpy as np
-import yaml
+
+FORMAT_VERSION = 1
 
 
 @dataclass(frozen=True)
@@ -50,12 +53,8 @@ def digest(path):
 def implementation():
     from importlib.metadata import PackageNotFoundError, version
 
-    versions = {
-        "helper_sha256": digest(__file__),
-        "numpy": np.__version__,
-        "PyYAML": yaml.__version__,
-    }
-    for name in ("SimpleITK", "nibabel"):
+    versions = {"format_version": FORMAT_VERSION, "numpy": np.__version__}
+    for name in ("PyYAML", "SimpleITK", "nibabel"):
         try:
             versions[name] = version(name)
         except PackageNotFoundError:
@@ -218,7 +217,9 @@ class ScanVolume:
 
         self.metadata = copy.deepcopy(metadata)
         out = self.metadata["output"]
-        self.values = np.ascontiguousarray(values, dtype=np.float32).copy()
+        self.values = np.ascontiguousarray(values, dtype=np.float32)
+        if np.shares_memory(self.values, values):  # own the data so it can be frozen
+            self.values = self.values.copy()
         a = np.asarray(out["array_index_to_world"], dtype=float)
         if (
             self.values.ndim != 3
@@ -267,12 +268,22 @@ class ScanVolume:
         return t @ self.ijk_to_world
 
     @property
+    def ijk_to_lps_mm(self):
+        """Voxel-centre (i, j, k) index to DICOM LPS millimetres."""
+        t = np.diag([self.meters_per_unit * 1000.0] * 3 + [1.0])
+        if self.frame == "RAS":
+            t = np.diag([-1.0, -1.0, 1.0, 1.0]) @ t
+        return t @ self.ijk_to_world
+
+    @property
     def values_kji(self):
         return self.values.transpose([self.array_axes.index(c) for c in "kji"])
 
     def save(self, output, *, filename="volume.npy"):
         """Write one NumPy file and one YAML sidecar into a new directory."""
         import copy
+
+        import yaml
 
         output = Path(output)
         if Path(filename).name != filename or not filename.endswith(".npy"):
@@ -364,6 +375,8 @@ def from_dicom(directory, *, series_uid=None, conversion=Conversion()):
 
 
 def load_artifact(path, *, verify_hash=True):
+    import yaml
+
     path = Path(path)
     recipe = yaml.safe_load(path.read_text(encoding="utf-8"))
     if recipe.get("schema_version") != 1:
@@ -382,10 +395,23 @@ def export_ct(directory, output, *, series_uid=None, options=Conversion()):
 
 
 def replay(recipe_path, source_path, output):
-    """Re-run a DICOM/NIfTI recipe and verify source, geometry, and output hash."""
+    """Re-run a DICOM/NIfTI recipe and verify source, geometry, and output hash.
+
+    The output comparison is the reproducibility criterion. A different library
+    version only warns; it is named in the error if the output then differs.
+    """
+    import warnings
+
+    import yaml
+
     recipe = yaml.safe_load(Path(recipe_path).read_text(encoding="utf-8"))
-    if recipe["schema_version"] != 1 or recipe["implementation"] != implementation():
-        raise ValueError("Replay requires the recorded helper and dependency versions")
+    if recipe["schema_version"] != 1:
+        raise ValueError("Unsupported scan artifact schema")
+    recorded = recipe["implementation"]
+    current = implementation()
+    changed = {k: (recorded.get(k), current[k]) for k in current if recorded.get(k) != current[k]}
+    if changed:
+        warnings.warn(f"Replaying with different implementation (recorded, current): {changed}", stacklevel=2)
     source = recipe["source"]
     if source["kind"] == "dicom":
         for item in source["files"]:
@@ -403,8 +429,12 @@ def replay(recipe_path, source_path, output):
     else:
         raise ValueError("Replay requires original DICOM or NIfTI input")
     saved = scan.save(output, filename=recipe["output"]["file"])
-    if yaml.safe_load(saved.read_text()) != recipe:
+    replayed = yaml.safe_load(saved.read_text())
+    for r in (recipe, replayed):
+        r.pop("implementation", None)
+    if replayed != recipe:
         raise ValueError(
             "Replay differs: inspect geometry, source list, and volume hash"
+            + (f"; implementation changed (recorded, current): {changed}" if changed else "")
         )
     return saved

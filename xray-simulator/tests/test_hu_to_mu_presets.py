@@ -97,6 +97,16 @@ def test_interventional_preprocessing_preserves_high_hu():
     assert clipped.mu_volume.max() < volume.mu_volume.max()
 
 
+def test_settings_preset_pairs_curve_with_clip_policy():
+    assert PreprocessingSettings.preset("linear").clip_hu is True
+    settings = PreprocessingSettings.preset("interventional")
+    assert settings.hu_to_mu == INTERVENTIONAL
+    assert settings.clip_hu is False
+    hu = np.full((2, 2, 2), 6000.0, dtype=np.float32)
+    mu = VolumePreprocessor.from_numpy(hu, settings=settings).preprocess().mu_volume
+    np.testing.assert_allclose(mu, 0.0344, rtol=1e-5)  # not collapsed to the 3071 HU value
+
+
 def test_named_preset_rejects_typo():
     with pytest.raises(ValueError, match="Unknown HU-to-mu preset"):
         HuToMuMapping.preset("typo")

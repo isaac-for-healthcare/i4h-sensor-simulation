@@ -41,7 +41,6 @@ from pathlib import Path
 from xray_simulator import (
     DEFAULT_HU_TO_MU_PRESET,
     HU_TO_MU_PRESETS,
-    HuToMuMapping,
     PreprocessedVolume,
     PreprocessingSettings,
     VolumePreprocessor,
@@ -181,7 +180,7 @@ def main():
 
     parser.add_argument("--hu-to-mu", choices=tuple(HU_TO_MU_PRESETS), default=DEFAULT_HU_TO_MU_PRESET)
     args = parser.parse_args()
-    settings = PreprocessingSettings(hu_to_mu=HuToMuMapping.preset(args.hu_to_mu))
+    settings = PreprocessingSettings.preset(args.hu_to_mu)
 
     print("=" * 60)
     print("CT Preprocessing Pipeline")

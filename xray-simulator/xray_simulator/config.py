@@ -703,6 +703,15 @@ class PreprocessingSettings:
     clip_hu: bool = True
     hu_to_mu: HuToMuMapping = field(default_factory=HuToMuMapping)
 
+    @classmethod
+    def preset(cls, name: str = DEFAULT_HU_TO_MU_PRESET) -> "PreprocessingSettings":
+        """Return the named attenuation curve together with its matching clip policy.
+
+        The interventional curve extends to 8000 HU, so it must not be pre-clipped at
+        ``hu_clip_max``; the linear curve keeps the default clipping.
+        """
+        return cls(hu_to_mu=HuToMuMapping.preset(name), clip_hu=name != "interventional")
+
 
 @dataclass(frozen=True)
 class SimulatorConfig:

@@ -143,3 +143,39 @@ def test_resampling_covers_source_without_air_edges(spacing_ijk_mm):
     np.testing.assert_array_equal(values, 40.0)
     last_center_ijk = (np.array(values.shape) - 1) * spacing_ijk_mm
     assert np.all(last_center_ijk >= (np.array(image.GetSize()) - 1) * image.GetSpacing())
+
+
+def test_replay_warns_but_passes_when_only_library_versions_differ(tmp_path):
+    write_dicom(tmp_path / "dicom", angle=0.4)
+    artifact = scan.export_ct(tmp_path / "dicom", tmp_path / "artifact")
+    recipe = yaml.safe_load(artifact.read_text())
+    recipe["implementation"].update(numpy="0.0.0", helper_sha256="stale")
+    artifact.write_text(yaml.safe_dump(recipe, sort_keys=False))
+    with pytest.warns(UserWarning, match="different implementation"):
+        replayed = scan.replay(artifact, tmp_path / "dicom", tmp_path / "replay")
+    assert yaml.safe_load(replayed.read_text())["output"] == recipe["output"]
+
+
+def test_replay_fails_on_output_difference_and_names_implementation_change(tmp_path):
+    write_dicom(tmp_path / "dicom", angle=0.4)
+    artifact = scan.export_ct(tmp_path / "dicom", tmp_path / "artifact")
+    recipe = yaml.safe_load(artifact.read_text())
+    recipe["implementation"]["numpy"] = "0.0.0"
+    recipe["output"]["sha256"] = "0" * 64
+    artifact.write_text(yaml.safe_dump(recipe, sort_keys=False))
+    with pytest.warns(UserWarning), pytest.raises(ValueError, match="implementation changed"):
+        scan.replay(artifact, tmp_path / "dicom", tmp_path / "replay")
+
+
+def test_scan_origin_is_outer_corner_for_axis_aligned_and_absent_for_oblique():
+    from xray_simulator import VolumePreprocessor
+
+    values = np.zeros((3, 4, 5), np.float32)
+    aligned = np.diag([2.0, 3.0, 4.0, 1.0])
+    aligned[:3, 3] = [10.0, 20.0, 30.0]
+    pre = VolumePreprocessor.from_scan(scan.from_array(values, aligned, world_frame="LPS"), source="x").preprocess()
+    np.testing.assert_allclose(pre.metadata.origin_xyz_mm, [9.0, 18.5, 28.0])  # centre of voxel 0 - half a voxel
+    assert pre.metadata.schema_version == 2
+    oblique = np.eye(4)
+    oblique[:3, :3] = [[0.0, -2.0, 0.0], [1.0, 0.0, 0.0], [0.0, 0.0, 3.0]]
+    assert VolumePreprocessor.from_scan(scan.from_array(values, oblique)).preprocess().metadata.origin_xyz_mm is None
