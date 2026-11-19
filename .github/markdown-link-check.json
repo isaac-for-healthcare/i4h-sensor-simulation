@@ -6,11 +6,23 @@
         },
         {
             "pattern": "http://0.0.0.0:8000"
+        },
+        {
+            "pattern": "https://doi.org"
+        },
+        {
+            "pattern": "https://lit.fe.uni-lj.si"
+        },
+        {
+            "pattern": "https://ieeexplore.ieee.org"
+        },
+        {
+            "pattern": "^https://github\\.com/[^/]+/[^/]+/commit/[0-9a-f]{40}$"
         }
     ],
     "timeout": "20s",
     "retryOn429": true,
     "retryCount": 3,
     "fallbackRetryDelay": "30s",
-    "aliveStatusCodes": [200, 202, 403]
+    "aliveStatusCodes": [200, 202, 203, 403]
 }
