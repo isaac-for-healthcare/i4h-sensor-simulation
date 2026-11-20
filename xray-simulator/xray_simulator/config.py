@@ -27,6 +27,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Literal
 
+from .calibration import physical_control_points
+
 
 @dataclass(frozen=True)
 class CarmGeometry:
@@ -446,7 +448,7 @@ class HuToMuMapping:
 
     @classmethod
     def preset(cls, name: str = DEFAULT_HU_TO_MU_PRESET) -> "HuToMuMapping":
-        """Select the named linear or interventional attenuation curve."""
+        """Select the named linear, interventional or physical attenuation curve."""
         try:
             return HU_TO_MU_PRESETS[name]
         except KeyError as exc:
@@ -683,7 +685,9 @@ INTERVENTIONAL = HuToMuMapping(
         (1500.0, 0.012), (3000.0, 0.02), (8000.0, 0.044),
     )
 )
-HU_TO_MU_PRESETS = {"linear": LINEAR, "interventional": INTERVENTIONAL}
+# NIST-anchored at 60 keV (water 0.02059 mm^-1 at 0 HU). Opt-in: "linear" stays the default.
+PHYSICAL = HuToMuMapping(control_points=physical_control_points())
+HU_TO_MU_PRESETS = {"linear": LINEAR, "interventional": INTERVENTIONAL, "physical": PHYSICAL}
 
 
 @dataclass(frozen=True)
@@ -708,7 +712,8 @@ class PreprocessingSettings:
         """Return the named attenuation curve together with its matching clip policy.
 
         The interventional curve extends to 8000 HU, so it must not be pre-clipped at
-        ``hu_clip_max``; the linear curve keeps the default clipping.
+        ``hu_clip_max``; the linear and physical curves keep the default clipping (the
+        physical curve ends at the default ``hu_clip_max`` of 3071 HU).
         """
         return cls(hu_to_mu=HuToMuMapping.preset(name), clip_hu=name != "interventional")
 

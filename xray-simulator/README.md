@@ -13,7 +13,7 @@ flowchart LR
     D["DICOM CT"] --> S["Native ScanVolume + affine"]
     A["volume.npy + volume.yaml"] --> S
     N["NIfTI CT"] --> S
-    S --> M["HU → μ: linear or interventional"]
+    S --> M["HU → μ: linear, interventional or physical"]
     M --> R["Ray marching with full voxel affine"] --> F["Fluoroscopy image"]
 ```
 
@@ -47,7 +47,12 @@ handled by the affine during ray marching; no canonical-array conversion is requ
 
 `linear` is the default: −1000–3000 HU → 0–0.02 mm⁻¹. `interventional` uses
 piecewise-linear tissue/contrast/implant control points through 8000 HU →
-0.044 mm⁻¹. Both clamp outside their endpoint knots. Custom
+0.044 mm⁻¹. `physical` is anchored to NIST attenuation at 60 keV (water
+0 HU → 0.02059 mm⁻¹, cortical bone 1500 HU → 0.06044 mm⁻¹; see
+[radiometric calibration](docs/architecture-and-api.md#radiometric-calibration)).
+Use it when absolute transmission matters: `linear` maps water to 0.005 mm⁻¹, so
+300 mm of water transmits 0.22 instead of the physical 2.1 × 10⁻³. All presets clamp
+outside their endpoint knots. Custom
 `HuToMuMapping(control_points=...)` remains supported. HU values are clipped to
 `[hu_clip_min, hu_clip_max]` before mapping by default; pass `clip_hu=False` to
 keep implant and contrast values above 3071 HU.

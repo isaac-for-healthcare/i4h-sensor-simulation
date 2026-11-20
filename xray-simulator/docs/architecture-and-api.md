@@ -429,6 +429,37 @@ mapping = HuToMuMapping(control_points=(
 ))
 ```
 
+### Radiometric calibration
+
+The default `linear` preset is a display-style ramp, not a calibration: it maps water
+(0 HU) to 0.005 mm⁻¹, about 4.1 times below the NIST value at 60 keV. Because
+Beer-Lambert attenuation is exponential, that is not a gain error a downstream scale can
+repair: 300 mm of water transmits 0.22 under `linear` but 2.1 × 10⁻³ physically. Select
+the physical curve explicitly when absolute transmission matters:
+
+```python
+settings = PreprocessingSettings.preset("physical")   # == HuToMuMapping.preset("physical")
+```
+
+For HU ≤ 0, `μ = μ_water (1 + HU / 1000)`, the inversion of the HU definition with air
+attenuation taken as zero. For HU > 0 it interpolates from water to cortical bone at
+1500 HU and continues with that slope to 3071 HU, above which the mapping clamps. The
+1500 HU bone anchor is an assumption about the input CT's calibration (scanner spectrum
+and kernel), not a material constant. `xray_simulator.calibration.physical_control_points`
+builds the control points for the other tabulated energies, a different bone anchor, or
+user-supplied μ values.
+
+| Material | Density (g/cm³) | μ/ρ at 60 keV (cm²/g) | μ (mm⁻¹) |
+| --- | ---: | ---: | ---: |
+| Water | 1.000 | 0.2059 | 0.020590 |
+| Cortical bone (ICRU-44) | 1.920 | 0.3148 | 0.060442 |
+| Whole blood (ICRU-44, validation only) | 1.060 | 0.2057 | 0.021804 |
+
+Anchors are from the [NIST XCOM water](https://physics.nist.gov/PhysRefData/XrayMassCoef/ComTab/water.html)
+and [cortical bone](https://physics.nist.gov/PhysRefData/XrayMassCoef/ComTab/bone.html)
+mass attenuation tables (Hubbell & Seltzer; ICRU-44 compositions), retrieved 2026-08-12.
+There is no energy interpolation.
+
 The mapping used for a conversion is stored in `VolumeMetadata.hu_to_mu`, so a cached
 `mu_volume.npy` can be traced back to the curve that produced it.
 
