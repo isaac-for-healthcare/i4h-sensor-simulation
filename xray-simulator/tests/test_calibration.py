@@ -21,7 +21,19 @@ import math
 
 import numpy as np
 import pytest
-from xray_simulator import HU_TO_MU_PRESETS, HuToMuMapping, PreprocessingSettings, VolumePreprocessor, hu_to_mu
+from xray_simulator import (
+    HU_TO_MU_PRESETS,
+    CarmGeometry,
+    DisplaySettings,
+    HuToMuMapping,
+    PreprocessingSettings,
+    RealismSettings,
+    SimulatorConfig,
+    VolumePreprocessor,
+    XrayPhysics,
+    hu_to_mu,
+    xray_simulator,
+)
 from xray_simulator.calibration import physical_control_points
 from xray_simulator.config import LINEAR, PHYSICAL
 
@@ -121,6 +133,35 @@ def test_units_oracle_300_mm_water() -> None:
     ).preprocess()
     assert math.exp(-float(np.sum(volume.mu_volume[0, :, 0]))) == pytest.approx(2.077e-3, rel=1e-3)
     assert volume.metadata.hu_to_mu == PHYSICAL.to_dict()
+
+
+@pytest.mark.gpu
+def test_physical_water_slab_renders_absolute_transmission() -> None:
+    """Render 300 physical millimetres of water without display remapping."""
+    slangpy = pytest.importorskip("slangpy")
+    try:
+        device = slangpy.create_device(slangpy.DeviceType.cuda)
+    except RuntimeError as exc:
+        pytest.skip(f"Slang CUDA device unavailable: {exc}")
+    del device
+
+    # The default pose looks along +Z. Anisotropic spacing catches voxel/mm mix-ups.
+    hu = np.zeros((150, 8, 8), dtype=np.float32)
+    volume = VolumePreprocessor.from_numpy(
+        hu, spacing_zyx_mm=(2.0, 1.0, 1.0), settings=PreprocessingSettings.preset("physical")
+    ).preprocess()
+    config = SimulatorConfig(
+        geometry=CarmGeometry(detector_width_px=3, detector_height_px=3),
+        physics=XrayPhysics(step_mm=0.25, i0=2.0),
+        display=DisplaySettings.preset("transmission"),
+        realism=RealismSettings(enabled=False),
+    )
+
+    frame = xray_simulator(volume, config).render_frame()
+
+    # Odd detector dimensions put [1, 1] on the normal ray. Allow one march step
+    # of endpoint error without accepting a whole-millimetre path length error.
+    assert frame.image[1, 1] == pytest.approx(2.077e-3, rel=0.006)
 
 
 def test_linear_default_still_maps_water_to_the_legacy_value() -> None:
