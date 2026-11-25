@@ -121,11 +121,13 @@ float3 worldToIndex(VolumeInfo volInfo, float3 point)
 [Differentiable]
 float2 rayBoxIntersect(float3 rayOrigin, float3 rayDir, float3 boxMin, float3 boxMax)
 {
-    // Safe inverse direction
+    // Safe inverse direction. A component of exactly 0 (a ray parallel to a volume face) must
+    // become +EPS, not sign(0) * EPS = 0: 1 / 0 = inf keeps the forward pass finite, but the
+    // backward pass multiplies that inf by a zero gradient and every pose gradient turns NaN.
     float3 invDir;
-    invDir.x = 1.0f / (abs(rayDir.x) > EPS ? rayDir.x : sign(rayDir.x) * EPS);
-    invDir.y = 1.0f / (abs(rayDir.y) > EPS ? rayDir.y : sign(rayDir.y) * EPS);
-    invDir.z = 1.0f / (abs(rayDir.z) > EPS ? rayDir.z : sign(rayDir.z) * EPS);
+    invDir.x = 1.0f / (abs(rayDir.x) > EPS ? rayDir.x : (rayDir.x < 0.0f ? -EPS : EPS));
+    invDir.y = 1.0f / (abs(rayDir.y) > EPS ? rayDir.y : (rayDir.y < 0.0f ? -EPS : EPS));
+    invDir.z = 1.0f / (abs(rayDir.z) > EPS ? rayDir.z : (rayDir.z < 0.0f ? -EPS : EPS));
 
     float3 t0 = (boxMin - rayOrigin) * invDir;
     float3 t1 = (boxMax - rayOrigin) * invDir;
