@@ -149,6 +149,11 @@ class VolumePreprocessor:
 
         Returns:
             VolumePreprocessor instance ready for preprocessing.
+
+        Raises:
+            FileNotFoundError: If ``dicom_dir`` is not an existing directory.
+            ValueError: If the directory holds no DICOM series, several series and no
+                ``series_uid``, or a series that is not a regular CT volume.
         """
         from . import scan_volume
 
