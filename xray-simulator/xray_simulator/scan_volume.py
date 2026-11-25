@@ -75,8 +75,13 @@ def read_ct(directory, series_uid=None):
     """Reject ambiguous selection and geometry that cannot use one regular affine."""
     import SimpleITK as sitk
 
+    given = directory
     directory = Path(directory).resolve()
+    if not directory.is_dir():
+        raise FileNotFoundError(f"DICOM directory not found: {given}")
     ids = list(sitk.ImageSeriesReader.GetGDCMSeriesIDs(str(directory)) or [])
+    if not ids:
+        raise ValueError(f"No DICOM series found under: {given}")
     if series_uid is None:
         if len(ids) != 1:
             raise ValueError(
