@@ -10,7 +10,8 @@
 2. The required OptiX header files are fetched automatically by CMake from the
    open-source [optix-dev](https://github.com/NVIDIA/optix-dev) repository during the
    configure step.  All you need is a recent NVIDIA driver (OptiX is part of the
-   driver) and CUDA ≥ 12.6 which are already listed in the requirements section.
+   driver) and the CUDA toolkit and driver your GPU needs, listed in the
+   [requirements section](../README.md#requirements) (CUDA 13 and driver 580+ on Turing to Blackwell).
 
 3. Install Python dependencies and create virtual environment:
 
