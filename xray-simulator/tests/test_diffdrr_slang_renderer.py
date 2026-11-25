@@ -164,6 +164,23 @@ def test_hardware_sampling_matches_the_software_line_integrals(device_type):
 
 
 @pytest.mark.gpu
+def test_pose_gradients_stay_finite_for_rays_parallel_to_a_volume_face():
+    """NVBug 7148357: a ray direction with a component of exactly 0 made every pose gradient NaN.
+
+    With no rotation and the detector shifted by half a pixel, detector column 32 lies on the
+    source's x, so its 48 rays have a direction x of exactly 0 in the axis-aligned volume.
+    """
+    renderer = _phantom_renderer("cuda", detector_offset_xy_mm=(-0.25, 0.0))
+
+    image, grads = renderer.render_with_gradients(np.zeros(3), np.zeros(3))
+
+    assert np.isfinite(image).all()
+    for name in ("rotation", "translation"):
+        assert np.isfinite(grads[name]).all(), f"{name} gradient {grads[name]}"
+    assert np.abs(grads["translation"]).sum() > 0  # the sphere is in view, so the gradient has signal
+
+
+@pytest.mark.gpu
 @pytest.mark.parametrize(
     ("rotations", "translations"),
     [(np.zeros((2, 3)), np.zeros((3, 3))), (np.zeros(3), np.zeros(3)), (np.zeros((0, 3)), np.zeros((0, 3)))],
