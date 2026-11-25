@@ -56,10 +56,14 @@
 1. Download mesh data:
 
    ```bash
-   cd ultrasound-simulator  # ensure you're in the correct directory
-   pip install git+https://github.com/isaac-for-healthcare/i4h-asset-catalog.git
-   # Download mesh data (~527MB)
-   i4h-asset-retrieve --download-dir assets --sub-path Props/ABDPhantom/Organs --version 0.2.0
+   # Run from ultrasound-simulator/ (where step 1 leaves you).
+   # Download mesh data (~527MB). Option A (uv): uvx runs the downloader in its own
+   # environment, so it needs no pip and adds nothing to the simulator's .venv
+   uvx --from git+https://github.com/isaac-for-healthcare/i4h-asset-catalog.git \
+     i4h-asset-retrieve --download-dir assets --sub-path Props/ABDPhantom/Organs --version 0.2.0
+   # Option B (conda), instead of the uvx line:
+   #   pip install git+https://github.com/isaac-for-healthcare/i4h-asset-catalog.git
+   #   i4h-asset-retrieve --download-dir assets --sub-path Props/ABDPhantom/Organs --version 0.2.0
    # Note: The hash below is specific to version 0.2.0
    ln -s assets/8c0bf782eab2f44f1cc82da60eb10f6be8f941406d291b7fbfbdb53c05b3d149/Props/ABDPhantom/Organs mesh
    ```
