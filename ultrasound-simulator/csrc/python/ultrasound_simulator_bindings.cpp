@@ -19,6 +19,7 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 #include <algorithm>
+#include <cmath>
 #include <cstdint>
 #include <cstring>
 #include <iostream>
@@ -680,25 +681,32 @@ transducer within it.
                 throw std::runtime_error("b_mode_size numpy array must have shape (2,)");
               }
 
-              // Handle different numeric types in numpy arrays
-              if (array.dtype().kind() == 'i') {
-                auto buf = array.request();
-                int* ptr = static_cast<int*>(buf.ptr);
-                self.b_mode_size =
-                    make_uint2(static_cast<uint32_t>(ptr[0]), static_cast<uint32_t>(ptr[1]));
-              } else if (array.dtype().kind() == 'u') {
-                auto buf = array.request();
-                unsigned int* ptr = static_cast<unsigned int*>(buf.ptr);
-                self.b_mode_size =
-                    make_uint2(static_cast<uint32_t>(ptr[0]), static_cast<uint32_t>(ptr[1]));
-              } else if (array.dtype().kind() == 'f') {
-                auto buf = array.request();
-                float* ptr = static_cast<float*>(buf.ptr);
-                self.b_mode_size =
-                    make_uint2(static_cast<uint32_t>(ptr[0]), static_cast<uint32_t>(ptr[1]));
-              } else {
+              // Accept every integer and floating dtype whatever its item size or strides
+              // (numpy's default int64 / float64 included): forcecast copies the two values
+              // into a contiguous double array, which holds every uint32 exactly, and each
+              // value is checked before it is stored, so nothing wraps or truncates silently.
+              const char kind = array.dtype().kind();
+              if (kind != 'i' && kind != 'u' && kind != 'f') {
                 throw std::runtime_error("Unsupported numpy array data type for b_mode_size");
               }
+              constexpr int kContiguousCopy = py::array::c_style | py::array::forcecast;
+              auto values = py::array_t<double, kContiguousCopy>::ensure(array);
+              if (!values) {
+                throw std::runtime_error("Unsupported numpy array data type for b_mode_size");
+              }
+              const double* data = values.data();
+              uint32_t dims[2];
+              for (int i = 0; i < 2; ++i) {
+                const double v = data[i];
+                if (!std::isfinite(v) || v < 0.0 || v != std::floor(v) ||
+                    v > static_cast<double>(std::numeric_limits<uint32_t>::max())) {
+                  throw std::runtime_error(
+                      "b_mode_size numpy array values must be whole numbers from 0 to "
+                      "4294967295");
+                }
+                dims[i] = static_cast<uint32_t>(v);
+              }
+              self.b_mode_size = make_uint2(dims[0], dims[1]);
             }
             // Check if it's a tuple or list
             else if (py::isinstance<py::tuple>(size) || py::isinstance<py::list>(size)) {
