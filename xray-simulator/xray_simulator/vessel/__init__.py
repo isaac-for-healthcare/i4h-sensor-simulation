@@ -24,7 +24,6 @@ from typing import Any
 
 from .carve import DONOR_QUANTILES, CarveResult, carve_lumen, carve_residual, node_contrast_mu_per_mm, tube_occupancy
 from .centerline import SMOOTHING_PASSES, VesselTree, smooth_centerline
-from .state import VesselState
 from .contrast import (
     DISPERSION_MM2_PER_S,
     HU_PER_MG_IODINE_PER_ML,
@@ -35,6 +34,7 @@ from .contrast import (
     HuToMu,
     Injection,
 )
+from .state import VesselState
 
 _WARP_EXPORTS = {
     "DSA_REFERENCE_MG_PER_ML": "compositor",
