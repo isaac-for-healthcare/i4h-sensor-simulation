@@ -31,6 +31,7 @@ NUMPY_DTYPES = [
     np.float16,
     np.float32,
     np.float64,
+    np.longdouble,
 ]
 
 
@@ -52,6 +53,8 @@ def test_b_mode_size_reads_back_numpy_default_arrays():
 def test_b_mode_size_reads_back_a_strided_numpy_view():
     params = rs.SimParams()
     params.b_mode_size = np.array([500, 0, 400, 0], dtype=np.int64)[::2]
+    assert tuple(params.b_mode_size) == (500, 400)
+    params.b_mode_size = np.array([500, 400], dtype=">i4")  # non-native byte order
     assert tuple(params.b_mode_size) == (500, 400)
 
 
@@ -76,6 +79,20 @@ def test_b_mode_size_reads_back_tuples_and_lists(size):
 def test_b_mode_size_refuses_numpy_values_a_size_cannot_hold(values):
     params = rs.SimParams()
     params.b_mode_size = (500, 400)
+    with pytest.raises(RuntimeError, match="whole numbers"):
+        params.b_mode_size = values
+    assert tuple(params.b_mode_size) == (500, 400)
+
+
+@pytest.mark.skipif(
+    np.finfo(np.longdouble).eps >= np.finfo(np.float64).eps,
+    reason="np.longdouble is no wider than float64 here, so the fraction cannot be written",
+)
+def test_b_mode_size_refuses_a_longdouble_fraction_that_rounds_to_a_whole_double():
+    params = rs.SimParams()
+    params.b_mode_size = (500, 400)
+    values = np.array([np.longdouble(500) + np.longdouble(2) ** -50, 400], dtype=np.longdouble)
+    assert float(values[0]) == 500.0  # the fraction is lost in a double
     with pytest.raises(RuntimeError, match="whole numbers"):
         params.b_mode_size = values
     assert tuple(params.b_mode_size) == (500, 400)

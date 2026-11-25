@@ -683,23 +683,24 @@ transducer within it.
 
               // Accept every integer and floating dtype whatever its item size or strides
               // (numpy's default int64 / float64 included): forcecast copies the two values
-              // into a contiguous double array, which holds every uint32 exactly, and each
-              // value is checked before it is stored, so nothing wraps or truncates silently.
+              // into a contiguous long double array, which holds every uint32 exactly and keeps
+              // the precision of np.longdouble input, and each value is checked before it is
+              // stored, so nothing wraps, rounds or truncates silently.
               const char kind = array.dtype().kind();
               if (kind != 'i' && kind != 'u' && kind != 'f') {
                 throw std::runtime_error("Unsupported numpy array data type for b_mode_size");
               }
               constexpr int kContiguousCopy = py::array::c_style | py::array::forcecast;
-              auto values = py::array_t<double, kContiguousCopy>::ensure(array);
+              auto values = py::array_t<long double, kContiguousCopy>::ensure(array);
               if (!values) {
                 throw std::runtime_error("Unsupported numpy array data type for b_mode_size");
               }
-              const double* data = values.data();
+              const long double* data = values.data();
               uint32_t dims[2];
               for (int i = 0; i < 2; ++i) {
-                const double v = data[i];
-                if (!std::isfinite(v) || v < 0.0 || v != std::floor(v) ||
-                    v > static_cast<double>(std::numeric_limits<uint32_t>::max())) {
+                const long double v = data[i];
+                if (!std::isfinite(v) || v < 0.0L || v != std::floor(v) ||
+                    v > static_cast<long double>(std::numeric_limits<uint32_t>::max())) {
                   throw std::runtime_error(
                       "b_mode_size numpy array values must be whole numbers from 0 to "
                       "4294967295");
