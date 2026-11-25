@@ -134,6 +134,29 @@ def test_multiple_series_requires_selection(tmp_path):
         scan.from_dicom(tmp_path / "dicom")
 
 
+def test_missing_dicom_directory_is_not_found(tmp_path):
+    pytest.importorskip("SimpleITK")
+    from xray_simulator import VolumePreprocessor
+
+    missing = tmp_path / "no_such_dicom_dir"
+    with pytest.raises(FileNotFoundError, match="DICOM directory not found: .*no_such_dicom_dir"):
+        scan.from_dicom(missing)
+    with pytest.raises(FileNotFoundError, match="DICOM directory not found"):
+        VolumePreprocessor.from_dicom(missing)
+    (tmp_path / "file.dcm").write_bytes(b"")
+    with pytest.raises(FileNotFoundError, match="DICOM directory not found"):
+        scan.from_dicom(tmp_path / "file.dcm")
+
+
+def test_directory_without_dicom_series_names_the_directory(tmp_path):
+    pytest.importorskip("SimpleITK")
+    (tmp_path / "empty").mkdir()
+    with pytest.raises(ValueError, match="No DICOM series found under: .*empty"):
+        scan.from_dicom(tmp_path / "empty")
+    with pytest.raises(ValueError, match="No DICOM series found"):
+        scan.from_dicom(tmp_path / "empty", series_uid="2.25.1")
+
+
 @pytest.mark.parametrize("spacing_ijk_mm", [(0.8, 0.8, 5.0), (0.8, 0.8, 20.0)])
 def test_resampling_covers_source_without_air_edges(spacing_ijk_mm):
     sitk = pytest.importorskip("SimpleITK")
