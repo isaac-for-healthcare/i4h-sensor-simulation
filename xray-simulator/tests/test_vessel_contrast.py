@@ -571,3 +571,134 @@ def test_subtraction_cancels_everything_static() -> None:
     mask = np.array([[0.5, 0.25]])
     live = mask * np.array([[1.0, 0.8]])
     np.testing.assert_allclose(subtract(live, mask), [[1.0, 0.8]])
+
+
+# ------------------------------------------------- review regressions
+
+
+def _centre_pixel_rays(sid_mm: float, sdd_mm: float) -> DetectorRays:
+    """An odd-sized detector, so one pixel's ray runs exactly through the isocenter axis."""
+    return DetectorRays.from_axes(
+        np.eye(3),
+        np.zeros(3),
+        source_to_detector_mm=sdd_mm,
+        source_to_isocenter_mm=sid_mm,
+        width=65,
+        height=65,
+        pixel_spacing_mm=1.0,
+    )
+
+
+@pytest.mark.parametrize("sid_mm, sdd_mm", [(500.0, 1000.0), (780.0, 1200.0)])
+@pytest.mark.parametrize("radius_mm", [0.15, 0.3, 0.5])
+def test_a_thin_catheter_shaft_keeps_its_full_chord_at_a_realistic_source_distance(
+    sid_mm: float, sdd_mm: float, radius_mm: float
+) -> None:
+    pytest.importorskip("warp")
+    from xray_simulator.absorbers import CatheterAttenuation, CatheterMaterial
+
+    material = CatheterMaterial(shaft_mu_per_mm=1.0, tip_mu_per_mm=1.0)
+    points = np.array([[-10.0, 0.0, 0.0], [10.0, 0.0, 0.0]])
+    image = CatheterAttenuation(material, device="cpu").line_integral(
+        points, radius_mm, _centre_pixel_rays(sid_mm, sdd_mm)
+    )
+    assert image[32, 32] == pytest.approx(2.0 * radius_mm, rel=0.02)
+
+
+@pytest.mark.parametrize("radius_mm", [0.15, 0.3])
+def test_a_thin_vessel_keeps_its_full_chord_at_a_realistic_source_distance(radius_mm: float) -> None:
+    attenuation = _attenuation()
+    state = _state([[[-10.0, 0.0, 0.0], [10.0, 0.0, 0.0]]], [[0, 1]], [radius_mm] * 2, [1.0, 1.0])
+    image = attenuation.line_integral(state, _centre_pixel_rays(780.0, 1200.0))
+    assert image[0, 32, 32] == pytest.approx(2.0 * radius_mm, rel=0.02)
+
+
+def test_a_right_angle_joint_clips_both_segments() -> None:
+    attenuation = _attenuation()
+    state = _state([[[-10.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 10.0, 0.0]]], [[0, 1], [1, 2]], [2.0] * 3, [1.0] * 3)
+    image = attenuation.line_integral(state, _rays())[0]
+    column = image[:, _column_of(1.0)]
+    # Past the joint, on the side the vertical segment does not extend to, nothing is covered: it
+    # lies outside both tubes. An unclipped segment would read the full chord on every row.
+    covered = np.nonzero(column > 0.5)[0]
+    assert len(covered) > 0
+    assert covered.min() >= CENTER_ROW - 5 or covered.max() <= CENTER_ROW + 5
+    assert (covered.max() - covered.min() + 1) / MAGNIFICATION == pytest.approx(10.0, abs=2.5)
+
+
+def test_an_edge_that_is_open_in_any_environment_is_integrated() -> None:
+    attenuation = _attenuation()
+    points = np.array([[[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]], [[-10.0, 0.0, 0.0], [10.0, 0.0, 0.0]]])
+    state = _state(points, [[0, 1]], [[4.0, 4.0], [4.0, 4.0]], [[1.0, 1.0], [1.0, 1.0]])
+    image = attenuation.line_integral(state, _rays())
+    assert image[0].max() == 0.0
+    assert image[1, CENTER_ROW, _column_of(0.0)] == pytest.approx(_chord_through(4.0), abs=0.02)
+
+
+def test_the_vessel_state_imports_without_warp() -> None:
+    import os
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    # Point the child at this checkout's package, not whichever copy the interpreter has installed.
+    env = {**os.environ, "PYTHONPATH": str(Path(__file__).resolve().parents[1])}
+    code = "import sys; from xray_simulator.vessel import VesselState; assert 'warp' not in sys.modules"
+    subprocess.run([sys.executable, "-c", code], check=True, env=env)
+
+
+def test_a_sparse_tree_is_carved_between_its_nodes() -> None:
+    mu, affine, dense, _ = _tube()
+    nodes = dense.points_mm[[0, -1]]
+    sparse = VesselTree(nodes, [[0, 1]], dense.radii_mm[[0, -1]])
+    expected = tube_occupancy(SHAPE_KJI, affine, dense)
+    occupancy = tube_occupancy(SHAPE_KJI, affine, sparse)
+    centre = SHAPE_KJI[0] // 2
+    assert occupancy[centre, centre, SHAPE_KJI[2] // 2] == 1.0
+    assert occupancy.sum() == pytest.approx(expected.sum(), rel=0.03)
+    residual = carve_residual(mu, affine, carve_lumen(mu, affine, sparse))
+    assert residual["rms"] < 0.25 * residual["signal"]
+
+
+def test_a_vessel_thinner_than_a_voxel_still_measures_its_contrast() -> None:
+    mu = np.full(SHAPE_KJI, TISSUE_MU, dtype=np.float32)
+    centre = SHAPE_KJI[0] // 2
+    mu[centre - 1 : centre + 1, centre - 1 : centre + 1, :] = LUMEN_MU
+    nodes = np.zeros((SHAPE_KJI[2], 3))
+    nodes[:, 0] = np.arange(SHAPE_KJI[2])
+    nodes[:, 1:] = centre - 0.5
+    edges = np.stack([np.arange(SHAPE_KJI[2] - 1), np.arange(1, SHAPE_KJI[2])], axis=-1)
+    tree = VesselTree(nodes, edges, np.full(SHAPE_KJI[2], 0.7))
+    affine = np.diag((1.0, 1.0, 1.0, 1.0))
+    result = carve_lumen(mu, affine, tree, supersample=2)
+    assert result.occupancy.max() < 0.5
+    per_node = node_contrast_mu_per_mm(mu, affine, tree, result)
+    assert per_node[per_node > 0.0].mean() == pytest.approx(LUMEN_MU - TISSUE_MU, rel=0.1)
+
+
+def test_a_batched_concentration_without_displacement_repeats_the_rest_geometry() -> None:
+    vessel, _ = _compositor()
+    nodes = vessel.rest_state.points_mm.shape[1]
+    state = vessel.state(concentration_mg_per_ml=np.stack([np.full(nodes, 2.0), np.full(nodes, 8.0)]))
+    assert state.points_mm.shape[0] == state.mu_per_mm.shape[0] == state.radii_mm.shape[0] == 2
+    np.testing.assert_allclose(state.points_mm[1], vessel.rest_state.points_mm[0])
+    assert state.mu_per_mm[1, 0] > state.mu_per_mm[0, 0]
+
+
+def test_a_collapsed_centerline_edge_is_rejected() -> None:
+    points = np.array([[0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 5.0]])
+    with pytest.raises(ValueError, match="coincident"):
+        ContrastTransport(points, [[0, 1], [1, 2]], [3.0, 3.0, 3.0], inflow=0)
+
+
+def test_a_bolus_through_a_branch_never_exceeds_what_was_injected() -> None:
+    points, edges, radii = _tree()
+    points = points * 1.0  # one millimetre edges, the stiff case for explicit transport
+    radii = np.full_like(radii, 4.0)
+    transport = ContrastTransport(points, edges, radii, inflow=0, flow_ml_per_s=4.0)
+    stock = ContrastAgent().stock_mg_per_ml
+    peak = 0.0
+    for _ in range(40):
+        transport.step(0.05, Injection(node=1, start_s=0.0, duration_s=0.2, flow_ml_per_s=50.0))
+        peak = max(peak, float(transport.concentration_mg_per_ml.max()))
+    assert peak <= stock * (1.0 + 1.0e-9)

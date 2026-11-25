@@ -56,6 +56,7 @@ import warp as wp
 
 from ..absorbers._warp import read_out, torch_stream, warp_rays
 from ..absorbers.rays import DetectorRays
+from .state import VesselState
 
 #: Segments shorter than this carry no geometry worth a chord, and a degenerate axis makes the
 #: frustum's axial frame ill-conditioned. Matches the catheter kernel's threshold.
@@ -105,8 +106,16 @@ def _frustum_chord(
     if length <= _MIN_SEGMENT_MM:
         return wp.vec2(0.0, 0.0)
 
+    # Solve relative to the ray's closest approach to the segment rather than the source. The
+    # source sits hundreds of millimetres away, and in float32 a squared offset that large
+    # swallows a radius of a fraction of a millimetre, so thin lumens vanished. Re-origining
+    # makes every term O(segment size); the ray parameter shifts by `shift` and chords, being
+    # differences of it, are unchanged.
+    shift = wp.dot(0.5 * (start + end) - origin, direction)
+    local_origin = origin + direction * shift
+
     axis = axis_vector / length
-    offset = origin - start
+    offset = local_origin - start
     axial_offset = wp.dot(offset, axis)
     axial_direction = wp.dot(direction, axis)
     radial_offset = offset - axis * axial_offset
@@ -119,12 +128,14 @@ def _frustum_chord(
     # Clip to the joint planes first. Each is shared with the neighbouring segment, so the sign
     # has to be chosen from this segment's own axis to keep its own body: the neighbour makes the
     # opposite choice at the same node and the two half-spaces partition the joint exactly.
-    plane_start = normal_start * wp.sign(wp.dot(normal_start, axis))
-    plane_end = normal_end * wp.sign(wp.dot(normal_end, axis))
-    bounds = _clip_halfspace(0.0, span, wp.dot(offset, plane_start), wp.dot(direction, plane_start))
-    bounds = _clip_halfspace(
-        bounds[0], bounds[1], wp.dot(end - origin, plane_end), -wp.dot(direction, plane_end)
-    )
+    plane_start = normal_start
+    if wp.dot(normal_start, axis) < 0.0:
+        plane_start = -normal_start
+    plane_end = normal_end
+    if wp.dot(normal_end, axis) < 0.0:
+        plane_end = -normal_end
+    bounds = _clip_halfspace(-shift, span - shift, wp.dot(offset, plane_start), wp.dot(direction, plane_start))
+    bounds = _clip_halfspace(bounds[0], bounds[1], wp.dot(end - local_origin, plane_end), -wp.dot(direction, plane_end))
     # A mitred plane leans past its node, far enough in a tight turn that the linear radius can
     # cross zero into the mirror cone on the far side of the apex. Clipping to where the radius
     # is still positive removes that without assuming the plane stays near the end of the axis.
@@ -226,46 +237,6 @@ def _accumulate_vessel_line_integral(
                 mu = mu_start[env, index] + (mu_end[env, index] - mu_start[env, index]) * result[1]
                 total += mu * result[0]
     line_integral[env, row, column] = total
-
-
-@dataclass(frozen=True, slots=True)
-class VesselState:
-    """One frame's vessel geometry and contrast, per environment.
-
-    Args:
-        points_mm: Node positions, ``(envs, nodes, 3)``, in the frame the rays are expressed in.
-            These come from the deformation solver, so they move; everything else is indexed to match.
-        edges: Node index pairs, ``(segments, 2)``, shared across environments because the
-            topology is the anatomy's and does not deform.
-        radii_mm: Lumen radius per node, ``(envs, nodes)`` or ``(nodes,)`` when undeformed.
-        mu_per_mm: Attenuation the contrast adds over the carve's fill, per node, ``(envs,
-            nodes)`` or ``(nodes,)``. Supplied by the transport model.
-    """
-
-    points_mm: np.ndarray
-    edges: np.ndarray
-    radii_mm: np.ndarray
-    mu_per_mm: np.ndarray
-
-    def __post_init__(self) -> None:
-        points = np.asarray(self.points_mm, dtype=np.float32)
-        if points.ndim != 3 or points.shape[-1] != 3:
-            raise ValueError(f"points_mm must be (envs, nodes, 3), got {points.shape}")
-        envs, nodes = points.shape[0], points.shape[1]
-        edges = np.asarray(self.edges, dtype=np.int32).reshape(-1, 2)
-        if edges.size and (edges.min() < 0 or edges.max() >= nodes):
-            raise ValueError(f"edges index outside the {nodes} supplied nodes")
-        object.__setattr__(self, "points_mm", points)
-        object.__setattr__(self, "edges", edges)
-        for name in ("radii_mm", "mu_per_mm"):
-            values = np.asarray(getattr(self, name), dtype=np.float32)
-            # Length-checked before broadcasting, so a wrong-sized array reports which field is
-            # wrong rather than letting numpy's remapped-shape message surface instead.
-            if values.ndim == 1 and len(values) == nodes:
-                values = np.broadcast_to(values, (envs, nodes))
-            if values.shape != (envs, nodes):
-                raise ValueError(f"{name} must be ({envs}, {nodes}) or ({nodes},), got {values.shape}")
-            object.__setattr__(self, name, np.ascontiguousarray(values))
 
 
 class VesselAttenuation:
@@ -389,7 +360,10 @@ def _joint_normals(points: np.ndarray, edges: np.ndarray, unit: np.ndarray) -> n
 
     normals = np.zeros_like(points)
     for side in (edges[:, 0], edges[:, 1]):
-        aligned = unit * np.sign(np.sum(unit * reference[:, side], axis=-1, keepdims=True))
+        # Exactly perpendicular counts as aligned: np.sign would give 0 and drop this edge's
+        # contribution, leaving the joint plane following the other edge alone.
+        facing = np.sum(unit * reference[:, side], axis=-1, keepdims=True)
+        aligned = unit * np.where(facing < 0.0, -1.0, 1.0)
         np.add.at(normals, (slice(None), side), aligned)
 
     length = np.linalg.norm(normals, axis=-1, keepdims=True)
@@ -400,11 +374,10 @@ def _joint_normals(points: np.ndarray, edges: np.ndarray, unit: np.ndarray) -> n
 def _segment_arrays(state: VesselState) -> tuple[np.ndarray, ...]:
     """Per-segment endpoints, radii and attenuation, with degenerate segments dropped.
 
-    Degenerate segments are dropped on the geometry of the *first* environment so that every
-    environment keeps the same segment count and the launch stays one rectangular grid. Nodes
-    collapse when the solver pinches a vessel, and that happens per environment; using a shared
-    mask means such a segment still contributes a near-zero chord elsewhere rather than
-    desynchronising the batch.
+    A segment is dropped only when it is degenerate in *every* environment, so every environment
+    keeps the same segment count and the launch stays one rectangular grid. Nodes collapse when
+    the solver pinches a vessel, and that happens per environment; a segment that is open in any
+    environment stays, and the kernel's own length check gives the collapsed copies a zero chord.
     """
     points = state.points_mm
     edges = state.edges
@@ -421,7 +394,7 @@ def _segment_arrays(state: VesselState) -> tuple[np.ndarray, ...]:
     unit = np.divide(axis, length, out=np.zeros_like(axis), where=length > _MIN_SEGMENT_MM)
     normals = _joint_normals(points, edges, unit)
 
-    keep = length[0, :, 0] > _MIN_SEGMENT_MM
+    keep = (length[:, :, 0] > _MIN_SEGMENT_MM).any(axis=0)
     return (
         np.ascontiguousarray(starts[:, keep]),
         np.ascontiguousarray(ends[:, keep]),

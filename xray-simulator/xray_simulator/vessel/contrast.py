@@ -212,6 +212,10 @@ class Injection:
         return 0.0
 
 
+#: Edges shorter than this are coincident nodes, not geometry.
+_MIN_EDGE_MM = 1.0e-6
+
+
 class ContrastTransport:
     """Contrast concentration at every centerline node, advanced in time.
 
@@ -236,7 +240,8 @@ class ContrastTransport:
         dispersion_mm2_per_s: Longitudinal dispersion coefficient.
 
     Raises:
-        ValueError: If the arrays disagree in length, ``inflow`` is out of range, or the graph
+        ValueError: If the arrays disagree in length, ``inflow`` is out of range, an edge has
+            coincident endpoints, or the graph
             leaves nodes unreachable from it, which means a disconnected centerline rather
             than a modelling choice.
     """
@@ -271,10 +276,14 @@ class ContrastTransport:
 
         self._length_mm = np.ones(node_count)
         interior = self._order[1:]
-        self._length_mm[interior] = np.maximum(
-            np.linalg.norm(self._points[interior] - self._points[self._parent[interior]], axis=-1),
-            1.0e-6,
-        )
+        lengths = np.linalg.norm(self._points[interior] - self._points[self._parent[interior]], axis=-1)
+        collapsed = lengths <= _MIN_EDGE_MM
+        if collapsed.any():
+            raise ValueError(
+                f"{int(collapsed.sum())} centerline edges have coincident endpoints (nodes "
+                f"{interior[collapsed][:5].tolist()}...); merge duplicate nodes before building the transport"
+            )
+        self._length_mm[interior] = lengths
         area_mm2 = np.pi * np.square(self._radii)
         if flow_ml_per_s is None:
             # Sized from the trunk's widest caliber rather than the inflow node's own radius.
@@ -297,9 +306,18 @@ class ContrastTransport:
         # Explicit upwinding is stable only below the Courant limit, and dispersion adds its own
         # diffusive limit. Both are properties of the anatomy, so the safe substep is known here
         # once rather than guessed per call.
-        courant = float(np.min(self._length_mm / np.maximum(self._velocity_mm_per_s, 1.0e-9)))
-        diffusive = float(np.min(np.square(self._length_mm))) / max(2.0 * self._dispersion, 1.0e-9)
-        self._max_substep_s = 0.5 * min(courant, diffusive)
+        # The limit is per node, because a node's own concentration is weighted by what is left
+        # after *everything* leaving it: the advective loss from its parent plus the dispersive
+        # exchange along its parent edge and along every child edge. At a branch that sum is
+        # larger than either term alone, and a step sized for one edge drives the weight negative.
+        loss_rate = np.zeros(node_count)
+        loss_rate[interior] = self._velocity_mm_per_s[interior] / self._length_mm[interior]
+        exchange = np.zeros(node_count)
+        edge_exchange = 1.0 / np.square(self._length_mm[interior])
+        exchange[interior] += edge_exchange
+        np.add.at(exchange, self._parent[interior], edge_exchange)
+        loss_rate += self._dispersion * exchange
+        self._max_substep_s = 0.5 / max(float(loss_rate.max()), 1.0e-9)
 
     @property
     def concentration_mg_per_ml(self) -> np.ndarray:

@@ -126,9 +126,11 @@ def tube_occupancy(
 ) -> np.ndarray:
     """Fraction of each voxel inside the centerline tube, ``(k, j, i)`` in ``[0, 1]``.
 
-    The tube is the union of spheres swept along the centerline graph with each node's lumen
-    radius, which is the same primitive the per-frame compositing integrates analytically, so
-    what is carved and what is added back describe one geometry.
+    The tube is a sphere swept along every *edge* of the centerline graph, radius interpolated
+    linearly between its end nodes, which is the primitive the per-frame compositing integrates
+    analytically, so what is carved and what is added back describe one geometry however far
+    apart the nodes are. Edges are resampled finer than a voxel before the distance query, so the
+    space between two sparse nodes is carved too rather than only the balls around the nodes.
 
     Args:
         shape_kji: Volume shape.
@@ -146,7 +148,8 @@ def tube_occupancy(
         raise ValueError(f"supersample must be at least 1, got {supersample}")
     linear, offset = _affine(ijk_to_world_mm)
     world_to_index = np.linalg.inv(linear)
-    points_mm, radii_mm = tree.points_mm, tree.radii_mm
+    voxel_mm = float(np.min(np.linalg.norm(linear, axis=0)))
+    points_mm, radii_mm = _resample_edges(tree, spacing_mm=0.5 * voxel_mm)
 
     shape_kji = tuple(int(extent) for extent in shape_kji)
     occupancy = np.zeros(shape_kji, dtype=np.float32)
@@ -187,6 +190,29 @@ def tube_occupancy(
                     slab += weight * inside.reshape(sample_i.shape).astype(np.float32)
         occupancy[k_index, lower[1] : upper[1], lower[0] : upper[0]] = slab
     return occupancy
+
+
+def _resample_edges(tree: VesselTree, *, spacing_mm: float) -> tuple[np.ndarray, np.ndarray]:
+    """Nodes plus interpolated samples along each edge, no two neighbours further than ``spacing_mm``.
+
+    A union of spheres at spacing ``d`` falls short of the swept tube by ``d**2 / (8 r)`` at its
+    narrowest, so half a voxel keeps the scalloping far below the wall motion being rendered.
+    """
+    points, radii = tree.points_mm, tree.radii_mm
+    if not tree.edges.size:
+        return points, radii
+    start, end = points[tree.edges[:, 0]], points[tree.edges[:, 1]]
+    pieces = np.maximum(np.ceil(np.linalg.norm(end - start, axis=1) / spacing_mm).astype(np.int64), 1)
+    owner = np.repeat(np.arange(len(pieces)), pieces - 1)
+    if not owner.size:
+        return points, radii
+    # Fraction along the edge for every interior sample: 1/n, 2/n, ... (n-1)/n.
+    rank = np.arange(owner.size) - np.repeat(np.cumsum(pieces - 1) - (pieces - 1), pieces - 1) + 1
+    fraction = (rank / pieces[owner])[:, None]
+    left, right = tree.edges[owner, 0], tree.edges[owner, 1]
+    extra_points = start[owner] + fraction * (end[owner] - start[owner])
+    extra_radii = radii[left] + fraction[:, 0] * (radii[right] - radii[left])
+    return np.concatenate((points, extra_points)), np.concatenate((radii, extra_radii))
 
 
 def carve_lumen(
@@ -275,8 +301,12 @@ def node_contrast_mu_per_mm(
     leaves a residual dominated by that spread rather than by the carve's geometry.
 
     Each carved voxel is attributed to its nearest centerline node, and the node's coefficient is
-    what the carve took there: the mean original attenuation minus the mean fill. The rest state
-    then reproduces the scan node by node rather than on average.
+    what the carve took there per unit of tube: the carve removed ``occupancy * (original - fill)``
+    from a voxel and the add-back restores ``occupancy * mu``, so ``mu`` is the removed amount
+    over the occupancy, summed over the node's voxels. A voxel the tube only partly covers
+    therefore counts in proportion to that coverage -- a thin vessel whose voxels are all under
+    half occupied still measures, and the partial removal is not read as a weak lumen. The rest
+    state then reproduces the scan node by node rather than on average.
 
     Returns:
         ``(nodes,)`` attenuation per millimetre, zero at nodes no carved voxel was nearest to.
@@ -284,7 +314,7 @@ def node_contrast_mu_per_mm(
     from scipy.spatial import cKDTree  # noqa: PLC0415 - build-time only
 
     points_mm = tree.points_mm
-    carved = result.occupancy > 0.5
+    carved = result.occupancy > 0.0
     indices = np.argwhere(carved)
     if not len(indices):
         return np.zeros(len(points_mm))
@@ -292,10 +322,11 @@ def node_contrast_mu_per_mm(
     _, nearest = cKDTree(points_mm).query(_voxel_centres_mm(indices, ijk_to_world_mm), k=1, workers=-1)
 
     original = np.asarray(mu_kji, dtype=np.float64)[carved]
-    fill = np.asarray(result.mu_volume, dtype=np.float64)[carved]
-    counts = np.bincount(nearest, minlength=len(points_mm))
-    removed = np.bincount(nearest, weights=original - fill, minlength=len(points_mm))
-    return np.divide(removed, counts, out=np.zeros(len(points_mm)), where=counts > 0)
+    removed_per_voxel = original - np.asarray(result.mu_volume, dtype=np.float64)[carved]
+    occupied = np.asarray(result.occupancy, dtype=np.float64)[carved]
+    coverage = np.bincount(nearest, weights=occupied, minlength=len(points_mm))
+    removed = np.bincount(nearest, weights=removed_per_voxel, minlength=len(points_mm))
+    return np.divide(removed, coverage, out=np.zeros(len(points_mm)), where=coverage > 0)
 
 
 def carve_residual(

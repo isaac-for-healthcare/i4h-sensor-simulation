@@ -96,7 +96,12 @@ def _cylinder_chord(
     chord = float(0.0)
     if length > _MIN_SEGMENT_MM:
         axis = axis / length
-        offset = origin - start
+        # Re-origin at the ray's closest approach to the span: from the source, hundreds of
+        # millimetres out, float32 loses a sub-millimetre radius in the squared offset. Chords
+        # are differences of the ray parameter, so only the beam limits need shifting back.
+        shift = wp.dot(0.5 * (start + end) - origin, direction)
+        local_origin = origin + direction * shift
+        offset = local_origin - start
         axial_direction = wp.dot(direction, axis)
         axial_offset = wp.dot(offset, axis)
         radial_direction = direction - axis * axial_direction
@@ -131,8 +136,8 @@ def _cylinder_chord(
 
         # A cylinder is convex, so this is one contiguous interval; keep the part of it that lies
         # on the beam between the source and the detector.
-        entry = wp.max(entry, 0.0)
-        exit_ = wp.min(exit_, span)
+        entry = wp.max(entry, -shift)
+        exit_ = wp.min(exit_, span - shift)
         if exit_ > entry:
             chord = exit_ - entry
     return chord

@@ -30,10 +30,11 @@ from typing import Any
 import numpy as np
 
 from ..absorbers.rays import DetectorRays
-from .attenuation import PosedVessel, VesselAttenuation, VesselState
+from .attenuation import PosedVessel, VesselAttenuation
 from .carve import CarveResult, carve_lumen, node_contrast_mu_per_mm
 from .centerline import VesselTree
 from .contrast import ContrastAgent, HuToMu
+from .state import VesselState
 
 #: Iodine concentration a selective injection reaches in the lumen, mg I/mL. Used as the default
 #: saturation point of the subtracted channel.
@@ -150,7 +151,13 @@ class VesselContrast:
         mu_per_mm = self._rest.mu_per_mm
         if concentration_mg_per_ml is not None:
             mu_per_mm = self.mu_excess(concentration_mg_per_ml).astype(np.float32)
-        envs = points_mm.shape[0]
+        # Either input can carry the environment count: a batched concentration with no
+        # displacement still needs the resting geometry repeated to match it.
+        envs = max(points_mm.shape[0], mu_per_mm.shape[0] if mu_per_mm.ndim == 2 else 1)
+        if points_mm.shape[0] != envs:
+            if points_mm.shape[0] != 1:
+                raise ValueError(f"displacement has {points_mm.shape[0]} environments but concentration has {envs}")
+            points_mm = np.broadcast_to(points_mm, (envs, *points_mm.shape[1:]))
         if mu_per_mm.ndim == 2 and mu_per_mm.shape[0] != envs:
             mu_per_mm = np.broadcast_to(mu_per_mm, (envs, mu_per_mm.shape[1]))
         radii_mm = np.broadcast_to(self._rest.radii_mm[:1], (envs, self._rest.radii_mm.shape[1]))
