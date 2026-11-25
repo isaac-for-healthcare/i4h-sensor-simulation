@@ -483,8 +483,9 @@ def test_attenuation_varying_along_a_segment_is_integrated_at_the_chord_midpoint
 
 def test_environments_do_not_bleed_into_each_other() -> None:
     points = np.repeat(np.array([[[-10.0, 0.0, 0.0], [10.0, 0.0, 0.0]]]), 2, axis=0)
+    attenuation = _attenuation()
     state = _state(points, [[0, 1]], [[4.0, 4.0], [1.0, 1.0]], [[1.0, 1.0], [1.0, 1.0]])
-    image = _attenuation().line_integral(state, _rays())
+    image = attenuation.line_integral(state, _rays())
     assert image[0, CENTER_ROW, _column_of(0.0)] == pytest.approx(_chord_through(4.0), abs=0.02)
     assert image[1, CENTER_ROW, _column_of(0.0)] == pytest.approx(_chord_through(1.0), abs=0.02)
 
