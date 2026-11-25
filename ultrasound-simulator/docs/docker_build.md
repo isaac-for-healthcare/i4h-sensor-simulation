@@ -138,7 +138,7 @@ If you encounter an error similar to:
 RuntimeError: Optix call `optixInit()` failed with 7804 (OPTIX_ERROR_LIBRARY_NOT_FOUND): Library not found
 ```
 
-This usually means that your system's **CUDA driver is too old** and does not include the required OptiX libraries. Make sure you have a recent NVIDIA GPU driver installed that supports OptiX 7.4+ and CUDA 12.x. Check your driver version with `nvidia-smi` and update from [NVIDIA's official driver download page](https://www.nvidia.com/Download/index.aspx) if necessary.
+This usually means that your system's **CUDA driver is too old** and does not include the required OptiX libraries. Make sure you have a recent NVIDIA GPU driver installed that supports OptiX 7.4+ and the image's CUDA version: driver 580+ for the default CUDA 13 image, or 555+ for the CUDA 12 image (pre-Turing GPUs or older drivers only). Check your driver version with `nvidia-smi` and update from [NVIDIA's official driver download page](https://www.nvidia.com/Download/index.aspx) if necessary.
 
 ### nvcc fatal : Unsupported gpu architecture 'compute_120' or 'compute_121'
 
