@@ -13,8 +13,10 @@ The simulator implements the straight-ray approach of [Bürger et al. (2013), IE
 
 ## Requirements
 
-- [CUDA 12.6+](https://docs.nvidia.com/cuda/cuda-quick-start-guide/index.html#)
-- [NVIDIA Driver 555+](https://www.nvidia.com/en-us/drivers/)
+- [CUDA 13](https://docs.nvidia.com/cuda/cuda-quick-start-guide/index.html#) and [NVIDIA Driver 580+](https://www.nvidia.com/en-us/drivers/)
+  for GPUs of compute capability 7.5 through 12.1 (Turing to Blackwell, including DGX Spark GB10 and DGX Station GB300).
+  CUDA 12.6+ with driver 555+ is only for pre-Turing GPUs or hosts that cannot run driver 580; it cannot build for
+  Blackwell (see [Building with Docker](docs/docker_build.md)).
 - [CMake 3.24+](https://cmake.org/)
 - [NVIDIA OptiX SDK 8.1](https://developer.nvidia.com/designworks/optix/downloads/legacy)
 
